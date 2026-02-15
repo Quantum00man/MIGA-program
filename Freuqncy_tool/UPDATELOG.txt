@@ -1,0 +1,20 @@
+UPDATELOG
+#2.1.2
+Modified the interface of the tool
+
+#2.1.3
+Added a new function to caculate a few frequency automaticly GIVEUP
+
+#add call gmot4
+
+#2.3.0
+
+1. New function for table writer. Now you can use table writer to creat a .xml file with multi states and write it to the DDS.
+
+2. New function for VCD viewer. With it, you can check the time sequence easily.
+
+#2.5.0
+1. New function for table writer. Generating ramp state automaticly
+
+#2.6.0
+Add a new function of calculation of the Raman frequency

@@ -1,0 +1,1303 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<root>
+    <!--# RAMAN : delt=-2000.0 kHz  DELTA=1000 MHz-->
+    <elem n="0">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165485312.501</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41829347.2739</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1959.6 kHz  DELTA=1000 MHz-->
+    <elem n="1">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165487837.753</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41819246.2638</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1919.2 kHz  DELTA=1000 MHz-->
+    <elem n="2">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165490363.008</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41809145.2537</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1878.8 kHz  DELTA=1000 MHz-->
+    <elem n="3">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165492888.259</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41799044.2436</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1838.4 kHz  DELTA=1000 MHz-->
+    <elem n="4">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165495413.511</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41788943.2335</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1798.0 kHz  DELTA=1000 MHz-->
+    <elem n="5">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165497938.766</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41778842.2234</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1757.6 kHz  DELTA=1000 MHz-->
+    <elem n="6">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165500464.017</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41768741.2133</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1717.2 kHz  DELTA=1000 MHz-->
+    <elem n="7">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165502989.268</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41758640.2032</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1676.8 kHz  DELTA=1000 MHz-->
+    <elem n="8">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165505514.523</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41748539.1931</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1636.4 kHz  DELTA=1000 MHz-->
+    <elem n="9">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165508039.775</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41738438.1830</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1596.0 kHz  DELTA=1000 MHz-->
+    <elem n="10">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165510565.026</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41728337.1729</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1555.6 kHz  DELTA=1000 MHz-->
+    <elem n="11">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165513090.277</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41718236.1628</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1515.2 kHz  DELTA=1000 MHz-->
+    <elem n="12">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165515615.533</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41708135.1527</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1474.7 kHz  DELTA=1000 MHz-->
+    <elem n="13">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165518140.784</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41698034.1426</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1434.3 kHz  DELTA=1000 MHz-->
+    <elem n="14">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165520666.035</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41687933.1325</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1393.9 kHz  DELTA=1000 MHz-->
+    <elem n="15">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165523191.290</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41677832.1224</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1353.5 kHz  DELTA=1000 MHz-->
+    <elem n="16">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165525716.542</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41667731.1123</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1313.1 kHz  DELTA=1000 MHz-->
+    <elem n="17">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165528241.793</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41657630.1022</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1272.7 kHz  DELTA=1000 MHz-->
+    <elem n="18">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165530767.048</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41647529.0921</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1232.3 kHz  DELTA=1000 MHz-->
+    <elem n="19">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165533292.300</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41637428.0820</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1191.9 kHz  DELTA=1000 MHz-->
+    <elem n="20">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165535817.551</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41627327.0719</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1151.5 kHz  DELTA=1000 MHz-->
+    <elem n="21">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165538342.806</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41617226.0618</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1111.1 kHz  DELTA=1000 MHz-->
+    <elem n="22">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165540868.057</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41607125.0517</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1070.7 kHz  DELTA=1000 MHz-->
+    <elem n="23">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165543393.309</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41597024.0416</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-1030.3 kHz  DELTA=1000 MHz-->
+    <elem n="24">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165545918.564</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41586923.0315</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-989.9 kHz  DELTA=1000 MHz-->
+    <elem n="25">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165548443.815</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41576822.0214</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-949.5 kHz  DELTA=1000 MHz-->
+    <elem n="26">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165550969.066</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41566721.0113</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-909.1 kHz  DELTA=1000 MHz-->
+    <elem n="27">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165553494.318</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41556620.0012</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-868.7 kHz  DELTA=1000 MHz-->
+    <elem n="28">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165556019.573</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41546518.9911</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-828.3 kHz  DELTA=1000 MHz-->
+    <elem n="29">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165558544.824</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41536417.9810</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-787.9 kHz  DELTA=1000 MHz-->
+    <elem n="30">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165561070.076</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41526316.9709</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-747.5 kHz  DELTA=1000 MHz-->
+    <elem n="31">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165563595.331</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41516215.9608</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-707.1 kHz  DELTA=1000 MHz-->
+    <elem n="32">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165566120.582</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41506114.9507</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-666.7 kHz  DELTA=1000 MHz-->
+    <elem n="33">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165568645.833</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41496013.9406</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-626.3 kHz  DELTA=1000 MHz-->
+    <elem n="34">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165571171.089</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41485912.9305</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-585.9 kHz  DELTA=1000 MHz-->
+    <elem n="35">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165573696.340</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41475811.9204</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-545.5 kHz  DELTA=1000 MHz-->
+    <elem n="36">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165576221.591</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41465710.9103</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-505.1 kHz  DELTA=1000 MHz-->
+    <elem n="37">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165578746.846</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41455609.9002</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-464.6 kHz  DELTA=1000 MHz-->
+    <elem n="38">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165581272.098</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41445508.8901</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-424.2 kHz  DELTA=1000 MHz-->
+    <elem n="39">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165583797.349</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41435407.8800</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-383.8 kHz  DELTA=1000 MHz-->
+    <elem n="40">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165586322.604</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41425306.8699</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-343.4 kHz  DELTA=1000 MHz-->
+    <elem n="41">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165588847.855</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41415205.8598</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-303.0 kHz  DELTA=1000 MHz-->
+    <elem n="42">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165591373.107</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41405104.8497</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-262.6 kHz  DELTA=1000 MHz-->
+    <elem n="43">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165593898.358</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41395003.8396</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-222.2 kHz  DELTA=1000 MHz-->
+    <elem n="44">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165596423.613</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41384902.8295</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-181.8 kHz  DELTA=1000 MHz-->
+    <elem n="45">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165598948.865</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41374801.8194</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-141.4 kHz  DELTA=1000 MHz-->
+    <elem n="46">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165601474.116</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41364700.8093</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-101.0 kHz  DELTA=1000 MHz-->
+    <elem n="47">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165603999.371</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41354599.7992</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-60.6 kHz  DELTA=1000 MHz-->
+    <elem n="48">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165606524.622</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41344498.7891</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=-20.2 kHz  DELTA=1000 MHz-->
+    <elem n="49">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165609049.874</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41334397.7790</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=20.2 kHz  DELTA=1000 MHz-->
+    <elem n="50">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165611575.129</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41324296.7689</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=60.6 kHz  DELTA=1000 MHz-->
+    <elem n="51">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165614100.380</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41314195.7588</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=101.0 kHz  DELTA=1000 MHz-->
+    <elem n="52">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165616625.632</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41304094.7487</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=141.4 kHz  DELTA=1000 MHz-->
+    <elem n="53">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165619150.887</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41293993.7386</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=181.8 kHz  DELTA=1000 MHz-->
+    <elem n="54">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165621676.138</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41283892.7285</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=222.2 kHz  DELTA=1000 MHz-->
+    <elem n="55">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165624201.389</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41273791.7184</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=262.6 kHz  DELTA=1000 MHz-->
+    <elem n="56">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165626726.644</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41263690.7083</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=303.0 kHz  DELTA=1000 MHz-->
+    <elem n="57">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165629251.896</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41253589.6982</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=343.4 kHz  DELTA=1000 MHz-->
+    <elem n="58">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165631777.147</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41243488.6881</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=383.8 kHz  DELTA=1000 MHz-->
+    <elem n="59">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165634302.399</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41233387.6780</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=424.2 kHz  DELTA=1000 MHz-->
+    <elem n="60">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165636827.654</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41223286.6679</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=464.6 kHz  DELTA=1000 MHz-->
+    <elem n="61">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165639352.905</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41213185.6578</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=505.1 kHz  DELTA=1000 MHz-->
+    <elem n="62">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165641878.156</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41203084.6477</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=545.5 kHz  DELTA=1000 MHz-->
+    <elem n="63">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165644403.411</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41192983.6376</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=585.9 kHz  DELTA=1000 MHz-->
+    <elem n="64">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165646928.663</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41182882.6275</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=626.3 kHz  DELTA=1000 MHz-->
+    <elem n="65">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165649453.914</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41172781.6174</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=666.7 kHz  DELTA=1000 MHz-->
+    <elem n="66">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165651979.169</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41162680.6073</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=707.1 kHz  DELTA=1000 MHz-->
+    <elem n="67">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165654504.421</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41152579.5972</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=747.5 kHz  DELTA=1000 MHz-->
+    <elem n="68">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165657029.672</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41142478.5871</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=787.9 kHz  DELTA=1000 MHz-->
+    <elem n="69">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165659554.927</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41132377.5770</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=828.3 kHz  DELTA=1000 MHz-->
+    <elem n="70">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165662080.178</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41122276.5669</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=868.7 kHz  DELTA=1000 MHz-->
+    <elem n="71">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165664605.430</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41112175.5568</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=909.1 kHz  DELTA=1000 MHz-->
+    <elem n="72">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165667130.685</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41102074.5467</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=949.5 kHz  DELTA=1000 MHz-->
+    <elem n="73">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165669655.936</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41091973.5366</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=989.9 kHz  DELTA=1000 MHz-->
+    <elem n="74">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165672181.188</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41081872.5265</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1030.3 kHz  DELTA=1000 MHz-->
+    <elem n="75">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165674706.439</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41071771.5164</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1070.7 kHz  DELTA=1000 MHz-->
+    <elem n="76">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165677231.694</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41061670.5063</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1111.1 kHz  DELTA=1000 MHz-->
+    <elem n="77">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165679756.945</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41051569.4961</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1151.5 kHz  DELTA=1000 MHz-->
+    <elem n="78">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165682282.197</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41041468.4860</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1191.9 kHz  DELTA=1000 MHz-->
+    <elem n="79">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165684807.452</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41031367.4759</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1232.3 kHz  DELTA=1000 MHz-->
+    <elem n="80">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165687332.703</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41021266.4658</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1272.7 kHz  DELTA=1000 MHz-->
+    <elem n="81">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165689857.955</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41011165.4557</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1313.1 kHz  DELTA=1000 MHz-->
+    <elem n="82">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165692383.210</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>41001064.4456</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1353.5 kHz  DELTA=1000 MHz-->
+    <elem n="83">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165694908.461</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40990963.4355</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1393.9 kHz  DELTA=1000 MHz-->
+    <elem n="84">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165697433.712</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40980862.4254</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1434.3 kHz  DELTA=1000 MHz-->
+    <elem n="85">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165699958.967</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40970761.4153</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1474.7 kHz  DELTA=1000 MHz-->
+    <elem n="86">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165702484.219</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40960660.4052</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1515.2 kHz  DELTA=1000 MHz-->
+    <elem n="87">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165705009.470</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40950559.3951</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1555.6 kHz  DELTA=1000 MHz-->
+    <elem n="88">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165707534.725</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40940458.3850</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1596.0 kHz  DELTA=1000 MHz-->
+    <elem n="89">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165710059.977</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40930357.3749</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1636.4 kHz  DELTA=1000 MHz-->
+    <elem n="90">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165712585.228</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40920256.3648</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1676.8 kHz  DELTA=1000 MHz-->
+    <elem n="91">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165715110.479</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40910155.3547</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1717.2 kHz  DELTA=1000 MHz-->
+    <elem n="92">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165717635.734</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40900054.3446</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1757.6 kHz  DELTA=1000 MHz-->
+    <elem n="93">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165720160.986</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40889953.3345</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1798.0 kHz  DELTA=1000 MHz-->
+    <elem n="94">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165722686.237</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40879852.3244</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1838.4 kHz  DELTA=1000 MHz-->
+    <elem n="95">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165725211.492</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40869751.3143</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1878.8 kHz  DELTA=1000 MHz-->
+    <elem n="96">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165727736.744</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40859650.3042</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1919.2 kHz  DELTA=1000 MHz-->
+    <elem n="97">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165730261.995</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40849549.2941</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=1959.6 kHz  DELTA=1000 MHz-->
+    <elem n="98">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165732787.250</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40839448.2840</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+    <!--# RAMAN : delt=2000.0 kHz  DELTA=1000 MHz-->
+    <elem n="99">
+        <ch0>
+            <mode>sf</mode>
+            <fr>165735312.501</fr>
+            <am>220</am>
+        </ch0>
+        <ch1>
+            <mode>sf</mode>
+            <fr>40829347.2739</fr>
+            <am>220</am>
+        </ch1>
+    </elem>
+</root>

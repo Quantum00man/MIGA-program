@@ -1,0 +1,90 @@
+In[128]:= vrec:=5.88*10^-3
+sp:=0.5*10^-3
+svL:=3.2*vrec(*largeur a 1/e^0.5=0.6*)
+svT:=3.2*vrec
+keff:=2*2*Pi/(780*10^-9)
+P1:=145*10^-3
+P2:=P1*1/1.8
+Isat:=16.69
+delta2:=2*Pi*157*10^6
+desacc:=-2*Pi*(1360)*10^6
+gamma:=2*Pi*6.065*10^6
+w0:=(24*10^-3)/2 (*largeur a 1/e^2=0.13*)
+P1+P2
+M:=1.443160*10^\[Minus]25
+k:=1.380649*10^\[Minus]23
+Out[140]= 0.225556
+In[17]:= T=3.7*10^-6
+Out[17]= 3.7*10^-6
+In[18]:= (k*T/M)^0.5/vrec
+Out[18]= 3.19969
+In[147]:= P2
+Out[147]= 0.0805556
+In[59]:= (*********distribution EN VITESSE et en position*****************************************************************)
+f[v_]:=0.5/svL*(2/Pi)^0.5*Exp[-1/2*(v/svL)^2]
+Integrate[f[v],{v,-Infinity,Infinity}] (*********definit aussi pour v negatif.... *************)
+h[r_]:=1/(2*Pi*sp^2)*Exp[-(r^2)/(2*sp^2)]
+Integrate[2*Pi*r*h[r],{r,0,Infinity}] (*********definit pour x,y positifs.... *************)
+h[r_,T_]:=1/(2*Pi*(sp^2+T^2*svT^2))*Exp[-(r^2)/(2*(sp^2+T^2*svT^2))]
+Integrate[2*Pi*r*h[r,1],{r,0,Infinity}]
+dispPos[T_]:=(sp^2+T^2*svT^2)^0.5  (********* la dispersion en position à T *************)
+Plot[{dispPos[T]},{T,0,0.1},MaxRecursion->0,PlotPoints->40]
+Out[60]= 1.
+Out[62]= 1.
+Out[64]= 1.
+Out[66]= 
+(*******************************************************************************************************************)
+In[68]:= dispPos[56*10^-3]
+Out[68]= 0.00116631
+In[89]:= (*********definition intensite faisceau Raman*************)
+Intens1[r_,w0_]:=2*P1/(Pi*w0^2) *Exp[-2*r^2/w0^2] (*intensity at z distance from L2*)
+Intens2[r_,w0_]:=2*P2/(Pi*w0^2) *Exp[-2*r^2/w0^2] (*intensity at z distance from L2*)
+Weffr[r_,w0_,attn_]:=1/attn*gamma^2*(Intens1[r,w0]*Intens2[r,w0])^0.5/(2*Isat)*(1/(24*desacc)+1/(8*(desacc-delta2)))/2
+Integrate[2*Pi*r*Intens1[r,w0],{r,0,Infinity}]
+Integrate[2*Pi*r*Intens2[r,w0],{r,0,Infinity}]
+Out[92]= 145
+Out[93]= 80.5556
+In[67]:= (Intens1[0,12*10^-3]+Intens2[0,12*10^-3])/4
+Out[67]= 53.6043
+In[86]:= (*********frequence rabi centre et durée tPi*************)
+Weffr[0,(11*10^-3),1]/(2*Pi)
+Pi/Weffr[0,(11*10^-3),1]*10^6
+Out[86]= -13104.9
+Out[87]= -38.1537
+(*******************************************************************************************************************)
+In[31]:= WRr[r_,w0_,delta_,attn_]:=(Weffr[r,w0,attn]^2+delta^2)^0.5
+Ptrans[T_,tau_,d_,w0_,attn_]:=NIntegrate[2*Pi*r*f[vL]*h[r,T]*(Weffr[r,w0,attn]/WRr[r,w0,vL*keff-d,attn]*Sin[WRr[r,w0,vL*keff-d,attn]*tau/2])^2,{vL,-2*svL,2*svL},{r,0,2*w0},Method->"MonteCarlo",MaxPoints->100000]
+In[94]:= WRr[r_,w0_,delta_,attn_]:=(Weffr[r,w0,attn]^2+delta^2)^0.5
+Ptrans[T_,tau_,d_,w0_,attn_]:=NIntegrate[2*Pi*r*f[vL]*h[r,T]*(Weffr[r,w0,attn]/WRr[r,w0,vL*keff-d,attn]*Sin[WRr[r,w0,vL*keff-d,attn]*tau/2])^2,{vL,-2*svL,2*svL},{r,0,2*w0}]
+In[154]:= Plot[{Ptrans[.056,tau,0,(10*10^-3),1]},{tau,0,40*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[154]= 
+ c v
+In[191]:= Plot[{Ptrans[.0,tau,0,(5*10^-3),1 ],Ptrans[.0,tau,0,(5*10^-3),0.5 ]},{tau,0,50*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[191]= 
+In[177]:= Plot[{Ptrans[.0,tau,0,(5*10^-3),1 ],Ptrans[.0,tau,0,(5*10^-3),0.5 ]},{tau,0,50*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[177]= 
+In[192]:= Plot[{Ptrans[.5,tau,0,(5*10^-3),1 ],Ptrans[.5,tau,0,(2.5*10^-3),1 ]},{tau,0,50*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[192]= 
+In[198]:= Plot[{Ptrans[.5,tau,0,(2.5*10^-3),1 ],Ptrans[.5,tau,0,(2.5*10^-3),0.5 ],Ptrans[.5,tau,0,(2.5*10^-3),0.1 ],Ptrans[.5,tau,0,(2.5*10^-3),0.05 ]},{tau,0,20*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[198]= 
+In[239]:= Plot[{Ptrans[.5,tau,0,(2.5*10^-3),1 ],Ptrans[.4,tau,0,(2.5*10^-3),1 ],Ptrans[.3,tau,0,(2.5*10^-3),1 ],Ptrans[.2,tau,0,(2.5*10^-3),1 ],Ptrans[.1,tau,0,(2.5*10^-3),1 ]},{tau,0,20*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[239]= 
+In[145]:= Plot[{Ptrans[.5,tau,0,(2.5*10^-3),1 ],Ptrans[.5,tau,0,(2.5*10^-3),0.5 ]},{tau,0,150*10^-6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[145]= 
+In[255]:= Plot[{Ptrans[.05,24*10^-6,d,(11*10^-3),1 ]},{d,0,3*10^6},MaxRecursion->0,PlotPoints->100,PlotRange->All]
+Out[255]= 
+ 
+In[13]:= p=0.02
+Out[13]= 0.02
+In[14]:= Na=10^7
+Out[14]= 10000000
+In[15]:= (p*(1-p)/Na)^0.5*100
+Out[15]= 0.00442719
+In[115]:= Pin:=10*10^-3
+G:=40
+w0:=2.6*10^-3 (*largeur a 1/e^2=0.13*)
+ddelta2:=2*Pi*157*10^6
+DD:=2*Pi*(3500)*10^6
+
+In[120]:= (gamma^2/(2*Isat)*G*Pin/(Pi*w0^2)*(5/(24*DD)+3/(24*(DD+ddelta2))))/(2*Pi)
+Out[120]= 1.94492*10^6

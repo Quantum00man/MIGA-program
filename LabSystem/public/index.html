@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Manager V7 (Sharable)</title>
+    <style>
+        /* --- CSS Styles (保持一致的专业风格) --- */
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-radius: 8px;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .server-info {
+            font-size: 13px;
+            background: rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+
+        .main-nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 10px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            padding: 8px 25px;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-btn.active {
+            background: white;
+            color: var(--primary-color);
+        }
+
+        /* Content & Layout */
+        .content-wrapper {
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .purchase-layout {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .project-sidebar {
+            flex: 1;
+            min-width: 250px;
+            background: #f8fafc;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .item-area {
+            flex: 3;
+            min-width: 300px;
+        }
+
+        /* Project List */
+        .project-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .project-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .project-item:hover {
+            transform: translateX(3px);
+            border-color: var(--primary-color);
+        }
+
+        .project-item.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.3);
+        }
+
+        .del-proj-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        .project-item.active .del-proj-btn {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .new-proj-btn {
+            width: 100%;
+            padding: 10px;
+            background: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        /* Forms & Inputs */
+        .form-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        .form-card.editing {
+            border: 2px solid var(--warning-color);
+            background: #fffbeb;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        input,
+        textarea {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .cancel-btn {
+            background-color: #94a3b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
+
+        .editing .cancel-btn {
+            display: block;
+        }
+
+        .editing .action-btn {
+            background-color: var(--warning-color);
+        }
+
+        /* Tables & Buttons */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #475569;
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .btn-edit {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .btn-danger {
+            background: #fee2e2;
+            color: var(--danger-color);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #94a3b8;
+            padding: 30px;
+        }
+
+        a.link-icon {
+            text-decoration: none;
+            font-size: 1.2em;
+        }
+
+        .status-overdue {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        /* New Share Button Styles */
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 5px 10px;
+            font-size: 13px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: white;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            font-size: 17px;
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from {
+                bottom: 0;
+                opacity: 0;
+            }
+
+            to {
+                bottom: 30px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeout {
+            from {
+                bottom: 30px;
+                opacity: 1;
+            }
+
+            to {
+                bottom: 0;
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Lab Manager <small style="font-size:0.5em;">V7.0</small></h1>
+            <div class="server-info" id="host-display">Server: Checking...</div>
+            <div class="main-nav">
+                <button class="nav-btn active" onclick="switchMainTab('purchase')">🛒 Purchase List</button>
+                <button class="nav-btn" onclick="switchMainTab('lending')">📅 Lending Log</button>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div id="purchase-section" class="section active">
+                <div class="purchase-layout">
+                    <div class="project-sidebar">
+                        <div style="font-weight:bold; color:#475569; margin-bottom:10px;">📂 Projects</div>
+                        <ul id="project-list-ul" class="project-list"></ul>
+                        <button class="new-proj-btn" onclick="createNewProject()">+ New Project</button>
+                    </div>
+
+                    <div class="item-area">
+                        <div id="no-project-selected" class="empty-state" style="display:none;">
+                            Select or create a project to view details.
+                        </div>
+
+                        <div id="project-content" style="display:none;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">
+                                <h2 style="margin:0; color: var(--primary-color);" id="current-project-title">Project
+                                </h2>
+                                <div class="header-controls">
+                                    <button class="icon-btn" onclick="shareProject()">
+                                        🔗 Share Project
+                                    </button>
+                                    <button class="icon-btn" onclick="renameCurrentProject()">
+                                        ✎ Rename
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="purchase-form" class="form-card">
+                                <div class="form-grid">
+                                    <input type="text" id="p-name" placeholder="Item Name" required>
+                                    <input type="number" id="p-qty" placeholder="Qty">
+                                    <input type="text" id="p-requester" placeholder="Requester">
+                                    <input type="url" id="p-link" placeholder="Product Link">
+                                    <input type="text" id="p-note" placeholder="Notes">
+                                </div>
+                                <div class="btn-group">
+                                    <button id="p-submit-btn" class="action-btn" onclick="handleItemSubmit()">+ Add
+                                        Item</button>
+                                    <button class="cancel-btn" onclick="cancelEdit()">Cancel</button>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table id="purchase-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Requester</th>
+                                            <th>Note / Link</th>
+                                            <th style="width: 140px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="purchase-list-body"></tbody>
+                                </table>
+                                <div id="p-empty" class="empty-state">No items in this project.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="lending-section" class="section">
+                <h2 style="color: var(--primary-color); margin-top:0;">Lending Log</h2>
+                <div class="form-card">
+                    <div class="form-grid">
+                        <input type="text" id="l-name" placeholder="Equipment Name">
+                        <input type="text" id="l-borrower" placeholder="Borrower Name">
+                        <input type="date" id="l-date-out">
+                        <input type="date" id="l-date-return">
+                    </div>
+                    <button class="action-btn" style="margin-top:10px" onclick="addLending()">+ Register
+                        Lending</button>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Equipment</th>
+                                <th>Borrower</th>
+                                <th>Date Out</th>
+                                <th>Expected Return</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lending-list-body"></tbody>
+                    </table>
+                    <div id="l-empty" class="empty-state">No records found.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Link Copied to Clipboard!</div>
+
+    <script>
+        const API_URL = ""; // Relative Path
+
+        // --- State ---
+        let projects = [], lendings = [];
+        let currentProjectId = null;
+        let editingItemId = null;
+
+        // --- Initialization ---
+        window.onload = async function () {
+            document.getElementById('host-display').innerText = `Server: ${window.location.host}`;
+            document.getElementById('l-date-out').valueAsDate = new Date();
+
+            await loadData();
+
+            // === NEW: Check for Shared Link ===
+            // Looks for ?project=12345 in the URL
+            const params = new URLSearchParams(window.location.search);
+            const sharedId = params.get('project');
+
+            if (sharedId) {
+                // Try to find the project
+                const exists = projects.find(p => p.id === sharedId);
+                if (exists) {
+                    switchProject(sharedId);
+                    showToast(`Opened shared project: ${exists.name}`);
+                } else {
+                    alert("The shared project ID was not found (it might have been deleted).");
+                }
+            }
+        };
+
+        // --- API Helpers ---
+        async function fetchAPI(endpoint, method = 'GET', body = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) options.body = JSON.stringify(body);
+            try {
+                const res = await fetch(`${API_URL}/${endpoint}`, options);
+                return await res.json();
+            } catch (err) { console.error(err); return null; }
+        }
+
+        async function loadData() {
+            const pData = await fetchAPI('projects');
+            if (pData) {
+                projects = pData;
+                // Default to first project if no selection made yet
+                if (!currentProjectId && projects.length > 0) currentProjectId = projects[0].id;
+            }
+            const lData = await fetchAPI('lendings');
+            if (lData) lendings = lData;
+
+            renderProjects();
+            renderLendings();
+        }
+
+        // --- NEW: Share Logic ---
+        function shareProject() {
+            if (!currentProjectId) return;
+
+            // Construct the URL: current protocol + host + pathname + query param
+            const shareUrl = `${window.location.origin}${window.location.pathname}?project=${currentProjectId}`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("✅ Link copied to clipboard!");
+            }).catch(err => {
+                alert("Failed to copy link: " + shareUrl);
+            });
+        }
+
+        function showToast(msg) {
+            const x = document.getElementById("toast");
+            x.innerText = msg;
+            x.className = "show";
+            setTimeout(function () { x.className = x.className.replace("show", ""); }, 3000);
+        }
+
+        // --- Purchase / Project Logic ---
+        async function createNewProject() {
+            const name = prompt("Enter new project name:");
+            if (name) {
+                const newProject = { id: Date.now().toString(), name: name, items: [] };
+                await fetchAPI('projects', 'POST', newProject);
+                currentProjectId = newProject.id;
+                await loadData();
+            }
+        }
+
+        async function deleteProject(e, id) {
+            e.stopPropagation();
+            if (confirm("Delete this project and all items?")) {
+                await fetchAPI(`projects/${id}`, 'DELETE');
+                cancelEdit();
+                // Reset URL if we deleted the currently viewed shared project
+                window.history.pushState({}, document.title, window.location.pathname);
+                currentProjectId = null; // Reset current
+                await loadData();
+                if (projects.length > 0) switchProject(projects[0].id);
+            }
+        }
+
+        async function renameCurrentProject() {
+            if (!currentProjectId) return;
+            const project = projects.find(p => p.id === currentProjectId);
+            const newName = prompt("Rename Project:", project.name);
+            if (newName && newName.trim() !== "") {
+                await fetchAPI(`projects/${currentProjectId}`, 'PATCH', { name: newName });
+                await loadData();
+            }
+        }
+
+        function switchProject(id) {
+            cancelEdit();
+            currentProjectId = id;
+            renderProjects();
+            // Optional: Update URL without reloading so users can bookmark the current view
+            const newUrl = `${window.location.pathname}?project=${id}`;
+            window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
+
+        function renderProjects() {
+            const listUl = document.getElementById('project-list-ul');
+            const contentArea = document.getElementById('project-content');
+            const noMsg = document.getElementById('no-project-selected');
+            listUl.innerHTML = '';
+
+            if (projects.length === 0) {
+                contentArea.style.display = 'none'; noMsg.style.display = 'block'; return;
+            }
+
+            contentArea.style.display = 'block'; noMsg.style.display = 'none';
+
+            projects.forEach(proj => {
+                const isActive = proj.id === currentProjectId;
+                const li = document.createElement('li');
+                li.className = `project-item ${isActive ? 'active' : ''}`;
+                li.onclick = () => switchProject(proj.id);
+                li.innerHTML = `<span>${proj.name} <small>(${proj.items.length})</small></span>
+                            <button class="del-proj-btn" onclick="deleteProject(event, '${proj.id}')">×</button>`;
+                listUl.appendChild(li);
+
+                if (isActive) {
+                    document.getElementById('current-project-title').textContent = proj.name;
+                    renderItems(proj.items);
+                }
+            });
+        }
+
+        async function handleItemSubmit() {
+            if (!currentProjectId) return;
+            const name = document.getElementById('p-name').value;
+            const qty = document.getElementById('p-qty').value;
+            const req = document.getElementById('p-requester').value;
+            const link = document.getElementById('p-link').value;
+            const note = document.getElementById('p-note').value;
+
+            if (!name) { alert("Item Name is required"); return; }
+            const project = projects.find(p => p.id === currentProjectId);
+            let updatedItems = [...project.items];
+            const newItem = { id: editingItemId || Date.now().toString(), name, qty, req, link, note };
+
+            if (editingItemId) updatedItems = updatedItems.map(i => i.id === editingItemId ? newItem : i);
+            else updatedItems.push(newItem);
+
+            await fetchAPI(`projects/${currentProjectId}`, 'PATCH', { items: updatedItems });
+            cancelEdit(); await loadData();
+        }
+
+        function editItem(itemId) {
+            const project = projects.find(p => p.id === currentProjectId);
+            const item = project.items.find(i => i.id === itemId);
+            if (!item) return;
+            editingItemId = itemId;
+            document.getElementById('purchase-form').classList.add('editing');
+            document.getElementById('p-submit-btn').textContent = "Update Item";
+            document.getElementById('p-name').value = item.name;
+            document.getElementById('p-qty').value = item.qty;
+            document.getElementById('p-requester').value = item.req;
+            document.getElementById('p-link').value = item.link;
+            document.getElementById('p-note').value = item.note;
+            document.getElementById('purchase-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingItemId = null;
+            document.getElementById('purchase-form').classList.remove('editing');
+            document.getElementById('p-submit-btn').textContent = "+ Add Item";
+            document.querySelectorAll('#purchase-section input').forEach(i => i.value = '');
+        }
+
+        async function deleteItem(itemId) {
+            if (confirm("Remove item?")) {
+                const project = projects.find(p => p.id === currentProjectId);
+                const updatedItems = project.items.filter(i => i.id !== itemId);
+                if (editingItemId === itemId) cancelEdit();
+                await fetchAPI(`projects/${currentProjectId}`, 'PATCH', { items: updatedItems });
+                await loadData();
+            }
+        }
+
+        function renderItems(items) {
+            const tbody = document.getElementById('purchase-list-body');
+            const emptyMsg = document.getElementById('p-empty');
+            tbody.innerHTML = '';
+            if (!items || items.length === 0) { emptyMsg.style.display = 'block'; } else {
+                emptyMsg.style.display = 'none';
+                items.forEach(item => {
+                    const linkHtml = item.link ? `<a href="${item.link}" target="_blank" class="link-icon">🔗</a>` : '';
+                    tbody.innerHTML += `<tr><td><strong>${item.name}</strong></td><td>${item.qty}</td><td>${item.req}</td><td>${linkHtml} ${item.note || ''}</td><td><button class="btn-sm btn-edit" onclick="editItem('${item.id}')">Edit</button><button class="btn-sm btn-danger" onclick="deleteItem('${item.id}')">Del</button></td></tr>`;
+                });
+            }
+        }
+
+        // --- Lending / Tabs ---
+        function switchMainTab(tab) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            if (tab === 'purchase') { document.getElementById('purchase-section').classList.add('active'); document.querySelector('.main-nav .nav-btn:nth-child(1)').classList.add('active'); }
+            else { document.getElementById('lending-section').classList.add('active'); document.querySelector('.main-nav .nav-btn:nth-child(2)').classList.add('active'); }
+        }
+        async function addLending() {
+            const name = document.getElementById('l-name').value;
+            const borrower = document.getElementById('l-borrower').value;
+            const dateOut = document.getElementById('l-date-out').value;
+            const dateReturn = document.getElementById('l-date-return').value;
+            if (!name || !borrower) return alert("Missing info");
+            await fetchAPI('lendings', 'POST', { id: Date.now().toString(), name, borrower, dateOut, dateReturn });
+            document.getElementById('l-name').value = ''; document.getElementById('l-borrower').value = ''; await loadData();
+        }
+        async function deleteLending(id) { if (confirm("Delete?")) { await fetchAPI(`lendings/${id}`, 'DELETE'); await loadData(); } }
+        function renderLendings() {
+            const tbody = document.getElementById('lending-list-body'); tbody.innerHTML = '';
+            if (lendings.length === 0) { document.getElementById('l-empty').style.display = 'block'; return; }
+            document.getElementById('l-empty').style.display = 'none';
+            lendings.forEach(item => {
+                let status = (item.dateReturn && new Date().toISOString().split('T')[0] > item.dateReturn) ? 'class="status-overdue"' : '';
+                tbody.innerHTML += `<tr><td><strong>${item.name}</strong></td><td>${item.borrower}</td><td>${item.dateOut}</td><td ${status}>${item.dateReturn || '-'}</td><td><button class="btn-sm btn-danger" onclick="deleteLending('${item.id}')">Del</button></td></tr>`;
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,56 @@
+(* =====================参数定义=====================*)vrec:=5.88*10^-3;
+sp:=0.5*10^-3;
+svL:=3.2*vrec;  (*largeur a 1/e^0.5=0.6*)
+svT:=3.2*vrec;
+keff:=2*2*Pi/(780*10^-9);
+Isat:=16.69;
+delta2:=2*Pi*157*10^6;
+desacc:=-2*Pi*(1360)*10^6;
+gamma:=2*Pi*6.065*10^6;
+P1:=73*10^-3
+P2:=170*10^-3
+M:=1.443160*10^-25;
+k:=1.380649*10^-23;
+
+(* =====================分布函数=====================*)
+f[v_]:=0.5/svL*(2/Pi)^0.5*Exp[-1/2*(v/svL)^2]; (**)
+h[r_]:=1/(2*Pi*sp^2)*Exp[-(r^2)/(2*sp^2)];
+h[r_,T_]:=1/(2*Pi*(sp^2+T^2*svT^2))*Exp[-(r^2)/(2*(sp^2+T^2*svT^2))];
+dispPos[T_]:=Sqrt[sp^2+T^2*svT^2];
+
+(* =====================Raman 强度和耦合=====================*)
+Intens1[r_,w0_,P1_]:=2*P1/(Pi*w0^2)*Exp[-2*r^2/w0^2];
+Intens2[r_,w0_,P2_]:=2*P2/(Pi*w0^2)*Exp[-2*r^2/w0^2];
+
+Weffr[r_,w0_,attn_,P1_,P2_]:=1/attn*gamma^2*(Intens1[r,w0,P1]*Intens2[r,w0,P2])^0.5/(2*Isat)*(1/(24*desacc)+1/(8*(desacc-delta2)))/2;
+
+WRr[r_,w0_,delta_,attn_,P1_,P2_]:=Sqrt[Weffr[r,w0,attn,P1,P2]^2+delta^2];
+
+(* =====================主函数，带功率参数=====================*)
+Ptrans[T_,tau_,d_,w0_,attn_,P1_]:=Module[{P2},P2=3 P1;
+NIntegrate[2*Pi*r*f[vL]*h[r,T]*(Weffr[r,w0,attn,P1,P2]/WRr[r,w0,vL*keff-d,attn,P1,P2]*Sin[WRr[r,w0,vL*keff-d,attn,P1,P2]*tau/(2*10^6)])^2,{vL,-2*svL,2*svL},{r,0,2*w0},Method->"MonteCarlo",MaxPoints->100000]];
+
+(* =====================多功率绘图=====================*)
+powers={5,7,9,10}*10^-3;  (*单位 W*)
+
+Plot[Evaluate@Table[Ptrans[0.056,tau,0,11.5*10^-3,1,P],{P,powers}],{tau,0,500},PlotLegends->(ToString[#]<>" mW"&/@(powers*1000)),PlotRange->All,Frame->True,FrameLabel->{"\[Tau] (µs)","Ptrans"},MaxRecursion->0,PlotPoints->100]
+
+
+
+
+
+During evaluation of In[1]:= NIntegrate::inumr: The integrand (4.14835*10^15 E^(-367573. r^2-1412.26 vL^2) (E^(-30245.7 r^2))^1. r Sin[(tau Sqrt[2.66146*10^8 Power[<<2>>]+<<1>>/1521])/2000000]^2)/(2.66146*10^8 (E^(-30245.7 Power[<<2>>]))^1.+(40000000000000000 \[Pi]^2 vL^2)/1521) has evaluated to non-numerical values for all sampling points in the region with boundaries {{0,1},{0,1}}.
+During evaluation of In[1]:= NIntegrate::inumr: The integrand (4.14835*10^15 E^(-367573. r^2-1412.26 vL^2) (E^(-30245.7 r^2))^1. r Sin[(tau Sqrt[2.66146*10^8 Power[<<2>>]+<<1>>/1521])/2000000]^2)/(2.66146*10^8 (E^(-30245.7 Power[<<2>>]))^1.+(40000000000000000 \[Pi]^2 vL^2)/1521) has evaluated to non-numerical values for all sampling points in the region with boundaries {{0,1},{0,1}}.
+During evaluation of In[1]:= NIntegrate::inumr: The integrand (4.14835*10^15 E^(-367573. r^2-1412.26 vL^2) (E^(-30245.7 r^2))^1. r Sin[(tau Sqrt[2.66146*10^8 Power[<<2>>]+<<1>>/1521])/2000000]^2)/(2.66146*10^8 (E^(-30245.7 Power[<<2>>]))^1.+(40000000000000000 \[Pi]^2 vL^2)/1521) has evaluated to non-numerical values for all sampling points in the region with boundaries {{0,1},{0,1}}.
+During evaluation of In[1]:= General::stop: Further output of NIntegrate::inumr will be suppressed during this calculation.
+During evaluation of In[1]:= NIntegrate::maxp: The integral failed to converge after 100100 integrand evaluations. NIntegrate obtained 1.4807021491348284`*^-9 and 1.50275652271664`*^-11 for the integral and error estimates.
+During evaluation of In[1]:= NIntegrate::maxp: The integral failed to converge after 100100 integrand evaluations. NIntegrate obtained 2.9208594877450256`*^-9 and 2.956939403272998`*^-11 for the integral and error estimates.
+During evaluation of In[1]:= NIntegrate::maxp: The integral failed to converge after 100100 integrand evaluations. NIntegrate obtained 4.849834076795908`*^-9 and 4.9010339528016626`*^-11 for the integral and error estimates.
+During evaluation of In[1]:= General::stop: Further output of NIntegrate::maxp will be suppressed during this calculation.
+Out[22]= 	5 mW
+	7 mW
+	9 mW
+	10 mW
+
+
+
