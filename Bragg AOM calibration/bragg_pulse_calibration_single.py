@@ -97,7 +97,7 @@ target_fwhm = 20.0
 target_amp = 0.170  # 使用前面对齐的最大光电管电压
 
 # 加载上一次我帮你生成的去偏置、单调的校准文件
-calibration_file = "calibration_clean.csv" 
+calibration_file = "calibration.csv" 
 inverse_calib_function = get_inverse_calibration_func(calibration_file)
 
 # 生成带补偿的文件
