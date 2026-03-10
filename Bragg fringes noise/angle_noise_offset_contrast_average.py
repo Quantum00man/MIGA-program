@@ -14,13 +14,13 @@ noise_level = 0.05            # Relative noise level of alpha
 contrast = 0.6                # Contrast C
 offset = 0.0                  # Probability offset
 
-average_time = 5             # Number of measurements averaged at each T^2 point
+average_time = 20             # Number of measurements averaged at each T^2 point
 seed = 42                     # Random seed for reproducibility
 
 # =========================
 # T^2 axis (ms^2)
 # =========================
-T2_ms2 = np.linspace(20, 120, 60)   # Fewer points to make error bars clearer
+T2_ms2 = np.linspace(20, 150, 60)   # Fewer points to make error bars clearer
 T2_s2 = T2_ms2 * 1e-6               # Convert to s^2
 
 # =========================
@@ -77,7 +77,7 @@ plt.xlabel(r'$T^2$ (ms$^2$)', fontsize=12)
 plt.ylabel('Probability P', fontsize=12)
 plt.title('Atom Interferometer Fringe with Averaging and Error Bars')
 
-plt.xlim(20, 120)
+plt.xlim(20, 150)
 plt.ylim(-0.05, 1.05)
 plt.grid(True)
 plt.legend()
