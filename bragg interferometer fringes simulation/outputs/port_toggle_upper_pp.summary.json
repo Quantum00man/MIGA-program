@@ -1,0 +1,100 @@
+{
+  "config": {
+    "interferometer": {
+      "bragg_order": 4,
+      "wavelength_m": 7.8e-07,
+      "pulse_separation_s": 0.05,
+      "effective_acceleration_mps2": 0.0,
+      "additional_phase_offset_rad": 0.2
+    },
+    "beam_splitter_1": {
+      "transfer_probability": 0.48,
+      "loss_probability": 0.03,
+      "diffraction_phase_rad": 0.0,
+      "transfer_jitter_std": 0.015,
+      "phase_jitter_std_rad": 0.02
+    },
+    "mirror": {
+      "transfer_probability": 0.93,
+      "loss_probability": 0.05,
+      "diffraction_phase_rad": 0.08,
+      "transfer_jitter_std": 0.02,
+      "phase_jitter_std_rad": 0.03
+    },
+    "beam_splitter_2": {
+      "transfer_probability": 0.46,
+      "loss_probability": 0.03,
+      "diffraction_phase_rad": 0.02,
+      "transfer_jitter_std": 0.015,
+      "phase_jitter_std_rad": 0.02
+    },
+    "noise": {
+      "f_min_hz": 0.2,
+      "f_max_hz": 2000.0,
+      "num_frequency_points": 4000,
+      "laser_frequency_noise_hz_per_sqrt_hz": {
+        "white_psd_db": -20.0,
+        "flicker_psd_1hz_db": -26.020599913279625,
+        "random_walk_psd_1hz_db": -40.0,
+        "peaks": [
+          {
+            "center_hz": 60.0,
+            "width_hz": 4.0,
+            "psd_db": -20.0
+          },
+          {
+            "center_hz": 180.0,
+            "width_hz": 10.0,
+            "psd_db": -21.93820026016113
+          }
+        ]
+      },
+      "mirror_acceleration_noise_mps2_per_sqrt_hz": {
+        "white_psd_db": -113.97940008672037,
+        "flicker_psd_1hz_db": -120.0,
+        "random_walk_psd_1hz_db": -136.47817481888637,
+        "peaks": [
+          {
+            "center_hz": 12.0,
+            "width_hz": 1.5,
+            "psd_db": -102.49877473216598
+          },
+          {
+            "center_hz": 38.0,
+            "width_hz": 3.0,
+            "psd_db": -110.45757490560675
+          }
+        ]
+      }
+    },
+    "simulation": {
+      "shots_per_phase": 500,
+      "n_phase_points": 121,
+      "scan_start_rad": 0.0,
+      "scan_stop_rad": 6.283185307179586,
+      "random_seed": 7,
+      "output_prefix": "outputs/port_toggle_upper_pp"
+    }
+  },
+  "display_port": "upper",
+  "laser_phase_std_rad": 0.5758251746562636,
+  "vibration_phase_std_rad": 1.2315286006885606,
+  "upper_port_fit": {
+    "offset": 0.522054220208219,
+    "amplitude": 0.16418650454199618,
+    "phase_offset_rad": -3.0997811915097917,
+    "contrast": 0.34448830017339627
+  },
+  "lower_port_fit": {
+    "offset": 0.47794577979178143,
+    "amplitude": 0.16418650454199643,
+    "phase_offset_rad": 0.0418114620800015,
+    "contrast": 0.34448830017339627
+  },
+  "display_port_fit": {
+    "offset": 0.522054220208219,
+    "amplitude": 0.16418650454199618,
+    "phase_offset_rad": -3.0997811915097917,
+    "contrast": 0.34448830017339627
+  }
+}
