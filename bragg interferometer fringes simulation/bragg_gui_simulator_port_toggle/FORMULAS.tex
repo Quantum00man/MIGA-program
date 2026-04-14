@@ -1,0 +1,715 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\setstretch{1.08}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+
+\title{Bragg Interferometer Simulation Formula Reference}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Scope of the Model}
+
+This document describes the effective model implemented by the GUI-based Bragg atom-interferometer simulator used in this project. The model is designed for:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item fringe prediction,
+  \item noise budgeting,
+  \item sensitivity studies,
+  \item parameter scans over pulse quality and technical noise.
+\end{itemize}
+
+It is not a full momentum-lattice propagation model. Instead, it keeps only an effective two-port interferometer subspace and treats imperfect Bragg diffraction through effective transfer probabilities, loss terms, and diffraction phases.
+
+\section{Simulation Workflow}
+
+The calculation proceeds in the following order:
+
+\begin{enumerate}[leftmargin=1.8em]
+  \item Define the interferometer geometry and the pulse sequence parameters.
+  \item Build the laser-frequency-noise and mirror-acceleration-noise spectra.
+  \item Convert these technical noise spectra into interferometer phase-noise spectra.
+  \item Integrate the phase-noise spectra through the interferometer transfer function to obtain RMS phase noise.
+  \item Build one effective complex matrix for each Bragg pulse.
+  \item Propagate the initial state through the $\pi/2-\pi-\pi/2$ sequence.
+  \item Compute upper-port and lower-port populations for each Monte Carlo shot.
+  \item Repeat the calculation over a scanned optical phase and average the shots.
+  \item Fit the resulting fringe with a cosine model.
+\end{enumerate}
+
+Each step is written explicitly below.
+
+\section{Interferometer Parameters}
+
+The interferometer-level parameters are:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item $n$: Bragg order.
+  \item $\lambda$: laser wavelength.
+  \item $T$: pulse separation between the first and second pulse, and between the second and third pulse.
+  \item $a_{\mathrm{eff}}$: effective acceleration projected along the interferometer axis.
+  \item $\phi_{\mathrm{offset}}$: additional static phase offset.
+  \item $\phi_0$: scanned optical phase.
+\end{itemize}
+
+These are entered in the GUI as:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item Bragg order,
+  \item Wavelength,
+  \item Pulse separation $T$,
+  \item Effective acceleration,
+  \item Additional phase offset.
+\end{itemize}
+
+\section{Effective Wavevector}
+
+The single-photon wavevector magnitude is
+\begin{equation}
+  k = \frac{2\pi}{\lambda}.
+\end{equation}
+
+The effective Bragg interferometer wavevector is
+\begin{equation}
+  k_{\mathrm{eff}} = 2nk = 2n\frac{2\pi}{\lambda}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $k$: single-photon wavevector magnitude.
+  \item $k_{\mathrm{eff}}$: effective two-photon Bragg wavevector used in the interferometer phase.
+  \item $n$: Bragg order.
+  \item $\lambda$: wavelength.
+\end{itemize}
+
+\section{Deterministic Interferometer Phase}
+
+The effective deterministic phase used in the model is
+\begin{equation}
+  \phi_{\mathrm{base}} = k_{\mathrm{eff}} a_{\mathrm{eff}} T^2 + \phi_{\mathrm{offset}}.
+\end{equation}
+
+The scanned optical phase enters as
+\begin{equation}
+  \phi_{\mathrm{scan}} = n\phi_0.
+\end{equation}
+
+Therefore the deterministic phase before shot-to-shot technical noise is
+\begin{equation}
+  \phi_{\mathrm{det}} = \phi_{\mathrm{base}} + \phi_{\mathrm{scan}}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\phi_{\mathrm{base}}$: inertial plus static phase.
+  \item $a_{\mathrm{eff}}$: effective acceleration.
+  \item $T$: pulse separation.
+  \item $\phi_{\mathrm{offset}}$: additional user-defined phase offset.
+  \item $\phi_0$: scanned optical phase.
+  \item $n$: Bragg order.
+\end{itemize}
+
+\section{Noise Spectra Input Convention}
+
+The simulator accepts noise spectra in power spectral density form.
+
+For laser-frequency noise, the PSD unit is
+\begin{equation}
+  \mathrm{Hz}^2/\mathrm{Hz}.
+\end{equation}
+
+For mirror acceleration noise, the PSD unit is
+\begin{equation}
+  (\mathrm{m/s}^2)^2/\mathrm{Hz}.
+\end{equation}
+
+All dB inputs use the convention
+\begin{equation}
+  \mathrm{PSD}_{\mathrm{dB}} = 10\log_{10}\left(\frac{S}{S_{\mathrm{ref}}}\right),
+\end{equation}
+with:
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_{\mathrm{ref}} = 1~\mathrm{Hz}^2/\mathrm{Hz}$ for laser-frequency noise,
+  \item $S_{\mathrm{ref}} = 1~(\mathrm{m/s}^2)^2/\mathrm{Hz}$ for mirror acceleration noise.
+\end{itemize}
+
+The inverse conversion is
+\begin{equation}
+  S = 10^{\mathrm{PSD}_{\mathrm{dB}}/10}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S$: linear PSD.
+  \item $\mathrm{PSD}_{\mathrm{dB}}$: PSD written in dB.
+  \item $S_{\mathrm{ref}}$: reference PSD unit used in the dB convention.
+\end{itemize}
+
+\section{Background Noise Model}
+
+The simulator decomposes the technical noise background into:
+\begin{itemize}[leftmargin=1.5em]
+  \item a white term,
+  \item a flicker term,
+  \item a random-walk term,
+  \item a sum of Lorentzian peaks.
+\end{itemize}
+
+The full PSD is modeled as
+\begin{equation}
+  S(f) = S_0 + \frac{C_1}{f} + \frac{C_2}{f^2} + \sum_i S_{\mathrm{peak},i}(f).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $f$: Fourier frequency.
+  \item $S_0$: white PSD level.
+  \item $C_1$: flicker PSD coefficient referenced at $1~\mathrm{Hz}$.
+  \item $C_2$: random-walk PSD coefficient referenced at $1~\mathrm{Hz}$.
+  \item $S_{\mathrm{peak},i}(f)$: PSD contribution of peak $i$.
+\end{itemize}
+
+\subsection{White Term}
+
+The white-noise contribution is
+\begin{equation}
+  S_{\mathrm{white}}(f) = S_0.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_0$: constant PSD floor.
+\end{itemize}
+
+\subsection{Flicker Term}
+
+The flicker-noise contribution is
+\begin{equation}
+  S_{\mathrm{flicker}}(f) = \frac{C_1}{f}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $C_1$: PSD coefficient equal to the flicker PSD at $f=1~\mathrm{Hz}$.
+  \item $f$: Fourier frequency.
+\end{itemize}
+
+\subsection{Random-Walk Term}
+
+The random-walk contribution is
+\begin{equation}
+  S_{\mathrm{rw}}(f) = \frac{C_2}{f^2}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $C_2$: PSD coefficient equal to the random-walk PSD at $f=1~\mathrm{Hz}$.
+  \item $f$: Fourier frequency.
+\end{itemize}
+
+\section{Lorentzian Peak Model}
+
+Each narrow-band peak is modeled by a Lorentzian PSD:
+\begin{equation}
+  S_{\mathrm{peak}}(f) =
+  \frac{S_{\mathrm{peak,center}}}
+  {1 + \left(\frac{f-f_0}{\Gamma}\right)^2}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_{\mathrm{peak,center}}$: peak-center PSD in linear units.
+  \item $f_0$: center frequency of the peak.
+  \item $\Gamma$: width parameter of the Lorentzian.
+  \item $f$: Fourier frequency.
+\end{itemize}
+
+In the GUI, $S_{\mathrm{peak,center}}$ is entered as $\mathrm{psd\_db}$, and the simulator converts it back to linear PSD through
+\begin{equation}
+  S_{\mathrm{peak,center}} = 10^{\mathrm{psd\_db}/10}.
+\end{equation}
+
+\section{Total ASD Used Internally}
+
+The simulator computes the total linear PSD first:
+\begin{equation}
+  S_{\mathrm{total}}(f) =
+  S_0 + \frac{C_1}{f} + \frac{C_2}{f^2} + \sum_i S_{\mathrm{peak},i}(f).
+\end{equation}
+
+The amplitude spectral density used internally is then
+\begin{equation}
+  \mathrm{ASD}_{\mathrm{total}}(f) = \sqrt{S_{\mathrm{total}}(f)}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_{\mathrm{total}}(f)$: total linear PSD.
+  \item $\mathrm{ASD}_{\mathrm{total}}(f)$: total amplitude spectral density.
+\end{itemize}
+
+\section{Laser-Frequency Noise to Phase Noise}
+
+Let $S_{\nu}(f)$ be the laser-frequency-noise PSD. The simulator constructs the interferometer phase-noise PSD as
+\begin{equation}
+  S_{\phi,\mathrm{laser}}(f) = \frac{n^2 S_{\nu}(f)}{f^2}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_{\phi,\mathrm{laser}}(f)$: interferometer phase-noise PSD arising from laser frequency noise.
+  \item $S_{\nu}(f)$: laser-frequency-noise PSD.
+  \item $n$: Bragg order.
+  \item $f$: Fourier frequency.
+\end{itemize}
+
+This is the effective model used in the code. It compresses the laser-noise transfer into a single phase-noise PSD before the final transfer-function weighting.
+
+\section{Mirror Acceleration Noise to Phase Noise}
+
+Let $S_a(f)$ be the mirror acceleration PSD. The mirror displacement PSD is implicitly modeled via
+\begin{equation}
+  S_z(f) = \frac{S_a(f)}{(2\pi f)^4}.
+\end{equation}
+
+The corresponding interferometer phase-noise PSD is
+\begin{equation}
+  S_{\phi,\mathrm{vib}}(f) = k_{\mathrm{eff}}^2 S_z(f)
+  = \frac{k_{\mathrm{eff}}^2 S_a(f)}{(2\pi f)^4}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $S_a(f)$: mirror acceleration PSD.
+  \item $S_z(f)$: mirror displacement PSD.
+  \item $S_{\phi,\mathrm{vib}}(f)$: interferometer phase-noise PSD from mirror vibration.
+  \item $k_{\mathrm{eff}}$: effective wavevector.
+  \item $f$: Fourier frequency.
+\end{itemize}
+
+\section{Interferometer Transfer Function}
+
+For the effective three-pulse sequence, the simulator uses the frequency-domain weighting
+\begin{equation}
+  H(f) = \left|1 - 2e^{-i2\pi fT} + e^{-i4\pi fT}\right|.
+\end{equation}
+
+The weighted phase-noise integrand is therefore
+\begin{equation}
+  I(f) = |H(f)|^2 S_{\phi}(f).
+\end{equation}
+
+This is evaluated separately for laser noise and vibration noise.
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $H(f)$: magnitude of the interferometer transfer function.
+  \item $I(f)$: weighted phase-noise integrand.
+  \item $T$: pulse separation.
+  \item $S_{\phi}(f)$: phase-noise PSD of one technical noise source.
+\end{itemize}
+
+\section{Integrated Phase Noise}
+
+The simulator integrates the weighted phase-noise PSD over a logarithmic frequency grid:
+\begin{equation}
+  \sigma_{\phi}^2 = \int_{f_{\min}}^{f_{\max}} |H(f)|^2 S_{\phi}(f)\,df.
+\end{equation}
+
+The RMS phase noise is
+\begin{equation}
+  \sigma_{\phi} = \sqrt{\sigma_{\phi}^2}.
+\end{equation}
+
+This is done independently for:
+\begin{itemize}[leftmargin=1.5em]
+  \item laser-frequency noise,
+  \item mirror-vibration noise.
+\end{itemize}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\sigma_{\phi}$: RMS phase noise contributed by one noise source.
+  \item $f_{\min}, f_{\max}$: integration bounds.
+  \item $|H(f)|^2 S_{\phi}(f)$: transfer-function-weighted phase-noise PSD.
+\end{itemize}
+
+\section{Pulse-Level Effective Parameters}
+
+Each Bragg pulse is parameterized by:
+\begin{itemize}[leftmargin=1.5em]
+  \item $P$: transfer probability,
+  \item $L$: loss probability,
+  \item $\phi_d$: diffraction phase,
+  \item $\sigma_P$: shot-to-shot standard deviation of the transfer probability,
+  \item $\sigma_{\phi_d}$: shot-to-shot standard deviation of the diffraction phase.
+\end{itemize}
+
+These are defined separately for:
+\begin{itemize}[leftmargin=1.5em]
+  \item the first beam splitter,
+  \item the mirror pulse,
+  \item the second beam splitter.
+\end{itemize}
+
+\section{Shot-to-Shot Pulse Fluctuations}
+
+For each Monte Carlo shot, the transfer probability is sampled as
+\begin{equation}
+  P' \sim \mathcal{N}(P,\sigma_P),
+\end{equation}
+and clipped to the interval $[0,1]$.
+
+The diffraction phase is sampled as
+\begin{equation}
+  \phi_d' \sim \mathcal{N}(\phi_d,\sigma_{\phi_d}).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $P'$: shot-specific transfer probability.
+  \item $\phi_d'$: shot-specific diffraction phase.
+  \item $P$: mean transfer probability.
+  \item $\phi_d$: mean diffraction phase.
+  \item $\sigma_P$: standard deviation of the transfer probability.
+  \item $\sigma_{\phi_d}$: standard deviation of the diffraction phase.
+\end{itemize}
+
+\section{Effective Pulse Matrix}
+
+Each pulse is represented by the effective complex matrix
+\begin{equation}
+  U(P',\phi_d',L) =
+  \sqrt{1-L}
+  \begin{bmatrix}
+    \sqrt{1-P'} & -i e^{-i\phi_d'} \sqrt{P'} \\
+    -i e^{i\phi_d'} \sqrt{P'} & \sqrt{1-P'}
+  \end{bmatrix}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $U$: effective pulse matrix.
+  \item $P'$: shot-specific transfer probability.
+  \item $L$: loss probability.
+  \item $\phi_d'$: shot-specific diffraction phase.
+\end{itemize}
+
+Interpretation:
+\begin{itemize}[leftmargin=1.5em]
+  \item diagonal elements describe the amplitude that remains in the same effective port,
+  \item off-diagonal elements describe transfer between the two effective ports,
+  \item the prefactor $\sqrt{1-L}$ removes population that leaks into untracked parasitic momentum states.
+\end{itemize}
+
+\section{Initial State}
+
+The interferometer starts in the lower basis state of the effective two-port model:
+\begin{equation}
+  \psi_0 =
+  \begin{bmatrix}
+    1 \\
+    0
+  \end{bmatrix}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\psi_0$: initial state vector before the first pulse.
+\end{itemize}
+
+\section{Total Shot Phase}
+
+For each Monte Carlo shot, the total interferometer phase applied to the final pulse is
+\begin{equation}
+  \phi_{\mathrm{shot}} =
+  \phi_{\mathrm{det}}
+  + \delta\phi_{\mathrm{laser}}
+  + \delta\phi_{\mathrm{vib}}.
+\end{equation}
+
+with
+\begin{equation}
+  \delta\phi_{\mathrm{laser}} \sim \mathcal{N}(0,\sigma_{\phi,\mathrm{laser}})
+\end{equation}
+and
+\begin{equation}
+  \delta\phi_{\mathrm{vib}} \sim \mathcal{N}(0,\sigma_{\phi,\mathrm{vib}}).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\phi_{\mathrm{shot}}$: total shot-specific interferometer phase.
+  \item $\phi_{\mathrm{det}}$: deterministic phase from inertial and user-defined terms.
+  \item $\delta\phi_{\mathrm{laser}}$: laser-noise phase draw.
+  \item $\delta\phi_{\mathrm{vib}}$: vibration-noise phase draw.
+  \item $\sigma_{\phi,\mathrm{laser}}$: RMS laser-noise phase.
+  \item $\sigma_{\phi,\mathrm{vib}}$: RMS vibration-noise phase.
+\end{itemize}
+
+\section{Three-Pulse State Propagation}
+
+The three effective pulse matrices are:
+\begin{equation}
+  U_1 = U(P_1',\phi_{d,1}',L_1),
+\end{equation}
+\begin{equation}
+  U_2 = U(P_2',\phi_{d,2}',L_2),
+\end{equation}
+\begin{equation}
+  U_3 = U(P_3',\phi_{d,3}' + \phi_{\mathrm{shot}},L_3).
+\end{equation}
+
+The final state is
+\begin{equation}
+  \psi_f = U_3 U_2 U_1 \psi_0.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $U_1, U_2, U_3$: first beam splitter, mirror, and second beam splitter matrices.
+  \item $\phi_{\mathrm{shot}}$: shot-specific interferometer phase added to the last pulse.
+  \item $\psi_f$: final state vector after the full sequence.
+\end{itemize}
+
+\section{Output-Port Populations}
+
+If
+\begin{equation}
+  \psi_f =
+  \begin{bmatrix}
+    \psi_A \\
+    \psi_B
+  \end{bmatrix},
+\end{equation}
+then the absolute tracked-port populations are
+\begin{equation}
+  P_A = |\psi_A|^2,
+\end{equation}
+\begin{equation}
+  P_B = |\psi_B|^2.
+\end{equation}
+
+The effective loss channel is
+\begin{equation}
+  P_{\mathrm{loss}} = 1 - (P_A + P_B).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $P_A$: lower effective output-port population.
+  \item $P_B$: upper effective output-port population.
+  \item $P_{\mathrm{loss}}$: population leaked out of the tracked two-port model.
+\end{itemize}
+
+\section{Normalised Port Populations}
+
+The plotted upper-port normalised population is
+\begin{equation}
+  P_{B,\mathrm{norm}} = \frac{P_B}{P_A + P_B}.
+\end{equation}
+
+The normalised lower-port population is
+\begin{equation}
+  P_{A,\mathrm{norm}} = \frac{P_A}{P_A + P_B}.
+\end{equation}
+
+Since the denominator is the same, the two satisfy
+\begin{equation}
+  P_{A,\mathrm{norm}} = 1 - P_{B,\mathrm{norm}}.
+\end{equation}
+
+This identity is exact inside the model, even when $P_{\mathrm{loss}}$ is nonzero.
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $P_{B,\mathrm{norm}}$: normalised upper-port population.
+  \item $P_{A,\mathrm{norm}}$: normalised lower-port population.
+\end{itemize}
+
+\section{Monte Carlo Averaging Over Shots}
+
+At each scanned phase point, the simulator runs $N_{\mathrm{shot}}$ independent shots and computes:
+\begin{equation}
+  \overline{P}_{B,\mathrm{norm}} =
+  \frac{1}{N_{\mathrm{shot}}}
+  \sum_{j=1}^{N_{\mathrm{shot}}} P_{B,\mathrm{norm}}^{(j)},
+\end{equation}
+\begin{equation}
+  \overline{P}_{A,\mathrm{norm}} =
+  \frac{1}{N_{\mathrm{shot}}}
+  \sum_{j=1}^{N_{\mathrm{shot}}} P_{A,\mathrm{norm}}^{(j)}.
+\end{equation}
+
+The absolute means are similarly defined:
+\begin{equation}
+  \overline{P}_A =
+  \frac{1}{N_{\mathrm{shot}}}
+  \sum_{j=1}^{N_{\mathrm{shot}}} P_A^{(j)},
+\end{equation}
+\begin{equation}
+  \overline{P}_B =
+  \frac{1}{N_{\mathrm{shot}}}
+  \sum_{j=1}^{N_{\mathrm{shot}}} P_B^{(j)}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $N_{\mathrm{shot}}$: number of Monte Carlo shots per phase point.
+  \item the overbar denotes a Monte Carlo mean over shots.
+\end{itemize}
+
+\section{Shot Scatter}
+
+The plotted shot scatter is the sample standard deviation of the normalised port population at a fixed scanned phase:
+\begin{equation}
+  \sigma_{\mathrm{scatter}} =
+  \sqrt{
+    \frac{1}{N_{\mathrm{shot}}-1}
+    \sum_{j=1}^{N_{\mathrm{shot}}}
+    \left(P_{\mathrm{norm}}^{(j)} - \overline{P}_{\mathrm{norm}}\right)^2
+  }.
+\end{equation}
+
+Because
+\begin{equation}
+  P_{A,\mathrm{norm}} = 1 - P_{B,\mathrm{norm}},
+\end{equation}
+the normalised upper-port and lower-port scatters are equal in this model.
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\sigma_{\mathrm{scatter}}$: sample standard deviation at one scanned phase point.
+  \item $P_{\mathrm{norm}}^{(j)}$: normalised port population in shot $j$.
+  \item $\overline{P}_{\mathrm{norm}}$: mean normalised port population.
+\end{itemize}
+
+\section{Cosine Fringe Fit}
+
+After averaging over shots, the simulator fits the displayed normalised fringe with
+\begin{equation}
+  P_{\mathrm{fit}}(\phi_0) = C_0 + C\cos(n\phi_0 + \phi_{\mathrm{fit}}).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $C_0$: fitted offset.
+  \item $C$: fitted fringe amplitude.
+  \item $n$: Bragg order.
+  \item $\phi_0$: scanned optical phase.
+  \item $\phi_{\mathrm{fit}}$: fitted phase offset.
+\end{itemize}
+
+The reported contrast is defined as the peak-to-peak excursion of the displayed fringe over the scanned phase range:
+\begin{equation}
+  \mathcal{C}_{\mathrm{pp}} = P_{\max} - P_{\min}.
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\mathcal{C}_{\mathrm{pp}}$: reported peak-to-peak contrast.
+  \item $P_{\max}$: maximum value of the displayed normalised fringe over the scan.
+  \item $P_{\min}$: minimum value of the displayed normalised fringe over the scan.
+\end{itemize}
+
+For an ideal cosine sampled densely over a full period, this satisfies
+\begin{equation}
+  \mathcal{C}_{\mathrm{pp}} = 2C,
+\end{equation}
+where $C$ is the cosine-fit amplitude defined above.
+
+\section{Lower-Port Versus Upper-Port Display}
+
+The upper-port display uses the curve
+\begin{equation}
+  P_{\mathrm{display}} = P_{B,\mathrm{norm}}.
+\end{equation}
+
+The lower-port display uses the curve
+\begin{equation}
+  P_{\mathrm{display}} = P_{A,\mathrm{norm}} = 1 - P_{B,\mathrm{norm}}.
+\end{equation}
+
+Therefore:
+\begin{itemize}[leftmargin=1.5em]
+  \item the two normalised port curves are complementary,
+  \item they have the same scatter magnitude,
+  \item their fitted cosine amplitudes have equal magnitude,
+  \item their fitted phase offsets differ by $\pi$ modulo $2\pi$.
+\end{itemize}
+
+\section{Effective Rabi-Model Mapping}
+
+When pulse parameters are constructed from an effective two-state Rabi model, the transfer probability is estimated as
+\begin{equation}
+  P =
+  \frac{\Omega_{\mathrm{eff}}^2}
+  {\Omega_{\mathrm{eff}}^2 + \Delta^2}
+  \sin^2\left(
+    \frac{\tau}{2}
+    \sqrt{\Omega_{\mathrm{eff}}^2 + \Delta^2}
+  \right).
+\end{equation}
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $\Omega_{\mathrm{eff}}$: effective Rabi frequency.
+  \item $\Delta$: detuning.
+  \item $\tau$: pulse duration.
+  \item $P$: effective transfer probability used in the pulse matrix.
+\end{itemize}
+
+This mapping is provided as a convenience function. The main GUI workflow accepts $P$ directly.
+
+\section{Numerical Integration Grid}
+
+The noise integration uses a logarithmic frequency grid:
+\begin{equation}
+  f_k \in [f_{\min}, f_{\max}],
+\end{equation}
+with $N_f$ points spaced logarithmically between the bounds.
+
+\textbf{Parameter meanings}
+\begin{itemize}[leftmargin=1.5em]
+  \item $f_{\min}$: lower frequency cutoff.
+  \item $f_{\max}$: upper frequency cutoff.
+  \item $N_f$: number of frequency-grid points.
+\end{itemize}
+
+\section{Approximations and Limits}
+
+The formulas above correspond to an effective model with the following approximations:
+\begin{enumerate}[leftmargin=1.8em]
+  \item Only two effective interferometer ports are propagated explicitly.
+  \item Additional Bragg momentum ports are absorbed into effective loss.
+  \item Phase noise is reduced to Gaussian shot-to-shot phase draws after transfer-function integration.
+  \item Pulse imperfections are represented by effective transfer probability and effective diffraction phase.
+  \item The reported shot scatter is Monte Carlo scatter of the model outputs, not a full atom-detection noise model.
+\end{enumerate}
+
+These approximations make the simulator fast and interpretable, but they should not be confused with a full multistate Bragg propagation treatment.
+
+\end{document}
