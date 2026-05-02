@@ -43,6 +43,7 @@ for each axis pair at the atom-cloud center.
 ## Files
 
 - `rb87_bias_coils_current_scan.py`: main current-scan simulation script
+- `rb87_bias_coils_current_scan_ui.py`: desktop UI for interactive parameter control
 - `example_config.json`: editable configuration
 - `outputs/`: generated automatically after a run
 
@@ -51,6 +52,28 @@ for each axis pair at the atom-cloud center.
 ```bash
 python rb87_bias_coils_current_scan.py --config example_config.json
 ```
+
+## Launch the UI
+
+```bash
+python rb87_bias_coils_current_scan_ui.py
+```
+
+On Windows you can also double-click:
+
+```text
+launch_ui.bat
+```
+
+The UI is a local desktop interface built with `PySide6`. It provides:
+
+- grouped parameter controls for fields, molasses, geometry, scan, and refinement
+- JSON config load/save
+- one-click simulation runs
+- overview and dynamics figure panels
+- a summary report and direct links to generated outputs
+
+The UI keeps the same simulation core as the command-line tool, so the exported files remain consistent across both workflows.
 
 ## Output
 

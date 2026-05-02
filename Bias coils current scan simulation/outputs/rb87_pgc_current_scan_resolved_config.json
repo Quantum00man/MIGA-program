@@ -21,14 +21,14 @@
   },
   "fields": {
     "static_stray_field_mG": [
-      0,
-      -120,
-      0
+      0.0,
+      -120.0,
+      0.0
     ],
     "mot_switch_off_field_mG": [
-      0,
-      10000,
-      10000
+      0.0,
+      5000.0,
+      5000.0
     ],
     "mot_decay_tau_ms": 0.5
   },
