@@ -62,6 +62,12 @@ class SimulationThread(threading.Thread):
                 output_dir,
                 self.config.output.prefix,
             )
+            spatial_field_path = core.make_spatial_field_figure(
+                self.config,
+                best_result,
+                output_dir,
+                self.config.output.prefix,
+            )
             summary_path = core.write_summary(
                 self.config,
                 coarse_result,
@@ -87,6 +93,7 @@ class SimulationThread(threading.Thread):
                     "refined_csv": refined_csv_path,
                     "overview": overview_path,
                     "dynamics": dynamics_path,
+                    "spatial_field": spatial_field_path,
                     "summary": summary_path,
                     "resolved_config": resolved_config_path,
                 },
@@ -183,6 +190,14 @@ class InteractivePlotPanel(ttk.Frame):
         axes = self.figure.subplots(2, 2)
         self.figure.set_constrained_layout(True)
         core.plot_dynamics_on_axes(config, best_result, axes)
+        self.motion_formatters = {ax: self._line_formatter() for ax in axes.flat}
+        self.canvas.draw_idle()
+
+    def draw_spatial_field(self, config: core.SimulationConfig, best_result: dict) -> None:
+        self.figure.clear()
+        axes = self.figure.subplots(2, 2)
+        self.figure.set_constrained_layout(True)
+        core.plot_spatial_field_on_axes(config, best_result, axes)
         self.motion_formatters = {ax: self._line_formatter() for ax in axes.flat}
         self.canvas.draw_idle()
 
@@ -370,7 +385,9 @@ class TkBiasCoilsApp:
         self.field_vars = self._build_field_group(scroll_frame)
         self.molasses_vars = self._build_molasses_group(scroll_frame)
         self.geometry_vars = self._build_geometry_group(scroll_frame)
+        self.mot_gradient_vars = self._build_mot_gradient_group(scroll_frame)
         self.scan_vars = self._build_scan_group(scroll_frame)
+        self.spatial_probe_vars = self._build_spatial_probe_group(scroll_frame)
         self.refinement_vars = self._build_refinement_group(scroll_frame)
         self.output_vars = self._build_output_group(scroll_frame)
         self.derived_labels = self._build_derived_group(scroll_frame)
@@ -541,6 +558,44 @@ class TkBiasCoilsApp:
             vars_map[key] = var
         return vars_map
 
+    def _build_mot_gradient_group(self, parent):
+        frame = self._labelframe(parent, "3D MOT Gradient Coils")
+        vars_map = {
+            "enabled": tk.BooleanVar(value=True),
+            "turns_per_coil": tk.IntVar(value=50),
+            "radius_cm": tk.DoubleVar(value=10.0),
+            "center_to_coil_cm": tk.DoubleVar(value=10.0),
+            "current_A": tk.DoubleVar(value=7.0),
+            "switch_off_scale": tk.DoubleVar(value=1.0),
+            "anti_helmholtz": tk.BooleanVar(value=True),
+            "axis_x": tk.DoubleVar(value=0.0),
+            "axis_y": tk.DoubleVar(value=1.0),
+            "axis_z": tk.DoubleVar(value=1.0),
+        }
+        for var in vars_map.values():
+            var.trace_add("write", lambda *_: self.update_derived_labels())
+
+        ttk.Checkbutton(frame, text="Enable MOT gradient-pair contribution", variable=vars_map["enabled"]).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=4, pady=4
+        )
+        specs = [
+            ("turns_per_coil", "Turns per coil", 1, 1000, 1),
+            ("radius_cm", "Loop radius (cm)", 0.1, 500, 0.5),
+            ("center_to_coil_cm", "Center to each coil (cm)", 0.1, 500, 0.5),
+            ("current_A", "Steady-state current (A)", -200, 200, 0.1),
+            ("switch_off_scale", "Switch-off residual scale", 0, 10, 0.05),
+            ("axis_x", "Axis direction X", -10, 10, 0.1),
+            ("axis_y", "Axis direction Y", -10, 10, 0.1),
+            ("axis_z", "Axis direction Z", -10, 10, 0.1),
+        ]
+        for row, (key, label, start, stop, step) in enumerate(specs, start=1):
+            ttk.Label(frame, text=label).grid(row=row, column=0, sticky="w", padx=4, pady=4)
+            self._var_spin(frame, vars_map[key], start, stop, step).grid(row=row, column=1, sticky="ew", padx=4, pady=4)
+        ttk.Checkbutton(frame, text="Use anti-Helmholtz current directions", variable=vars_map["anti_helmholtz"]).grid(
+            row=len(specs) + 1, column=0, columnspan=2, sticky="w", padx=4, pady=4
+        )
+        return vars_map
+
     def _build_scan_group(self, parent):
         frame = self._labelframe(parent, "Coarse Current Scan")
         for col, text in enumerate(["", "Start (A)", "Stop (A)", "Points"]):
@@ -578,6 +633,20 @@ class TkBiasCoilsApp:
         self._var_spin(frame, vars_map["target_step_A"], 0.0001, 10.0, 0.005).grid(row=3, column=1, sticky="ew", padx=4, pady=4)
         return vars_map
 
+    def _build_spatial_probe_group(self, parent):
+        frame = self._labelframe(parent, "Spatial Field Probe")
+        vars_map = {
+            "half_range_mm": tk.DoubleVar(value=10.0),
+            "points_per_axis": tk.IntVar(value=121),
+        }
+        for var in vars_map.values():
+            var.trace_add("write", lambda *_: self.update_derived_labels())
+        ttk.Label(frame, text="Half-range around cloud (mm)").grid(row=0, column=0, sticky="w", padx=4, pady=4)
+        self._var_spin(frame, vars_map["half_range_mm"], 0.001, 200.0, 0.5).grid(row=0, column=1, sticky="ew", padx=4, pady=4)
+        ttk.Label(frame, text="Points per line cut").grid(row=1, column=0, sticky="w", padx=4, pady=4)
+        self._var_spin(frame, vars_map["points_per_axis"], 3, 2001, 2).grid(row=1, column=1, sticky="ew", padx=4, pady=4)
+        return vars_map
+
     def _build_output_group(self, parent):
         frame = self._labelframe(parent, "Output Naming")
         directory_var = tk.StringVar(value="outputs")
@@ -594,7 +663,7 @@ class TkBiasCoilsApp:
     def _build_derived_group(self, parent):
         frame = self._labelframe(parent, "Derived Quantities")
         labels = []
-        for _ in range(3):
+        for _ in range(4):
             label = ttk.Label(frame, text="--", style="Muted.TLabel", wraplength=360, justify="left")
             label.pack(fill="x", pady=4)
             labels.append(label)
@@ -632,6 +701,11 @@ class TkBiasCoilsApp:
             "Dynamics Trace",
             "Residual magnetic-field evolution and temperature trajectory during optical molasses.",
         )
+        self.spatial_panel = InteractivePlotPanel(
+            self.notebook,
+            "Spatial Field Curves",
+            "Local magnetic-field cuts around the cloud center, comparing the MOT gradient pair with and without compensation.",
+        )
         self.summary_text = tk.Text(self.notebook, wrap="word", bg="#ffffff", fg="#16252d", relief="solid", borderwidth=1)
         self.outputs_text = tk.Text(self.notebook, wrap="word", bg="#ffffff", fg="#16252d", relief="solid", borderwidth=1)
         self.model_text = tk.Text(self.notebook, wrap="word", bg="#ffffff", fg="#16252d", relief="solid", borderwidth=1)
@@ -642,6 +716,7 @@ class TkBiasCoilsApp:
 
         self.notebook.add(self.overview_panel, text="Overview")
         self.notebook.add(self.dynamics_panel, text="Dynamics")
+        self.notebook.add(self.spatial_panel, text="Spatial Field")
         self.notebook.add(self.summary_text, text="Summary")
         self.notebook.add(self.outputs_text, text="Outputs")
         self.notebook.add(self.model_text, text="Model")
@@ -657,13 +732,14 @@ class TkBiasCoilsApp:
             "Model Notes\n\n"
             "This UI uses the same simulation core as the command-line tool. It is designed for experimental scan planning and calibration, not as a full quantum-optical Monte Carlo solver.\n\n"
             "Residual field model:\n"
-            "B(t) = B_stray + B_coil + B_switch_off exp(-t / tau)\n\n"
+            "B(r, t) = B_stray + B_comp(r) + [B_switch_off + B_MOT_gradient(r)] exp(-t / tau)\n\n"
             "Cooling-efficiency suppression:\n"
             "eta(t) = 1 / [1 + (|B(t)| / B_width)^2]\n\n"
             "Temperature evolution:\n"
             "dT/dt = -(T - T_eq(B)) / tau_cool(B)\n\n"
             "Key interpretation:\n"
             "- Molasses position sets the cloud center where the compensation field matrix is evaluated.\n"
+            "- MOT gradient coils are modeled as an anti-Helmholtz circular pair along the specified axis.\n"
             "- Static stray field is the long-lived background field after switch-off transients vanish.\n"
             "- Switch-off residual field is the transient field present at the beginning of molasses.\n"
             "- Target overview step controls the final current-grid spacing shown in the overview figure when local refinement is enabled.\n"
@@ -704,6 +780,20 @@ class TkBiasCoilsApp:
                 side_length_cm=float(self.geometry_vars["side_length_cm"].get()),
                 center_to_coil_cm=float(self.geometry_vars["center_to_coil_cm"].get()),
             ),
+            mot_gradient_coils=core.MotGradientCoilConfig(
+                enabled=bool(self.mot_gradient_vars["enabled"].get()),
+                turns_per_coil=int(self.mot_gradient_vars["turns_per_coil"].get()),
+                radius_cm=float(self.mot_gradient_vars["radius_cm"].get()),
+                center_to_coil_cm=float(self.mot_gradient_vars["center_to_coil_cm"].get()),
+                current_A=float(self.mot_gradient_vars["current_A"].get()),
+                switch_off_scale=float(self.mot_gradient_vars["switch_off_scale"].get()),
+                axis_direction=(
+                    float(self.mot_gradient_vars["axis_x"].get()),
+                    float(self.mot_gradient_vars["axis_y"].get()),
+                    float(self.mot_gradient_vars["axis_z"].get()),
+                ),
+                anti_helmholtz=bool(self.mot_gradient_vars["anti_helmholtz"].get()),
+            ),
             scan=core.CurrentScanConfig(
                 x_current_A=core.AxisScan(
                     start=float(self.scan_vars["x"]["start"].get()),
@@ -720,6 +810,10 @@ class TkBiasCoilsApp:
                     stop=float(self.scan_vars["z"]["stop"].get()),
                     points=int(self.scan_vars["z"]["points"].get()),
                 ),
+            ),
+            spatial_probe=core.SpatialProbeConfig(
+                half_range_mm=float(self.spatial_probe_vars["half_range_mm"].get()),
+                points_per_axis=int(self.spatial_probe_vars["points_per_axis"].get()),
             ),
             refinement=core.RefinementConfig(
                 enabled=bool(self.refinement_vars["enabled"].get()),
@@ -764,11 +858,24 @@ class TkBiasCoilsApp:
             self.geometry_vars["side_length_cm"].set(config.coil_geometry.side_length_cm)
             self.geometry_vars["center_to_coil_cm"].set(config.coil_geometry.center_to_coil_cm)
 
+            self.mot_gradient_vars["enabled"].set(config.mot_gradient_coils.enabled)
+            self.mot_gradient_vars["turns_per_coil"].set(config.mot_gradient_coils.turns_per_coil)
+            self.mot_gradient_vars["radius_cm"].set(config.mot_gradient_coils.radius_cm)
+            self.mot_gradient_vars["center_to_coil_cm"].set(config.mot_gradient_coils.center_to_coil_cm)
+            self.mot_gradient_vars["current_A"].set(config.mot_gradient_coils.current_A)
+            self.mot_gradient_vars["switch_off_scale"].set(config.mot_gradient_coils.switch_off_scale)
+            self.mot_gradient_vars["anti_helmholtz"].set(config.mot_gradient_coils.anti_helmholtz)
+            self.mot_gradient_vars["axis_x"].set(config.mot_gradient_coils.axis_direction[0])
+            self.mot_gradient_vars["axis_y"].set(config.mot_gradient_coils.axis_direction[1])
+            self.mot_gradient_vars["axis_z"].set(config.mot_gradient_coils.axis_direction[2])
+
             for axis, axis_scan in zip(("x", "y", "z"), (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A)):
                 self.scan_vars[axis]["start"].set(axis_scan.start)
                 self.scan_vars[axis]["stop"].set(axis_scan.stop)
                 self.scan_vars[axis]["points"].set(axis_scan.points)
 
+            self.spatial_probe_vars["half_range_mm"].set(config.spatial_probe.half_range_mm)
+            self.spatial_probe_vars["points_per_axis"].set(config.spatial_probe.points_per_axis)
             self.refinement_vars["enabled"].set(config.refinement.enabled)
             self.refinement_vars["steps"].set(config.refinement.steps)
             self.refinement_vars["points_per_axis"].set(config.refinement.points_per_axis)
@@ -785,11 +892,20 @@ class TkBiasCoilsApp:
             return
         try:
             config = self.current_config()
-        except Exception:
+            field_matrix = core.coil_field_matrix_mG_per_A(config)
+            matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
+            mot_gradient_field = core.mot_gradient_field_mG(config, current_scale=1.0)
+            mot_gradient_rows = core.format_gradient_rows(
+                core.mot_gradient_jacobian_mG_per_mm(config, current_scale=1.0),
+                precision=3,
+            )
+            mot_axis = core.mot_axis_unit_vector(config)
+            magnetic_width = core.magnetic_width_mG(config)
+        except Exception as exc:
+            message = f"Derived quantities unavailable: {exc}"
+            for label in self.derived_labels:
+                label.config(text=message)
             return
-        field_matrix = core.coil_field_matrix_mG_per_A(config)
-        matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
-        magnetic_width = core.magnetic_width_mG(config)
 
         coarse_steps = {
             "x": core.axis_step(config.scan.x_current_A.values()),
@@ -820,6 +936,16 @@ class TkBiasCoilsApp:
         )
         self.derived_labels[1].config(
             text=(
+                "MOT gradient pair at molasses start\n"
+                f"B_MOT(t=0) = ({mot_gradient_field[0]:.3f}, {mot_gradient_field[1]:.3f}, {mot_gradient_field[2]:.3f}) mG\n"
+                f"u_MOT = ({mot_axis[0]:.3f}, {mot_axis[1]:.3f}, {mot_axis[2]:.3f})\n"
+                f"{mot_gradient_rows[0]}\n"
+                f"{mot_gradient_rows[1]}\n"
+                f"{mot_gradient_rows[2]}"
+            )
+        )
+        self.derived_labels[2].config(
+            text=(
                 "Cooling-width estimate\n"
                 f"Magnetic width B_width = {magnetic_width:.6f} mG\n"
                 f"Detuning = {config.molasses.detuning_mhz:.3f} MHz, "
@@ -827,10 +953,11 @@ class TkBiasCoilsApp:
                 f"beams = {config.molasses.number_of_beams}."
             )
         )
-        self.derived_labels[2].config(
+        self.derived_labels[3].config(
             text=(
                 "Scan and overview resolution\n"
                 f"Coarse steps: dIx = {coarse_steps['x']:.4f} A, dIy = {coarse_steps['y']:.4f} A, dIz = {coarse_steps['z']:.4f} A\n"
+                f"Spatial probe: +/-{config.spatial_probe.half_range_mm:.2f} mm, {config.spatial_probe.points_per_axis} points\n"
                 f"Expected overview step: about {overview_step:.4f} A\n"
                 f"{note}"
             )
@@ -875,6 +1002,8 @@ class TkBiasCoilsApp:
         self.overview_panel.set_export_path(bundle["paths"]["overview"])
         self.dynamics_panel.draw_dynamics(config, best_result)
         self.dynamics_panel.set_export_path(bundle["paths"]["dynamics"])
+        self.spatial_panel.draw_spatial_field(config, best_result)
+        self.spatial_panel.set_export_path(bundle["paths"]["spatial_field"])
 
         summary_text = Path(bundle["paths"]["summary"]).read_text(encoding="utf-8")
         self._set_text(self.summary_text, summary_text)
@@ -902,9 +1031,7 @@ class TkBiasCoilsApp:
         self.metric_labels["field"][0].config(
             text=f"({best_result['coil_field_mG'][0]:.2f}, {best_result['coil_field_mG'][1]:.2f}, {best_result['coil_field_mG'][2]:.2f}) mG"
         )
-        self.metric_labels["field"][1].config(
-            text=f"Evaluated at {core.format_position_mm(config.molasses.molasses_position_mm, precision=2)}"
-        )
+        self.metric_labels["field"][1].config(text=f"MOT t=0 at cloud = ({best_result['mot_gradient_field_t0_mG'][0]:.2f}, {best_result['mot_gradient_field_t0_mG'][1]:.2f}, {best_result['mot_gradient_field_t0_mG'][2]:.2f}) mG")
 
         self.metric_labels["resolution"][0].config(text=f"{overview_step:.4f} A")
         self.metric_labels["resolution"][1].config(text=f"Coarse dI = {coarse_step_x:.4f} A; overview uses the final grid.")
@@ -930,6 +1057,7 @@ class TkBiasCoilsApp:
             ("Refined scan CSV", "refined_csv"),
             ("Overview figure", "overview"),
             ("Dynamics figure", "dynamics"),
+            ("Spatial field figure", "spatial_field"),
             ("Summary text", "summary"),
             ("Resolved config", "resolved_config"),
         ):

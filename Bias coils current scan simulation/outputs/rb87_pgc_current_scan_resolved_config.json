@@ -6,10 +6,10 @@
     "ground_state_g_factor_abs": 0.5
   },
   "molasses": {
-    "initial_temperature_uK": 40.0,
+    "initial_temperature_uK": 200.0,
     "zero_field_temperature_uK": 2.0,
     "failure_temperature_uK": 80.0,
-    "molasses_duration_ms": 7.0,
+    "molasses_duration_ms": 10.0,
     "time_step_us": 20.0,
     "zero_field_cooling_time_ms": 1.2,
     "detuning_mhz": -15.0,
@@ -20,7 +20,7 @@
     "magnetic_width_mG_override": null,
     "molasses_position_mm": [
       0.0,
-      20.0,
+      1.5,
       0.0
     ]
   },
@@ -42,6 +42,20 @@
     "side_length_cm": 30.0,
     "center_to_coil_cm": 20.0
   },
+  "mot_gradient_coils": {
+    "enabled": true,
+    "turns_per_coil": 50,
+    "radius_cm": 10.0,
+    "center_to_coil_cm": 10.0,
+    "current_A": 7.0,
+    "switch_off_scale": 1.0,
+    "axis_direction": [
+      0.0,
+      1.0,
+      1.0
+    ],
+    "anti_helmholtz": true
+  },
   "scan": {
     "x_current_A": {
       "start": -1.0,
@@ -59,6 +73,10 @@
       "points": 25
     }
   },
+  "spatial_probe": {
+    "half_range_mm": 10.0,
+    "points_per_axis": 121
+  },
   "refinement": {
     "enabled": true,
     "steps": 1,
@@ -71,25 +89,52 @@
   },
   "derived_coil_field_matrix_mG_per_A": [
     [
-      293.8323596284824,
+      296.3359061821516,
       0.0,
       0.0
     ],
     [
       0.0,
-      301.3830258480634,
+      296.3783550387329,
       0.0
     ],
     [
       0.0,
       0.0,
-      293.8323596284824
+      296.3359061821516
     ]
   ],
   "derived_molasses_position_mm": [
     0.0,
-    20.0,
+    1.5,
     0.0
   ],
-  "derived_origin_center_field_per_axis_mG_per_A": 296.3500558265186
+  "derived_origin_center_field_per_axis_mG_per_A": 296.3500558265186,
+  "derived_mot_axis_unit_vector": [
+    0.0,
+    0.7071067811865475,
+    0.7071067811865475
+  ],
+  "derived_mot_gradient_field_t0_mG": [
+    -8.949577239940914e-13,
+    87.4664794962657,
+    262.42199660505764
+  ],
+  "derived_mot_gradient_jacobian_mG_per_mm": [
+    [
+      -116.63699320809862,
+      -1.380310795170982e-11,
+      -2.0647155103533822e-11
+    ],
+    [
+      -2.8421709430404007e-11,
+      58.302082598798535,
+      174.95143011645155
+    ],
+    [
+      -2.3590018827235326e-11,
+      174.95143029236942,
+      58.33488932005821
+    ]
+  ]
 }

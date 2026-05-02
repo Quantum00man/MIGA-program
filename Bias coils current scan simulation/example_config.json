@@ -42,6 +42,20 @@
     "side_length_cm": 30.0,
     "center_to_coil_cm": 20.0
   },
+  "mot_gradient_coils": {
+    "enabled": true,
+    "turns_per_coil": 50,
+    "radius_cm": 10.0,
+    "center_to_coil_cm": 10.0,
+    "current_A": 7.0,
+    "switch_off_scale": 1.0,
+    "axis_direction": [
+      0.0,
+      1.0,
+      1.0
+    ],
+    "anti_helmholtz": true
+  },
   "scan": {
     "x_current_A": {
       "start": -3.0,
@@ -58,6 +72,10 @@
       "stop": 3.0,
       "points": 25
     }
+  },
+  "spatial_probe": {
+    "half_range_mm": 10.0,
+    "points_per_axis": 121
   },
   "refinement": {
     "enabled": true,

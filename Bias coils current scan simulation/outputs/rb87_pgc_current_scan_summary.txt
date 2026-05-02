@@ -1,17 +1,22 @@
 Rb87 optical molasses current-scan simulation summary
-Molasses evaluation position: (0.000000, 20.000000, 0.000000) mm
+Molasses evaluation position: (0.000000, 1.500000, 0.000000) mm
 Current-to-field matrix at that position [mG/A]:
-  Bx = [ 293.832360,  0.000000,  0.000000] mG/A
-  By = [ 0.000000,  301.383026,  0.000000] mG/A
-  Bz = [ 0.000000,  0.000000,  293.832360] mG/A
+  Bx = [ 296.335906,  0.000000,  0.000000] mG/A
+  By = [ 0.000000,  296.378355,  0.000000] mG/A
+  Bz = [ 0.000000,  0.000000,  296.335906] mG/A
+MOT gradient field at molasses start: Bx=-0.000000 mG, By=87.466479 mG, Bz=262.421997 mG
+MOT gradient Jacobian at molasses position [mG/mm]:
+  dBx/dx = -116.636993, dBx/dy = -0.000000, dBx/dz = -0.000000 mG/mm
+  dBy/dx = -0.000000, dBy/dy = 58.302083, dBy/dz = 174.951430 mG/mm
+  dBz/dx = -0.000000, dBz/dy = 174.951430, dBz/dz = 58.334889 mG/mm
 Coarse-grid best current setpoint: Ix=0.000000 A, Iy=0.000000 A, Iz=0.000000 A
 Final best current setpoint: Ix=-0.004902 A, Iy=-0.004902 A, Iz=-0.004902 A
-Compensation field at best setpoint: Bx=-1.440355 mG, By=-1.477368 mG, Bz=-1.440355 mG
-Predicted final temperature: 2.754961 uK
-Cooling efficiency (0=no cooling, 1=zero-field limit): 0.980133
-Initial residual field magnitude: 7069.004817 mG
-Final residual field magnitude: 2.511500 mG
-Time-averaged residual field magnitude: 513.448734 mG
+Compensation field at best setpoint: Bx=-1.452627 mG, By=-1.452835 mG, Bz=-1.452627 mG
+Predicted final temperature: 2.235833 uK
+Cooling efficiency (0=no cooling, 1=zero-field limit): 0.998809
+Initial residual field magnitude: 7317.467841 mG
+Final residual field magnitude: 2.516132 mG
+Time-averaged residual field magnitude: 373.118873 mG
 Magnetic width used for PGC suppression: 194.996221 mG
 
 Geometry used:
@@ -19,8 +24,22 @@ Geometry used:
   square side length = 30.000000 cm
   center to each coil = 20.000000 cm
 
+MOT gradient-coil model used:
+  enabled = True
+  turns per coil = 50
+  radius = 10.000000 cm
+  center to each coil = 10.000000 cm
+  current = 7.000000 A
+  switch-off scale = 1.000000
+  axis direction unit vector = (0.000000, 0.707107, 0.707107)
+  anti-Helmholtz = True
+
+Spatial probe used for local field curves:
+  half-range = 10.000000 mm
+  points per axis = 121
+
 Local refinement stages:
-  stage 1: x in [-0.083333, 0.083333] A, y in [-0.083333, 0.083333] A, z in [-0.083333, 0.083333] A, best = (-0.004902, -0.004902, -0.004902) A, T = 2.754961 uK
+  stage 1: x in [-0.083333, 0.083333] A, y in [-0.083333, 0.083333] A, z in [-0.083333, 0.083333] A, best = (-0.004902, -0.004902, -0.004902) A, T = 2.235833 uK
 
 Overview figure uses the final refined grid:
   dIx = 0.009804 A, dIy = 0.009804 A, dIz = 0.009804 A

@@ -154,6 +154,12 @@ class SimulationWorker(QObject):
                 output_dir,
                 self.config.output.prefix,
             )
+            spatial_field_path = core.make_spatial_field_figure(
+                self.config,
+                best_result,
+                output_dir,
+                self.config.output.prefix,
+            )
             summary_path = core.write_summary(
                 self.config,
                 coarse_result,
@@ -179,6 +185,7 @@ class SimulationWorker(QObject):
                     "refined_csv": refined_csv_path,
                     "overview": overview_path,
                     "dynamics": dynamics_path,
+                    "spatial_field": spatial_field_path,
                     "summary": summary_path,
                     "resolved_config": resolved_config_path,
                 },
@@ -447,6 +454,13 @@ class InteractiveMatplotlibPanel(QFrame):
         axes = self.figure.subplots(2, 2)
         self.figure.set_constrained_layout(True)
         core.plot_dynamics_on_axes(config, best_result, axes)
+        self.canvas.draw_idle()
+
+    def draw_spatial_field(self, config: core.SimulationConfig, best_result: dict) -> None:
+        self.figure.clear()
+        axes = self.figure.subplots(2, 2)
+        self.figure.set_constrained_layout(True)
+        core.plot_spatial_field_on_axes(config, best_result, axes)
         self.canvas.draw_idle()
 
     def open_export(self) -> None:
@@ -788,8 +802,14 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         self.geometry_group = self._build_geometry_group()
         parent_layout.addWidget(self.geometry_group)
 
+        self.mot_gradient_group = self._build_mot_gradient_group()
+        parent_layout.addWidget(self.mot_gradient_group)
+
         self.scan_group = self._build_scan_group()
         parent_layout.addWidget(self.scan_group)
+
+        self.spatial_probe_group = self._build_spatial_probe_group()
+        parent_layout.addWidget(self.spatial_probe_group)
 
         self.refinement_group = self._build_refinement_group()
         parent_layout.addWidget(self.refinement_group)
@@ -824,6 +844,10 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             "Dynamics Trace",
             "Residual magnetic-field evolution and temperature trajectory during optical molasses.",
         )
+        self.spatial_panel = InteractiveMatplotlibPanel(
+            "Spatial Field Curves",
+            "Local magnetic-field cuts around the cloud center, comparing the MOT gradient pair with and without compensation.",
+        )
         self.summary_browser = QTextBrowser()
         self.summary_browser.setOpenExternalLinks(True)
         self.summary_browser.setHtml("<p>Run a simulation to populate the summary report.</p>")
@@ -838,6 +862,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
 
         self.tabs.addTab(self.overview_panel, "Overview")
         self.tabs.addTab(self.dynamics_panel, "Dynamics")
+        self.tabs.addTab(self.spatial_panel, "Spatial Field")
         self.tabs.addTab(self.summary_browser, "Summary")
         self.tabs.addTab(self.paths_browser, "Outputs")
         self.tabs.addTab(self.notes_browser, "Model")
@@ -959,6 +984,50 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         layout.addRow("Center to each coil", self.center_to_coil_spin)
         return group
 
+    def _build_mot_gradient_group(self) -> QGroupBox:
+        group = QGroupBox("3D MOT Gradient Coils")
+        layout = QFormLayout(group)
+        layout.setSpacing(10)
+
+        self.mot_gradient_enabled = QCheckBox("Enable MOT gradient-pair contribution")
+        self.mot_gradient_enabled.toggled.connect(self.update_derived_labels)
+        self.mot_gradient_turns_spin = self._make_int_spin(1, 1000, step=1)
+        self.mot_gradient_radius_spin = self._make_double_spin(0.1, 500.0, decimals=4, step=0.5, suffix=" cm")
+        self.mot_gradient_center_to_coil_spin = self._make_double_spin(0.1, 500.0, decimals=4, step=0.5, suffix=" cm")
+        self.mot_gradient_current_spin = self._make_double_spin(-200.0, 200.0, decimals=4, step=0.1, suffix=" A")
+        self.mot_gradient_switch_off_scale_spin = self._make_double_spin(0.0, 10.0, decimals=4, step=0.05)
+        self.mot_gradient_anti_helmholtz = QCheckBox("Use anti-Helmholtz current directions")
+        self.mot_gradient_anti_helmholtz.toggled.connect(self.update_derived_labels)
+        self.mot_axis_widgets = {}
+        mot_axis_row = QWidget()
+        mot_axis_layout = QHBoxLayout(mot_axis_row)
+        mot_axis_layout.setContentsMargins(0, 0, 0, 0)
+        mot_axis_layout.setSpacing(8)
+        for axis in ("x", "y", "z"):
+            widget = self._make_double_spin(-10.0, 10.0, decimals=4, step=0.1)
+            widget.valueChanged.connect(self.update_derived_labels)
+            mot_axis_layout.addWidget(widget)
+            self.mot_axis_widgets[axis] = widget
+
+        for widget in (
+            self.mot_gradient_turns_spin,
+            self.mot_gradient_radius_spin,
+            self.mot_gradient_center_to_coil_spin,
+            self.mot_gradient_current_spin,
+            self.mot_gradient_switch_off_scale_spin,
+        ):
+            widget.valueChanged.connect(self.update_derived_labels)
+
+        layout.addRow(self.mot_gradient_enabled)
+        layout.addRow("Turns per coil", self.mot_gradient_turns_spin)
+        layout.addRow("Loop radius", self.mot_gradient_radius_spin)
+        layout.addRow("Center to each coil", self.mot_gradient_center_to_coil_spin)
+        layout.addRow("Steady-state current", self.mot_gradient_current_spin)
+        layout.addRow("Switch-off residual scale", self.mot_gradient_switch_off_scale_spin)
+        layout.addRow("Axis direction (X, Y, Z)", mot_axis_row)
+        layout.addRow(self.mot_gradient_anti_helmholtz)
+        return group
+
     def _build_scan_group(self) -> QGroupBox:
         group = QGroupBox("Coarse Current Scan")
         layout = QGridLayout(group)
@@ -1007,6 +1076,18 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         layout.addRow("Target overview step", self.target_step_spin)
         return group
 
+    def _build_spatial_probe_group(self) -> QGroupBox:
+        group = QGroupBox("Spatial Field Probe")
+        layout = QFormLayout(group)
+        layout.setSpacing(10)
+        self.spatial_probe_half_range_spin = self._make_double_spin(0.001, 200.0, decimals=4, step=0.5, suffix=" mm")
+        self.spatial_probe_points_spin = self._make_int_spin(3, 2001, step=2)
+        self.spatial_probe_half_range_spin.valueChanged.connect(self.update_derived_labels)
+        self.spatial_probe_points_spin.valueChanged.connect(self.update_derived_labels)
+        layout.addRow("Half-range around cloud", self.spatial_probe_half_range_spin)
+        layout.addRow("Points per line cut", self.spatial_probe_points_spin)
+        return group
+
     def _build_output_group(self) -> QGroupBox:
         group = QGroupBox("Output Naming")
         layout = QFormLayout(group)
@@ -1027,12 +1108,14 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
 
         self.derived_field_label = QLabel("--")
         self.derived_field_label.setWordWrap(True)
+        self.derived_mot_label = QLabel("--")
+        self.derived_mot_label.setWordWrap(True)
         self.derived_width_label = QLabel("--")
         self.derived_width_label.setWordWrap(True)
         self.derived_scan_label = QLabel("--")
         self.derived_scan_label.setWordWrap(True)
 
-        for label in (self.derived_field_label, self.derived_width_label, self.derived_scan_label):
+        for label in (self.derived_field_label, self.derived_mot_label, self.derived_width_label, self.derived_scan_label):
             label.setStyleSheet(
                 "background: #faf8f3; border: 1px solid #ddd8ce; border-radius: 12px; padding: 10px;"
             )
@@ -1111,6 +1194,20 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
                 side_length_cm=float(self.side_length_spin.value()),
                 center_to_coil_cm=float(self.center_to_coil_spin.value()),
             ),
+            mot_gradient_coils=core.MotGradientCoilConfig(
+                enabled=bool(self.mot_gradient_enabled.isChecked()),
+                turns_per_coil=int(self.mot_gradient_turns_spin.value()),
+                radius_cm=float(self.mot_gradient_radius_spin.value()),
+                center_to_coil_cm=float(self.mot_gradient_center_to_coil_spin.value()),
+                current_A=float(self.mot_gradient_current_spin.value()),
+                switch_off_scale=float(self.mot_gradient_switch_off_scale_spin.value()),
+                axis_direction=(
+                    float(self.mot_axis_widgets["x"].value()),
+                    float(self.mot_axis_widgets["y"].value()),
+                    float(self.mot_axis_widgets["z"].value()),
+                ),
+                anti_helmholtz=bool(self.mot_gradient_anti_helmholtz.isChecked()),
+            ),
             scan=core.CurrentScanConfig(
                 x_current_A=core.AxisScan(
                     start=float(scan_x[0].value()),
@@ -1127,6 +1224,10 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
                     stop=float(scan_z[1].value()),
                     points=int(scan_z[2].value()),
                 ),
+            ),
+            spatial_probe=core.SpatialProbeConfig(
+                half_range_mm=float(self.spatial_probe_half_range_spin.value()),
+                points_per_axis=int(self.spatial_probe_points_spin.value()),
             ),
             refinement=core.RefinementConfig(
                 enabled=bool(self.refinement_enabled.isChecked()),
@@ -1172,6 +1273,16 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             self.side_length_spin.setValue(config.coil_geometry.side_length_cm)
             self.center_to_coil_spin.setValue(config.coil_geometry.center_to_coil_cm)
 
+            self.mot_gradient_enabled.setChecked(config.mot_gradient_coils.enabled)
+            self.mot_gradient_turns_spin.setValue(config.mot_gradient_coils.turns_per_coil)
+            self.mot_gradient_radius_spin.setValue(config.mot_gradient_coils.radius_cm)
+            self.mot_gradient_center_to_coil_spin.setValue(config.mot_gradient_coils.center_to_coil_cm)
+            self.mot_gradient_current_spin.setValue(config.mot_gradient_coils.current_A)
+            self.mot_gradient_switch_off_scale_spin.setValue(config.mot_gradient_coils.switch_off_scale)
+            self.mot_gradient_anti_helmholtz.setChecked(config.mot_gradient_coils.anti_helmholtz)
+            for axis, value in zip(("x", "y", "z"), config.mot_gradient_coils.axis_direction):
+                self.mot_axis_widgets[axis].setValue(value)
+
             for axis, axis_scan in zip(
                 ("x", "y", "z"),
                 (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A),
@@ -1185,6 +1296,8 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             self.refinement_steps_spin.setValue(config.refinement.steps)
             self.refinement_points_spin.setValue(config.refinement.points_per_axis)
             self.target_step_spin.setValue(config.refinement.target_step_A)
+            self.spatial_probe_half_range_spin.setValue(config.spatial_probe.half_range_mm)
+            self.spatial_probe_points_spin.setValue(config.spatial_probe.points_per_axis)
 
             self.output_directory_edit.setText(config.output.directory)
             self.output_prefix_edit.setText(config.output.prefix)
@@ -1195,10 +1308,27 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
     def update_derived_labels(self) -> None:
         if self._suspend_derived_updates:
             return
-        config = self.current_config()
-        field_matrix = core.coil_field_matrix_mG_per_A(config)
-        matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
-        magnetic_width = core.magnetic_width_mG(config)
+        try:
+            config = self.current_config()
+            field_matrix = core.coil_field_matrix_mG_per_A(config)
+            matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
+            mot_gradient_field = core.mot_gradient_field_mG(config, current_scale=1.0)
+            mot_gradient_rows = core.format_gradient_rows(
+                core.mot_gradient_jacobian_mG_per_mm(config, current_scale=1.0),
+                precision=3,
+            )
+            mot_axis = core.mot_axis_unit_vector(config)
+            magnetic_width = core.magnetic_width_mG(config)
+        except Exception as exc:
+            message = f"Derived quantities unavailable: {exc}"
+            for label in (
+                self.derived_field_label,
+                self.derived_mot_label,
+                self.derived_width_label,
+                self.derived_scan_label,
+            ):
+                label.setText(message)
+            return
 
         coarse_steps = {
             "x": core.axis_step(config.scan.x_current_A.values()),
@@ -1226,6 +1356,14 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             f"{config.coil_geometry.side_length_cm:.2f} cm square, "
             f"{config.coil_geometry.center_to_coil_cm:.2f} cm offset."
         )
+        self.derived_mot_label.setText(
+            "MOT gradient pair at molasses start\n"
+            f"B_MOT(t=0) = ({mot_gradient_field[0]:.3f}, {mot_gradient_field[1]:.3f}, {mot_gradient_field[2]:.3f}) mG\n"
+            f"u_MOT = ({mot_axis[0]:.3f}, {mot_axis[1]:.3f}, {mot_axis[2]:.3f})\n"
+            f"{mot_gradient_rows[0]}\n"
+            f"{mot_gradient_rows[1]}\n"
+            f"{mot_gradient_rows[2]}"
+        )
         self.derived_width_label.setText(
             "Cooling-width estimate\n"
             f"Magnetic width B_width = {magnetic_width:.6f} mG\n"
@@ -1237,6 +1375,8 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             "Scan and overview resolution\n"
             f"Coarse steps: dIx = {coarse_steps['x']:.4f} A, "
             f"dIy = {coarse_steps['y']:.4f} A, dIz = {coarse_steps['z']:.4f} A\n"
+            f"Spatial probe: +/-{config.spatial_probe.half_range_mm:.2f} mm, "
+            f"{config.spatial_probe.points_per_axis} points\n"
             f"Expected overview step: about {overview_step:.4f} A\n"
             f"{refinement_note}"
         )
@@ -1278,6 +1418,8 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         self.overview_panel.set_export_path(bundle_dict["paths"]["overview"])
         self.dynamics_panel.draw_dynamics(config, best_result)
         self.dynamics_panel.set_export_path(bundle_dict["paths"]["dynamics"])
+        self.spatial_panel.draw_spatial_field(config, best_result)
+        self.spatial_panel.set_export_path(bundle_dict["paths"]["spatial_field"])
 
         summary_text = Path(bundle_dict["paths"]["summary"]).read_text(encoding="utf-8")
         self.summary_browser.setPlainText(summary_text)
@@ -1312,7 +1454,11 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             f"{best_result['coil_field_mG'][1]:.2f}, "
             f"{best_result['coil_field_mG'][2]:.2f}"
             ") mG",
-            f"Evaluated at {core.format_position_mm(config.molasses.molasses_position_mm, precision=2)}",
+            (
+                f"MOT t=0 at cloud: ({best_result['mot_gradient_field_t0_mG'][0]:.2f}, "
+                f"{best_result['mot_gradient_field_t0_mG'][1]:.2f}, "
+                f"{best_result['mot_gradient_field_t0_mG'][2]:.2f}) mG"
+            ),
         )
         self.resolution_card.set_text(
             f"{overview_step:.4f} A",
@@ -1394,6 +1540,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             ("Refined scan CSV", "refined_csv"),
             ("Overview figure", "overview"),
             ("Dynamics figure", "dynamics"),
+            ("Spatial field figure", "spatial_field"),
             ("Summary text", "summary"),
             ("Resolved config", "resolved_config"),
         ):
@@ -1410,7 +1557,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         <h3>Model Notes</h3>
         <p><b>This UI uses the same simulation core as the command-line tool.</b> It is designed for experimental scan planning and calibration, not as a full quantum-optical Monte Carlo solver.</p>
         <p><b>Residual field model</b><br>
-        <code>B(t) = B_stray + B_coil + B_switch_off exp(-t / tau)</code></p>
+        <code>B(r, t) = B_stray + B_comp(r) + [B_switch_off + B_MOT_gradient(r)] exp(-t / tau)</code></p>
         <p><b>Cooling-efficiency suppression</b><br>
         <code>eta(t) = 1 / [1 + (|B(t)| / B_width)^2]</code></p>
         <p><b>Temperature evolution</b><br>
@@ -1418,6 +1565,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         <p>Key interpretation:</p>
         <ul>
         <li><b>Molasses position</b> sets the cloud center used to evaluate the coil-generated compensation field.</li>
+        <li><b>MOT gradient coils</b> are modeled as an anti-Helmholtz circular pair along the specified axis, so an off-center cloud sees a residual quadrupole field during switch-off.</li>
         <li><b>Static stray field</b> is the long-lived background field after switch-off transients vanish.</li>
         <li><b>Switch-off residual field</b> is the transient field present at the beginning of molasses.</li>
         <li><b>Target overview step</b> controls the final current-grid spacing shown in the overview figure when local refinement is enabled.</li>

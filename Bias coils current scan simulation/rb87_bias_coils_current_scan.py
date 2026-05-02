@@ -65,6 +65,24 @@ class CoilGeometryConfig:
 
 
 @dataclass(frozen=True)
+class MotGradientCoilConfig:
+    enabled: bool = True
+    turns_per_coil: int = 50
+    radius_cm: float = 10.0
+    center_to_coil_cm: float = 10.0
+    current_A: float = 7.0
+    switch_off_scale: float = 1.0
+    axis_direction: tuple[float, float, float] = (0.0, 1.0, 1.0)
+    anti_helmholtz: bool = True
+
+
+@dataclass(frozen=True)
+class SpatialProbeConfig:
+    half_range_mm: float = 10.0
+    points_per_axis: int = 121
+
+
+@dataclass(frozen=True)
 class AxisScan:
     start: float
     stop: float
@@ -101,7 +119,9 @@ class SimulationConfig:
     molasses: MolassesConfig = field(default_factory=MolassesConfig)
     fields: FieldConfig = field(default_factory=FieldConfig)
     coil_geometry: CoilGeometryConfig = field(default_factory=CoilGeometryConfig)
+    mot_gradient_coils: MotGradientCoilConfig = field(default_factory=MotGradientCoilConfig)
     scan: CurrentScanConfig = field(default_factory=CurrentScanConfig)
+    spatial_probe: SpatialProbeConfig = field(default_factory=SpatialProbeConfig)
     refinement: RefinementConfig = field(default_factory=RefinementConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
 
@@ -109,6 +129,7 @@ class SimulationConfig:
     def from_dict(cls, data: dict) -> "SimulationConfig":
         molasses_block = data.get("molasses", {})
         field_block = data.get("fields", {})
+        mot_gradient_block = data.get("mot_gradient_coils", {})
         scan_block = data.get("scan", {})
         return cls(
             atom=AtomConfig(**data.get("atom", {})),
@@ -130,11 +151,20 @@ class SimulationConfig:
                 mot_decay_tau_ms=field_block.get("mot_decay_tau_ms", FieldConfig.mot_decay_tau_ms),
             ),
             coil_geometry=CoilGeometryConfig(**data.get("coil_geometry", {})),
+            mot_gradient_coils=MotGradientCoilConfig(
+                **{
+                    **mot_gradient_block,
+                    "axis_direction": tuple(
+                        mot_gradient_block.get("axis_direction", MotGradientCoilConfig.axis_direction)
+                    ),
+                }
+            ),
             scan=CurrentScanConfig(
                 x_current_A=AxisScan(**scan_block.get("x_current_A", asdict(CurrentScanConfig().x_current_A))),
                 y_current_A=AxisScan(**scan_block.get("y_current_A", asdict(CurrentScanConfig().y_current_A))),
                 z_current_A=AxisScan(**scan_block.get("z_current_A", asdict(CurrentScanConfig().z_current_A))),
             ),
+            spatial_probe=SpatialProbeConfig(**data.get("spatial_probe", {})),
             refinement=RefinementConfig(**data.get("refinement", {})),
             output=OutputConfig(**data.get("output", {})),
         )
@@ -152,12 +182,28 @@ def molasses_position_m(config: SimulationConfig) -> np.ndarray:
     return 1.0e-3 * np.asarray(config.molasses.molasses_position_mm, dtype=float)
 
 
+def normalize_vector(vector: np.ndarray) -> np.ndarray:
+    array = np.asarray(vector, dtype=float)
+    norm = float(np.linalg.norm(array))
+    if norm <= 1.0e-15:
+        raise ValueError("Zero-length vector cannot be normalized.")
+    return array / norm
+
+
 def coil_axis_spec(axis: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if axis == "x":
         return np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0])
     if axis == "y":
         return np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 0.0])
     return np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])
+
+
+def orthonormal_basis_from_normal(normal_vector: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    normal_unit = normalize_vector(normal_vector)
+    reference = np.array([1.0, 0.0, 0.0]) if abs(normal_unit[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    u_vector = normalize_vector(np.cross(normal_unit, reference))
+    v_vector = normalize_vector(np.cross(normal_unit, u_vector))
+    return u_vector, v_vector
 
 
 def finite_segment_field_tesla(
@@ -179,6 +225,37 @@ def finite_segment_field_tesla(
     dl_array = np.broadcast_to(dl, (valid.sum(), 3))
     cross = np.cross(dl_array, displacement[valid])
     return MU0_T_M_PER_A / (4.0 * np.pi) * current_A * np.sum(cross / radii[valid][:, None] ** 3, axis=0)
+
+
+def circular_loop_field_tesla(
+    point_m: np.ndarray,
+    center_m: np.ndarray,
+    normal_vector: np.ndarray,
+    radius_m: float,
+    current_A: float,
+    turns: int,
+    segments_per_loop: int = 360,
+) -> np.ndarray:
+    normal_unit = normalize_vector(normal_vector)
+    u_vector, v_vector = orthonormal_basis_from_normal(normal_unit)
+    angles = np.linspace(0.0, 2.0 * np.pi, segments_per_loop, endpoint=False)
+    ring_points = (
+        center_m[None, :]
+        + radius_m * np.cos(angles)[:, None] * u_vector[None, :]
+        + radius_m * np.sin(angles)[:, None] * v_vector[None, :]
+    )
+
+    total_field = np.zeros(3)
+    next_points = np.roll(ring_points, -1, axis=0)
+    for start_m, end_m in zip(ring_points, next_points):
+        total_field += finite_segment_field_tesla(
+            point_m,
+            start_m,
+            end_m,
+            current_A=current_A,
+            segments_per_side=1,
+        )
+    return turns * total_field
 
 
 def square_loop_field_tesla(
@@ -250,6 +327,47 @@ def coil_field_matrix_mG_per_A_cached(
     return tuple(tuple(float(value) for value in row) for row in matrix)
 
 
+@lru_cache(maxsize=512)
+def mot_gradient_field_mG_per_A_cached(
+    turns_per_coil: int,
+    radius_cm: float,
+    center_to_coil_cm: float,
+    axis_x: float,
+    axis_y: float,
+    axis_z: float,
+    anti_helmholtz: bool,
+    x_mm: float,
+    y_mm: float,
+    z_mm: float,
+) -> tuple[float, float, float]:
+    point_m = 1.0e-3 * np.array([x_mm, y_mm, z_mm], dtype=float)
+    axis_unit = normalize_vector(np.array([axis_x, axis_y, axis_z], dtype=float))
+    radius_m = 1.0e-2 * radius_cm
+    center_to_coil_m = 1.0e-2 * center_to_coil_cm
+
+    positive_center = center_to_coil_m * axis_unit
+    negative_center = -center_to_coil_m * axis_unit
+    current_sign_negative = -1.0 if anti_helmholtz else 1.0
+
+    total_field = circular_loop_field_tesla(
+        point_m,
+        positive_center,
+        axis_unit,
+        radius_m,
+        current_A=1.0,
+        turns=turns_per_coil,
+    )
+    total_field += circular_loop_field_tesla(
+        point_m,
+        negative_center,
+        axis_unit,
+        radius_m,
+        current_A=current_sign_negative,
+        turns=turns_per_coil,
+    )
+    return tuple(float(value) for value in TESLA_TO_MG * total_field)
+
+
 def square_pair_center_field_mG_per_A(geometry: CoilGeometryConfig) -> float:
     matrix = coil_field_matrix_mG_per_A_cached(
         geometry.turns_per_coil,
@@ -262,8 +380,11 @@ def square_pair_center_field_mG_per_A(geometry: CoilGeometryConfig) -> float:
     return float(matrix[0][0])
 
 
-def coil_field_matrix_mG_per_A(config: SimulationConfig) -> np.ndarray:
-    x_mm, y_mm, z_mm = config.molasses.molasses_position_mm
+def coil_field_matrix_at_position_mG_per_A(
+    config: SimulationConfig,
+    position_mm: tuple[float, float, float],
+) -> np.ndarray:
+    x_mm, y_mm, z_mm = position_mm
     return np.asarray(
         coil_field_matrix_mG_per_A_cached(
             config.coil_geometry.turns_per_coil,
@@ -275,6 +396,90 @@ def coil_field_matrix_mG_per_A(config: SimulationConfig) -> np.ndarray:
         ),
         dtype=float,
     )
+
+
+def coil_field_matrix_mG_per_A(config: SimulationConfig) -> np.ndarray:
+    return coil_field_matrix_at_position_mG_per_A(config, config.molasses.molasses_position_mm)
+
+
+def mot_axis_unit_vector(config: SimulationConfig) -> np.ndarray:
+    return normalize_vector(np.asarray(config.mot_gradient_coils.axis_direction, dtype=float))
+
+
+def mot_gradient_field_per_A_at_position_mG(
+    config: SimulationConfig,
+    position_mm: tuple[float, float, float],
+) -> np.ndarray:
+    mot = config.mot_gradient_coils
+    if not mot.enabled:
+        return np.zeros(3)
+    x_mm, y_mm, z_mm = position_mm
+    axis_x, axis_y, axis_z = mot.axis_direction
+    return np.asarray(
+        mot_gradient_field_mG_per_A_cached(
+            mot.turns_per_coil,
+            mot.radius_cm,
+            mot.center_to_coil_cm,
+            float(axis_x),
+            float(axis_y),
+            float(axis_z),
+            bool(mot.anti_helmholtz),
+            float(x_mm),
+            float(y_mm),
+            float(z_mm),
+        ),
+        dtype=float,
+    )
+
+
+def mot_gradient_field_at_position_mG(
+    config: SimulationConfig,
+    position_mm: tuple[float, float, float],
+    *,
+    current_scale: float = 1.0,
+) -> np.ndarray:
+    mot = config.mot_gradient_coils
+    if not mot.enabled:
+        return np.zeros(3)
+    effective_current_A = mot.current_A * mot.switch_off_scale * current_scale
+    return effective_current_A * mot_gradient_field_per_A_at_position_mG(config, position_mm)
+
+
+def mot_gradient_field_mG(config: SimulationConfig, *, current_scale: float = 1.0) -> np.ndarray:
+    return mot_gradient_field_at_position_mG(
+        config,
+        config.molasses.molasses_position_mm,
+        current_scale=current_scale,
+    )
+
+
+def mot_gradient_jacobian_mG_per_mm(
+    config: SimulationConfig,
+    position_mm: tuple[float, float, float] | None = None,
+    *,
+    current_scale: float = 1.0,
+    step_mm: float = 0.1,
+) -> np.ndarray:
+    point = np.asarray(
+        config.molasses.molasses_position_mm if position_mm is None else position_mm,
+        dtype=float,
+    )
+    jacobian = np.zeros((3, 3))
+    for column in range(3):
+        offset = np.zeros(3)
+        offset[column] = step_mm
+        plus_field = mot_gradient_field_at_position_mG(
+            config,
+            tuple(point + offset),
+            current_scale=current_scale,
+        )
+        minus_field = mot_gradient_field_at_position_mG(
+            config,
+            tuple(point - offset),
+            current_scale=current_scale,
+        )
+        jacobian[:, column] = (plus_field - minus_field) / (2.0 * step_mm)
+    return jacobian
 
 
 def format_position_mm(position_mm: tuple[float, float, float], precision: int = 3) -> str:
@@ -289,6 +494,16 @@ def format_field_matrix_rows(matrix_mG_per_A: np.ndarray, precision: int = 3) ->
         rows.append(
             f"{label} = [{row[0]: .{precision}f}, {row[1]: .{precision}f}, {row[2]: .{precision}f}] mG/A"
         )
+    return rows
+
+
+def format_gradient_rows(jacobian_mG_per_mm: np.ndarray, precision: int = 3) -> list[str]:
+    labels = ("Bx", "By", "Bz")
+    axes = ("dx", "dy", "dz")
+    rows: list[str] = []
+    for label, row in zip(labels, np.asarray(jacobian_mG_per_mm, dtype=float)):
+        pieces = ", ".join(f"d{label}/{axis} = {value:.{precision}f}" for axis, value in zip(axes, row))
+        rows.append(pieces + " mG/mm")
     return rows
 
 
@@ -320,32 +535,81 @@ def time_axis_ms(config: SimulationConfig) -> np.ndarray:
     return np.linspace(0.0, config.molasses.molasses_duration_ms, n_steps + 1)
 
 
+def transient_decay_scale(config: SimulationConfig, time_ms: np.ndarray) -> np.ndarray:
+    if config.fields.mot_decay_tau_ms > 0.0:
+        return np.exp(-time_ms / config.fields.mot_decay_tau_ms)
+    return np.zeros_like(time_ms)
+
+
+def coil_field_from_currents_at_position_mG(
+    config: SimulationConfig,
+    current_xyz_A: np.ndarray,
+    position_mm: tuple[float, float, float],
+) -> np.ndarray:
+    return coil_field_matrix_at_position_mG_per_A(config, position_mm) @ current_xyz_A
+
+
 def coil_field_from_currents_mG(config: SimulationConfig, current_xyz_A: np.ndarray) -> np.ndarray:
-    return coil_field_matrix_mG_per_A(config) @ current_xyz_A
+    return coil_field_from_currents_at_position_mG(config, current_xyz_A, config.molasses.molasses_position_mm)
+
+
+def residual_field_at_position_mG(
+    config: SimulationConfig,
+    current_xyz_A: np.ndarray,
+    position_mm: tuple[float, float, float],
+    *,
+    decay_scale: float = 1.0,
+) -> dict:
+    static_field = np.asarray(config.fields.static_stray_field_mG, dtype=float)
+    switch_off_field = np.asarray(config.fields.mot_switch_off_field_mG, dtype=float)
+    coil_field = coil_field_from_currents_at_position_mG(config, current_xyz_A, position_mm)
+    mot_gradient_field = mot_gradient_field_at_position_mG(
+        config,
+        position_mm,
+        current_scale=decay_scale,
+    )
+    total_field = static_field + coil_field + decay_scale * switch_off_field + mot_gradient_field
+    return {
+        "total_field_mG": total_field,
+        "coil_field_mG": coil_field,
+        "mot_gradient_field_mG": mot_gradient_field,
+        "switch_off_field_mG": decay_scale * switch_off_field,
+        "static_field_mG": static_field,
+    }
 
 
 def residual_field_trace_mG(
     config: SimulationConfig,
     current_xyz_A: np.ndarray,
     time_ms: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> dict:
     static_field = np.asarray(config.fields.static_stray_field_mG, dtype=float)
-    decay_field = np.asarray(config.fields.mot_switch_off_field_mG, dtype=float)
+    switch_off_field = np.asarray(config.fields.mot_switch_off_field_mG, dtype=float)
     coil_field = coil_field_from_currents_mG(config, current_xyz_A)
+    mot_gradient_field_t0 = mot_gradient_field_mG(config, current_scale=1.0)
+    decay_scale = transient_decay_scale(config, time_ms)
 
-    if config.fields.mot_decay_tau_ms > 0.0:
-        decay_scale = np.exp(-time_ms / config.fields.mot_decay_tau_ms)
-    else:
-        decay_scale = np.zeros_like(time_ms)
-
-    total_field = static_field + coil_field + decay_scale[:, None] * decay_field
-    return total_field, coil_field
+    total_field = (
+        static_field[None, :]
+        + coil_field[None, :]
+        + decay_scale[:, None] * switch_off_field[None, :]
+        + decay_scale[:, None] * mot_gradient_field_t0[None, :]
+    )
+    return {
+        "total_field_mG": total_field,
+        "coil_field_mG": coil_field,
+        "mot_gradient_field_t0_mG": mot_gradient_field_t0,
+        "switch_off_field_t0_mG": switch_off_field,
+        "decay_scale": decay_scale,
+    }
 
 
 def simulate_one_setting(config: SimulationConfig, current_xyz_A: np.ndarray) -> dict:
     time_ms = time_axis_ms(config)
     dt_ms = np.diff(time_ms)
-    field_trace, coil_field = residual_field_trace_mG(config, current_xyz_A, time_ms)
+    field_bundle = residual_field_trace_mG(config, current_xyz_A, time_ms)
+    field_trace = field_bundle["total_field_mG"]
+    coil_field = field_bundle["coil_field_mG"]
     field_norm_mG = np.linalg.norm(field_trace, axis=1)
 
     width_mG = magnetic_width_mG(config)
@@ -376,6 +640,9 @@ def simulate_one_setting(config: SimulationConfig, current_xyz_A: np.ndarray) ->
     return {
         "current_xyz_A": current_xyz_A.copy(),
         "coil_field_mG": coil_field,
+        "mot_gradient_field_t0_mG": field_bundle["mot_gradient_field_t0_mG"],
+        "switch_off_field_t0_mG": field_bundle["switch_off_field_t0_mG"],
+        "decay_scale": field_bundle["decay_scale"],
         "time_ms": time_ms,
         "field_trace_mG": field_trace,
         "field_norm_mG": field_norm_mG,
@@ -411,6 +678,8 @@ def evaluate_current_grid(
                 currents = np.array([x_current, y_current, z_current], dtype=float)
                 result = simulate_one_setting(config, currents)
                 coil_field = result["coil_field_mG"]
+                mot_gradient_field = result["mot_gradient_field_t0_mG"]
+                switch_off_field = result["switch_off_field_t0_mG"]
 
                 temp_grid[iz, iy, ix] = result["final_temperature_uK"]
                 efficiency_grid[iz, iy, ix] = result["cooling_efficiency"]
@@ -424,6 +693,13 @@ def evaluate_current_grid(
                     "coil_field_y_mG": float(coil_field[1]),
                     "coil_field_z_mG": float(coil_field[2]),
                     "coil_field_norm_mG": float(np.linalg.norm(coil_field)),
+                    "mot_gradient_field_x_mG": float(mot_gradient_field[0]),
+                    "mot_gradient_field_y_mG": float(mot_gradient_field[1]),
+                    "mot_gradient_field_z_mG": float(mot_gradient_field[2]),
+                    "mot_gradient_field_norm_mG": float(np.linalg.norm(mot_gradient_field)),
+                    "switch_off_field_x_mG": float(switch_off_field[0]),
+                    "switch_off_field_y_mG": float(switch_off_field[1]),
+                    "switch_off_field_z_mG": float(switch_off_field[2]),
                     "final_temperature_uK": result["final_temperature_uK"],
                     "cooling_efficiency": result["cooling_efficiency"],
                     "mean_field_mG": result["mean_field_mG"],
@@ -593,11 +869,16 @@ def save_scan_csv(records: list[dict], output_dir: Path, prefix: str) -> Path:
 def save_resolved_config(config: SimulationConfig, output_dir: Path, prefix: str) -> Path:
     resolved = asdict(config)
     field_matrix = coil_field_matrix_mG_per_A(config)
+    mot_gradient_field = mot_gradient_field_mG(config, current_scale=1.0)
+    mot_gradient_jacobian = mot_gradient_jacobian_mG_per_mm(config, current_scale=1.0)
     resolved["derived_coil_field_matrix_mG_per_A"] = field_matrix.tolist()
     resolved["derived_molasses_position_mm"] = list(config.molasses.molasses_position_mm)
     resolved["derived_origin_center_field_per_axis_mG_per_A"] = square_pair_center_field_mG_per_A(
         config.coil_geometry
     )
+    resolved["derived_mot_axis_unit_vector"] = mot_axis_unit_vector(config).tolist()
+    resolved["derived_mot_gradient_field_t0_mG"] = mot_gradient_field.tolist()
+    resolved["derived_mot_gradient_jacobian_mG_per_mm"] = mot_gradient_jacobian.tolist()
 
     path = output_dir / f"{prefix}_resolved_config.json"
     with path.open("w", encoding="utf-8") as handle:
@@ -732,6 +1013,7 @@ def plot_overview_on_axes(
 def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> dict:
     zero_current_result = simulate_one_setting(config, np.zeros(3, dtype=float))
     field_matrix = coil_field_matrix_mG_per_A(config)
+    mot_gradient_field = best_result["mot_gradient_field_t0_mG"]
 
     time_ms = best_result["time_ms"]
     best_trace = best_result["field_trace_mG"]
@@ -780,6 +1062,8 @@ def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> 
             f"Best current: ({best_result['current_xyz_A'][0]:.3f}, "
             f"{best_result['current_xyz_A'][1]:.3f}, {best_result['current_xyz_A'][2]:.3f}) A\n"
             f"Molasses position: {format_position_mm(config.molasses.molasses_position_mm, precision=2)}\n"
+            f"MOT-gradient field at t=0: "
+            f"({mot_gradient_field[0]:.2f}, {mot_gradient_field[1]:.2f}, {mot_gradient_field[2]:.2f}) mG\n"
             f"Diagonal current-to-field terms: "
             f"Mxx={field_matrix[0, 0]:.2f}, Myy={field_matrix[1, 1]:.2f}, Mzz={field_matrix[2, 2]:.2f} mG/A"
         ),
@@ -790,6 +1074,136 @@ def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> 
     )
 
     return {"zero_current_result": zero_current_result}
+
+
+def spatial_probe_offsets_mm(config: SimulationConfig) -> np.ndarray:
+    points = max(int(config.spatial_probe.points_per_axis), 3)
+    half_range_mm = max(float(config.spatial_probe.half_range_mm), 1.0e-6)
+    return np.linspace(-half_range_mm, half_range_mm, points)
+
+
+def line_positions_mm(
+    center_position_mm: tuple[float, float, float],
+    direction_unit: np.ndarray,
+    offsets_mm: np.ndarray,
+) -> np.ndarray:
+    center = np.asarray(center_position_mm, dtype=float)
+    return center[None, :] + offsets_mm[:, None] * normalize_vector(direction_unit)[None, :]
+
+
+def evaluate_spatial_line_curves(
+    config: SimulationConfig,
+    best_current_xyz_A: np.ndarray,
+    direction_unit: np.ndarray,
+    offsets_mm: np.ndarray,
+) -> dict:
+    positions_mm = line_positions_mm(config.molasses.molasses_position_mm, direction_unit, offsets_mm)
+    mot_only_norm = np.empty_like(offsets_mm, dtype=float)
+    total_zero_norm = np.empty_like(offsets_mm, dtype=float)
+    total_best_norm = np.empty_like(offsets_mm, dtype=float)
+    mot_parallel = np.empty_like(offsets_mm, dtype=float)
+    mot_plus_comp_parallel = np.empty_like(offsets_mm, dtype=float)
+    mot_axis = mot_axis_unit_vector(config)
+
+    for index, point in enumerate(positions_mm):
+        position_tuple = tuple(float(value) for value in point)
+        mot_only_field = mot_gradient_field_at_position_mG(config, position_tuple, current_scale=1.0)
+        total_zero_field = residual_field_at_position_mG(
+            config,
+            np.zeros(3, dtype=float),
+            position_tuple,
+            decay_scale=1.0,
+        )["total_field_mG"]
+        comp_field = coil_field_from_currents_at_position_mG(config, best_current_xyz_A, position_tuple)
+        total_best_field = residual_field_at_position_mG(
+            config,
+            best_current_xyz_A,
+            position_tuple,
+            decay_scale=1.0,
+        )["total_field_mG"]
+
+        mot_only_norm[index] = float(np.linalg.norm(mot_only_field))
+        total_zero_norm[index] = float(np.linalg.norm(total_zero_field))
+        total_best_norm[index] = float(np.linalg.norm(total_best_field))
+        mot_parallel[index] = float(mot_axis @ mot_only_field)
+        mot_plus_comp_parallel[index] = float(mot_axis @ (mot_only_field + comp_field))
+
+    return {
+        "offsets_mm": offsets_mm,
+        "positions_mm": positions_mm,
+        "mot_only_norm_mG": mot_only_norm,
+        "total_zero_norm_mG": total_zero_norm,
+        "total_best_norm_mG": total_best_norm,
+        "mot_parallel_mG": mot_parallel,
+        "mot_plus_comp_parallel_mG": mot_plus_comp_parallel,
+    }
+
+
+def plot_spatial_field_on_axes(config: SimulationConfig, best_result: dict, axes) -> dict:
+    offsets_mm = spatial_probe_offsets_mm(config)
+    best_current = np.asarray(best_result["current_xyz_A"], dtype=float)
+    mot_axis = mot_axis_unit_vector(config)
+    direction_map = {
+        "x": np.array([1.0, 0.0, 0.0]),
+        "y": np.array([0.0, 1.0, 0.0]),
+        "z": np.array([0.0, 0.0, 1.0]),
+        "mot_axis": mot_axis,
+    }
+    curves = {
+        key: evaluate_spatial_line_curves(config, best_current, direction, offsets_mm)
+        for key, direction in direction_map.items()
+    }
+
+    for ax, key, title in zip(
+        (axes[0, 0], axes[0, 1], axes[1, 0]),
+        ("x", "y", "z"),
+        ("Local field around cloud along X", "Local field around cloud along Y", "Local field around cloud along Z"),
+    ):
+        axis_curves = curves[key]
+        ax.plot(offsets_mm, axis_curves["mot_only_norm_mG"], label="MOT gradient pair only", linewidth=2.0)
+        ax.plot(offsets_mm, axis_curves["total_zero_norm_mG"], label="Total field, zero comp", linestyle="--")
+        ax.plot(offsets_mm, axis_curves["total_best_norm_mG"], label="Total field, best comp", linewidth=2.0)
+        ax.set_title(title)
+        ax.set_xlabel("Displacement from cloud center (mm)")
+        ax.set_ylabel("|B| (mG)")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+
+    mot_axis_curves = curves["mot_axis"]
+    axes[1, 1].plot(
+        offsets_mm,
+        mot_axis_curves["mot_parallel_mG"],
+        label="MOT pair only, B along MOT axis",
+        linewidth=2.0,
+    )
+    axes[1, 1].plot(
+        offsets_mm,
+        mot_axis_curves["mot_plus_comp_parallel_mG"],
+        label="MOT pair + best compensation",
+        linewidth=2.0,
+    )
+    axes[1, 1].axhline(0.0, color="k", linestyle="--", linewidth=1)
+    axes[1, 1].set_title("Signed field along the MOT-pair axis")
+    axes[1, 1].set_xlabel("Displacement along MOT axis from cloud center (mm)")
+    axes[1, 1].set_ylabel("B · u_MOT (mG)")
+    axes[1, 1].grid(True, alpha=0.3)
+    axes[1, 1].legend()
+    axes[1, 1].text(
+        0.03,
+        0.05,
+        (
+            f"Cloud center: {format_position_mm(config.molasses.molasses_position_mm, precision=2)}\n"
+            f"MOT axis unit vector: ({mot_axis[0]:.3f}, {mot_axis[1]:.3f}, {mot_axis[2]:.3f})\n"
+            f"Probe range: +/-{config.spatial_probe.half_range_mm:.2f} mm\n"
+            f"Best comp current: ({best_current[0]:.3f}, {best_current[1]:.3f}, {best_current[2]:.3f}) A"
+        ),
+        transform=axes[1, 1].transAxes,
+        va="bottom",
+        ha="left",
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
+    )
+
+    return {"curves": curves, "offsets_mm": offsets_mm}
 
 
 def make_overview_figure(
@@ -817,6 +1231,15 @@ def make_dynamics_figure(config: SimulationConfig, best_result: dict, output_dir
     return path
 
 
+def make_spatial_field_figure(config: SimulationConfig, best_result: dict, output_dir: Path, prefix: str) -> Path:
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9), constrained_layout=True)
+    plot_spatial_field_on_axes(config, best_result, axes)
+    path = output_dir / f"{prefix}_spatial_field.png"
+    fig.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
 def write_summary(
     config: SimulationConfig,
     coarse_result: dict,
@@ -829,6 +1252,9 @@ def write_summary(
     best_ix, best_iy, best_iz = best_result["current_xyz_A"]
     coil_bx, coil_by, coil_bz = best_result["coil_field_mG"]
     field_matrix = coil_field_matrix_mG_per_A(config)
+    mot_gradient_field = best_result["mot_gradient_field_t0_mG"]
+    mot_gradient_jacobian = mot_gradient_jacobian_mG_per_mm(config, current_scale=1.0)
+    mot_axis = mot_axis_unit_vector(config)
 
     summary_lines = [
         "Rb87 optical molasses current-scan simulation summary",
@@ -837,6 +1263,16 @@ def write_summary(
         f"  {format_field_matrix_rows(field_matrix, precision=6)[0]}",
         f"  {format_field_matrix_rows(field_matrix, precision=6)[1]}",
         f"  {format_field_matrix_rows(field_matrix, precision=6)[2]}",
+        (
+            "MOT gradient field at molasses start: "
+            f"Bx={mot_gradient_field[0]:.6f} mG, "
+            f"By={mot_gradient_field[1]:.6f} mG, "
+            f"Bz={mot_gradient_field[2]:.6f} mG"
+        ),
+        "MOT gradient Jacobian at molasses position [mG/mm]:",
+        f"  {format_gradient_rows(mot_gradient_jacobian, precision=6)[0]}",
+        f"  {format_gradient_rows(mot_gradient_jacobian, precision=6)[1]}",
+        f"  {format_gradient_rows(mot_gradient_jacobian, precision=6)[2]}",
         (
             "Coarse-grid best current setpoint: "
             f"Ix={coarse_best['current_xyz_A'][0]:.6f} A, "
@@ -856,6 +1292,23 @@ def write_summary(
         f"  turns per coil = {config.coil_geometry.turns_per_coil}",
         f"  square side length = {config.coil_geometry.side_length_cm:.6f} cm",
         f"  center to each coil = {config.coil_geometry.center_to_coil_cm:.6f} cm",
+        "",
+        "MOT gradient-coil model used:",
+        f"  enabled = {config.mot_gradient_coils.enabled}",
+        f"  turns per coil = {config.mot_gradient_coils.turns_per_coil}",
+        f"  radius = {config.mot_gradient_coils.radius_cm:.6f} cm",
+        f"  center to each coil = {config.mot_gradient_coils.center_to_coil_cm:.6f} cm",
+        f"  current = {config.mot_gradient_coils.current_A:.6f} A",
+        f"  switch-off scale = {config.mot_gradient_coils.switch_off_scale:.6f}",
+        (
+            "  axis direction unit vector = "
+            f"({mot_axis[0]:.6f}, {mot_axis[1]:.6f}, {mot_axis[2]:.6f})"
+        ),
+        f"  anti-Helmholtz = {config.mot_gradient_coils.anti_helmholtz}",
+        "",
+        "Spatial probe used for local field curves:",
+        f"  half-range = {config.spatial_probe.half_range_mm:.6f} mm",
+        f"  points per axis = {config.spatial_probe.points_per_axis}",
     ]
     if refinement_result is not None:
         summary_lines.extend(["", "Local refinement stages:"])
@@ -946,6 +1399,7 @@ def main() -> None:
         config.output.prefix,
     )
     dynamics_path = make_dynamics_figure(config, best_result, output_dir, config.output.prefix)
+    spatial_field_path = make_spatial_field_figure(config, best_result, output_dir, config.output.prefix)
     summary_path = write_summary(
         config,
         coarse_result,
@@ -980,6 +1434,7 @@ def main() -> None:
         print(f"Refined scan CSV: {refined_csv_path}")
     print(f"Overview figure: {overview_path}")
     print(f"Dynamics figure: {dynamics_path}")
+    print(f"Spatial field figure: {spatial_field_path}")
     print(f"Summary: {summary_path}")
     print(f"Resolved config: {resolved_config_path}")
 
