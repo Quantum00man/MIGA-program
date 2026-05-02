@@ -1,0 +1,75 @@
+{
+  "atom": {
+    "mass_kg": 1.443160895112e-25,
+    "wavelength_m": 7.80241209e-07,
+    "linewidth_hz": 6065000.0,
+    "ground_state_g_factor_abs": 0.5
+  },
+  "molasses": {
+    "initial_temperature_uK": 40.0,
+    "zero_field_temperature_uK": 3.0,
+    "failure_temperature_uK": 80.0,
+    "molasses_duration_ms": 5.0,
+    "time_step_us": 20.0,
+    "zero_field_cooling_time_ms": 1.2,
+    "detuning_mhz": -12.0,
+    "saturation_parameter_per_beam": 0.2,
+    "number_of_beams": 6,
+    "optical_pumping_width_scale": 1.0,
+    "minimum_relative_efficiency": 0.03,
+    "magnetic_width_mG_override": null
+  },
+  "fields": {
+    "static_stray_field_mG": [
+      0,
+      -8.0,
+      0
+    ],
+    "mot_switch_off_field_mG": [
+      65.0,
+      -25.0,
+      35.0
+    ],
+    "mot_decay_tau_ms": 0.5
+  },
+  "coils": {
+    "coil_matrix_mG_per_unit": [
+      [
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "scan": {
+    "x": {
+      "start": -120.0,
+      "stop": 120.0,
+      "points": 25
+    },
+    "y": {
+      "start": -120.0,
+      "stop": 120.0,
+      "points": 25
+    },
+    "z": {
+      "start": -120.0,
+      "stop": 120.0,
+      "points": 25
+    }
+  },
+  "output": {
+    "directory": "outputs",
+    "prefix": "rb87_pgc_bias_scan"
+  }
+}

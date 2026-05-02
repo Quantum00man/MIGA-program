@@ -1,0 +1,8 @@
+Rb87 optical molasses bias-coil simulation summary
+Best compensation setpoint: X=0.000, Y=60.000, Z=0.000
+Predicted final temperature: 3.584 uK
+Cooling efficiency (0=no cooling, 1=zero-field limit): 0.9842
+Initial residual field magnitude: 77.942 mG
+Final residual field magnitude: 0.004 mG
+Time-averaged residual field magnitude: 7.919 mG
+Magnetic width used for PGC suppression: 291.170 mG
