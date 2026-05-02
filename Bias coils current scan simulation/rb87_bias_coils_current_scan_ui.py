@@ -1,10 +1,79 @@
 from __future__ import annotations
 
 import json
+import os
+import site
 import sys
 import traceback
 from dataclasses import asdict
 from pathlib import Path
+
+import numpy as np
+
+
+_QT_DLL_HANDLES = []
+
+
+def _configure_windows_qt_runtime() -> None:
+    if sys.platform != "win32":
+        return
+
+    candidate_roots: list[Path] = []
+    seen: set[str] = set()
+
+    def add_candidate(path: Path) -> None:
+        resolved = str(path)
+        if resolved in seen or not path.exists():
+            return
+        seen.add(resolved)
+        candidate_roots.append(path)
+
+    for root_text in site.getsitepackages():
+        root = Path(root_text)
+        add_candidate(root / "PySide6")
+        add_candidate(root / "shiboken6")
+
+    try:
+        user_site = Path(site.getusersitepackages())
+        add_candidate(user_site / "PySide6")
+        add_candidate(user_site / "shiboken6")
+    except Exception:
+        pass
+
+    env_path_parts = []
+    for path in candidate_roots:
+        env_path_parts.append(str(path))
+        if hasattr(os, "add_dll_directory"):
+            try:
+                _QT_DLL_HANDLES.append(os.add_dll_directory(str(path)))
+            except OSError:
+                pass
+
+    if env_path_parts:
+        current_path = os.environ.get("PATH", "")
+        os.environ["PATH"] = os.pathsep.join(env_path_parts + [current_path])
+
+    plugin_root = None
+    qml_root = None
+    for path in candidate_roots:
+        if path.name.lower() == "pyside6":
+            maybe_plugins = path / "plugins"
+            maybe_qml = path / "qml"
+            if maybe_plugins.exists() and plugin_root is None:
+                plugin_root = maybe_plugins
+            if maybe_qml.exists() and qml_root is None:
+                qml_root = maybe_qml
+
+    if plugin_root is not None:
+        os.environ.setdefault("QT_PLUGIN_PATH", str(plugin_root))
+        platform_root = plugin_root / "platforms"
+        if platform_root.exists():
+            os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(platform_root))
+    if qml_root is not None:
+        os.environ.setdefault("QML2_IMPORT_PATH", str(qml_root))
+
+
+_configure_windows_qt_runtime()
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QPixmap
@@ -34,6 +103,9 @@ from PySide6.QtWidgets import (
     QWidget,
     QProgressBar,
 )
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 import rb87_bias_coils_current_scan as core
 
@@ -266,6 +338,202 @@ class PlotPanel(QFrame):
     def open_image(self) -> None:
         if self.image_path is not None:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.image_path)))
+
+
+class InteractiveMatplotlibPanel(QFrame):
+    def __init__(self, title: str, subtitle: str):
+        super().__init__()
+        self.setObjectName("InteractiveMatplotlibPanel")
+        self.setStyleSheet(
+            """
+            QFrame#InteractiveMatplotlibPanel {
+                background: white;
+                border: 1px solid #d8d4cc;
+                border-radius: 16px;
+            }
+            """
+        )
+        self.export_path: Path | None = None
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 16, 18, 18)
+        layout.setSpacing(12)
+
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title_label = QLabel(title)
+        title_label.setStyleSheet("color: #10242e; font-size: 18px; font-weight: 700;")
+        subtitle_label = QLabel(subtitle)
+        subtitle_label.setWordWrap(True)
+        subtitle_label.setStyleSheet("color: #5c665f; font-size: 12px;")
+        header.addWidget(title_label)
+        header.addWidget(subtitle_label)
+        layout.addLayout(header)
+
+        self.figure = Figure(figsize=(10, 8), facecolor="#fbfaf7", constrained_layout=True)
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setStyleSheet(
+            "background: #fbfaf7; border: 1px solid #ddd7cb; border-radius: 12px;"
+        )
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar.setStyleSheet(
+            """
+            QToolBar {
+                background: #f4f0e8;
+                border: 1px solid #ddd7cb;
+                border-radius: 10px;
+                spacing: 4px;
+                padding: 4px;
+            }
+            """
+        )
+
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas, stretch=1)
+
+        footer = QHBoxLayout()
+        self.coord_label = QLabel(
+            "Hover over a curve or heatmap to inspect coordinates. Use the toolbar or mouse wheel to zoom."
+        )
+        self.coord_label.setStyleSheet("color: #5b625d; font-size: 11px;")
+        self.coord_label.setWordWrap(True)
+        footer.addWidget(self.coord_label, stretch=1)
+
+        self.open_button = QPushButton("Open Exported PNG")
+        self.open_button.setProperty("secondary", True)
+        self.open_button.style().polish(self.open_button)
+        self.open_button.setEnabled(False)
+        self.open_button.clicked.connect(self.open_export)
+        footer.addWidget(self.open_button)
+        layout.addLayout(footer)
+
+        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
+        self.canvas.mpl_connect("axes_leave_event", self._on_axes_leave)
+        self.canvas.mpl_connect("scroll_event", self._on_scroll)
+        self.clear_plot("Run a simulation to populate this interactive panel.")
+
+    def set_export_path(self, path: Path | None) -> None:
+        self.export_path = path
+        self.open_button.setEnabled(path is not None and path.exists())
+
+    def clear_plot(self, message: str) -> None:
+        self.figure.clear()
+        self.figure.text(
+            0.5,
+            0.5,
+            message,
+            ha="center",
+            va="center",
+            fontsize=13,
+            color="#6a706c",
+        )
+        self.canvas.draw_idle()
+
+    def draw_overview(
+        self,
+        config: core.SimulationConfig,
+        coarse_result: dict,
+        best_result: dict,
+        refinement_result: dict | None,
+    ) -> None:
+        self.figure.clear()
+        axes = self.figure.subplots(2, 2)
+        self.figure.set_constrained_layout(True)
+        core.plot_overview_on_axes(config, coarse_result, best_result, refinement_result, axes)
+        self.canvas.draw_idle()
+
+    def draw_dynamics(self, config: core.SimulationConfig, best_result: dict) -> None:
+        self.figure.clear()
+        axes = self.figure.subplots(2, 2)
+        self.figure.set_constrained_layout(True)
+        core.plot_dynamics_on_axes(config, best_result, axes)
+        self.canvas.draw_idle()
+
+    def open_export(self) -> None:
+        if self.export_path is not None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.export_path)))
+
+    def _on_axes_leave(self, event) -> None:
+        self.coord_label.setText(
+            "Hover over a curve or heatmap to inspect coordinates. Use the toolbar or mouse wheel to zoom."
+        )
+
+    def _on_motion(self, event) -> None:
+        if event.inaxes is None or event.xdata is None or event.ydata is None:
+            return
+
+        ax = event.inaxes
+        x_value = float(event.xdata)
+        y_value = float(event.ydata)
+        x_label = ax.get_xlabel() or "x"
+        y_label = ax.get_ylabel() or "y"
+
+        if ax.images:
+            image = ax.images[0]
+            array = np.asarray(image.get_array())
+            extent = image.get_extent()
+            x0, x1, y0, y1 = extent
+            if array.ndim == 2 and x1 != x0 and y1 != y0:
+                nx = array.shape[1]
+                ny = array.shape[0]
+                col = int(np.clip(round((x_value - x0) / (x1 - x0) * (nx - 1)), 0, nx - 1))
+                row = int(np.clip(round((y_value - y0) / (y1 - y0) * (ny - 1)), 0, ny - 1))
+                z_value = float(array[row, col])
+                self.coord_label.setText(
+                    f"{ax.get_title()} | {x_label} = {x_value:.4f}, {y_label} = {y_value:.4f}, value = {z_value:.4f}"
+                )
+                return
+
+        best_line_label = None
+        best_line_x = None
+        best_line_y = None
+        best_distance = float("inf")
+        for line in ax.lines:
+            x_data = np.asarray(line.get_xdata(), dtype=float)
+            y_data = np.asarray(line.get_ydata(), dtype=float)
+            if x_data.size == 0 or y_data.size == 0:
+                continue
+            index = int(np.argmin(np.abs(x_data - x_value)))
+            distance = abs(x_data[index] - x_value)
+            if distance < best_distance:
+                best_distance = distance
+                best_line_x = float(x_data[index])
+                best_line_y = float(y_data[index])
+                label = line.get_label()
+                best_line_label = "curve" if not label or label.startswith("_") else label
+
+        if best_line_label is not None and best_line_x is not None and best_line_y is not None:
+            self.coord_label.setText(
+                f"{ax.get_title()} | {best_line_label}: {x_label} = {best_line_x:.4f}, "
+                f"{y_label} = {best_line_y:.4f}"
+            )
+            return
+
+        self.coord_label.setText(
+            f"{ax.get_title()} | {x_label} = {x_value:.4f}, {y_label} = {y_value:.4f}"
+        )
+
+    def _on_scroll(self, event) -> None:
+        if event.inaxes is None or event.xdata is None or event.ydata is None:
+            return
+
+        ax = event.inaxes
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+        if x_max == x_min or y_max == y_min:
+            return
+
+        zoom_in = event.button == "up"
+        scale_factor = 1.0 / 1.18 if zoom_in else 1.18
+
+        new_width = (x_max - x_min) * scale_factor
+        new_height = (y_max - y_min) * scale_factor
+        rel_x = (x_max - event.xdata) / (x_max - x_min)
+        rel_y = (y_max - event.ydata) / (y_max - y_min)
+
+        ax.set_xlim([event.xdata - new_width * (1.0 - rel_x), event.xdata + new_width * rel_x])
+        ax.set_ylim([event.ydata - new_height * (1.0 - rel_y), event.ydata + new_height * rel_y])
+        self.canvas.draw_idle()
 
 
 class BiasCoilsCurrentScanWindow(QMainWindow):
@@ -547,11 +815,11 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         parent_layout.addLayout(cards_row)
 
         self.tabs = QTabWidget()
-        self.overview_panel = PlotPanel(
+        self.overview_panel = InteractiveMatplotlibPanel(
             "Overview Map",
             "Temperature slices across the best current neighborhood. This panel uses the final refined grid whenever refinement is enabled.",
         )
-        self.dynamics_panel = PlotPanel(
+        self.dynamics_panel = InteractiveMatplotlibPanel(
             "Dynamics Trace",
             "Residual magnetic-field evolution and temperature trajectory during optical molasses.",
         )
@@ -972,8 +1240,15 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         refinement_result = bundle_dict["refinement_result"]
         config = bundle_dict["config"]
 
-        self.overview_panel.set_image(bundle_dict["paths"]["overview"])
-        self.dynamics_panel.set_image(bundle_dict["paths"]["dynamics"])
+        self.overview_panel.draw_overview(
+            config,
+            bundle_dict["coarse_result"],
+            best_result,
+            refinement_result,
+        )
+        self.overview_panel.set_export_path(bundle_dict["paths"]["overview"])
+        self.dynamics_panel.draw_dynamics(config, best_result)
+        self.dynamics_panel.set_export_path(bundle_dict["paths"]["dynamics"])
 
         summary_text = Path(bundle_dict["paths"]["summary"]).read_text(encoding="utf-8")
         self.summary_browser.setPlainText(summary_text)

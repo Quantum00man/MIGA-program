@@ -469,22 +469,26 @@ def set_axes_image(ax, image, title: str, xlabel: str, ylabel: str) -> None:
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    plt.colorbar(image, ax=ax, shrink=0.85)
+    ax.figure.colorbar(image, ax=ax, shrink=0.85)
 
 
-def make_overview_figure(
-    config: SimulationConfig,
-    coarse_result: dict,
-    best_result: dict,
-    refinement_result: dict | None,
-    output_dir: Path,
-    prefix: str,
-) -> Path:
+def choose_overview_plot_result(coarse_result: dict, refinement_result: dict | None) -> tuple[dict, str]:
     plot_result = coarse_result
     plot_label = "coarse grid"
     if refinement_result is not None and refinement_result.get("final_grid") is not None:
         plot_result = refinement_result["final_grid"]
         plot_label = "refined grid"
+    return plot_result, plot_label
+
+
+def plot_overview_on_axes(
+    config: SimulationConfig,
+    coarse_result: dict,
+    best_result: dict,
+    refinement_result: dict | None,
+    axes,
+) -> dict:
+    plot_result, plot_label = choose_overview_plot_result(coarse_result, refinement_result)
 
     x_currents = plot_result["x_currents"]
     y_currents = plot_result["y_currents"]
@@ -495,8 +499,6 @@ def make_overview_figure(
     x_step = axis_step(x_currents)
     y_step = axis_step(y_currents)
     z_step = axis_step(z_currents)
-
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
 
     xy_temp = temp_grid[best_iz, :, :]
     xz_temp = temp_grid[:, best_iy, :]
@@ -576,17 +578,16 @@ def make_overview_figure(
         bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
     )
 
-    path = output_dir / f"{prefix}_overview.png"
-    fig.savefig(path, dpi=200, bbox_inches="tight")
-    plt.close(fig)
-    return path
+    return {
+        "plot_result": plot_result,
+        "plot_label": plot_label,
+        "grid_steps_A": {"x": x_step, "y": y_step, "z": z_step},
+    }
 
 
-def make_dynamics_figure(config: SimulationConfig, best_result: dict, output_dir: Path, prefix: str) -> Path:
+def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> dict:
     zero_current_result = simulate_one_setting(config, np.zeros(3, dtype=float))
     field_per_amp = square_pair_center_field_mG_per_A(config.coil_geometry)
-
-    fig, axes = plt.subplots(2, 2, figsize=(12, 9), constrained_layout=True)
 
     time_ms = best_result["time_ms"]
     best_trace = best_result["field_trace_mG"]
@@ -608,7 +609,11 @@ def make_dynamics_figure(config: SimulationConfig, best_result: dict, output_dir
     axes[0, 1].grid(True, alpha=0.3)
     axes[0, 1].legend()
 
-    axes[1, 0].plot(zero_current_result["time_ms"], zero_current_result["relative_efficiency_trace"], label="Zero current")
+    axes[1, 0].plot(
+        zero_current_result["time_ms"],
+        zero_current_result["relative_efficiency_trace"],
+        label="Zero current",
+    )
     axes[1, 0].plot(best_result["time_ms"], best_result["relative_efficiency_trace"], label="Best current")
     axes[1, 0].set_title("Instantaneous relative cooling efficiency")
     axes[1, 0].set_xlabel("Time after MOT switch-off (ms)")
@@ -638,6 +643,28 @@ def make_dynamics_figure(config: SimulationConfig, best_result: dict, output_dir
         bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
     )
 
+    return {"zero_current_result": zero_current_result}
+
+
+def make_overview_figure(
+    config: SimulationConfig,
+    coarse_result: dict,
+    best_result: dict,
+    refinement_result: dict | None,
+    output_dir: Path,
+    prefix: str,
+) -> Path:
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+    plot_overview_on_axes(config, coarse_result, best_result, refinement_result, axes)
+    path = output_dir / f"{prefix}_overview.png"
+    fig.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+def make_dynamics_figure(config: SimulationConfig, best_result: dict, output_dir: Path, prefix: str) -> Path:
+    fig, axes = plt.subplots(2, 2, figsize=(12, 9), constrained_layout=True)
+    plot_dynamics_on_axes(config, best_result, axes)
     path = output_dir / f"{prefix}_dynamics.png"
     fig.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(fig)

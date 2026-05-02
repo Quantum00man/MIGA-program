@@ -9,7 +9,7 @@
     "initial_temperature_uK": 40.0,
     "zero_field_temperature_uK": 2.0,
     "failure_temperature_uK": 80.0,
-    "molasses_duration_ms": 5.0,
+    "molasses_duration_ms": 7.0,
     "time_step_us": 20.0,
     "zero_field_cooling_time_ms": 1.2,
     "detuning_mhz": -15.0,

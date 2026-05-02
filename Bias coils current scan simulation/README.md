@@ -43,7 +43,8 @@ for each axis pair at the atom-cloud center.
 ## Files
 
 - `rb87_bias_coils_current_scan.py`: main current-scan simulation script
-- `rb87_bias_coils_current_scan_ui.py`: desktop UI for interactive parameter control
+- `rb87_bias_coils_current_scan_ui.py`: default Qt-based desktop UI
+- `rb87_bias_coils_current_scan_ui_tk.py`: tkinter fallback UI
 - `example_config.json`: editable configuration
 - `outputs/`: generated automatically after a run
 
@@ -65,15 +66,23 @@ On Windows you can also double-click:
 launch_ui.bat
 ```
 
-The UI is a local desktop interface built with `PySide6`. It provides:
+The default UI is a local desktop interface built with `PySide6` + interactive `matplotlib`. It provides:
 
 - grouped parameter controls for fields, molasses, geometry, scan, and refinement
 - JSON config load/save
 - one-click simulation runs
 - overview and dynamics figure panels
+- interactive Matplotlib plots with pan/zoom/home/save tools
+- mouse-hover coordinate readout on heatmaps and line plots
 - a summary report and direct links to generated outputs
 
 The UI keeps the same simulation core as the command-line tool, so the exported files remain consistent across both workflows.
+
+If the Qt runtime still has local DLL issues on a given machine, there is also a fallback:
+
+```bash
+python rb87_bias_coils_current_scan_ui_tk.py
+```
 
 ## Output
 
