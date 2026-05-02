@@ -33,12 +33,12 @@ class AtomConfig:
 @dataclass(frozen=True)
 class MolassesConfig:
     initial_temperature_uK: float = 40.0
-    zero_field_temperature_uK: float = 3.0
+    zero_field_temperature_uK: float = 2
     failure_temperature_uK: float = 80.0
     molasses_duration_ms: float = 5.0
     time_step_us: float = 20.0
     zero_field_cooling_time_ms: float = 1.2
-    detuning_mhz: float = -12.0
+    detuning_mhz: float = -15.0
     saturation_parameter_per_beam: float = 0.20
     number_of_beams: int = 6
     optical_pumping_width_scale: float = 1.0

@@ -7,7 +7,7 @@
   },
   "molasses": {
     "initial_temperature_uK": 40.0,
-    "zero_field_temperature_uK": 2,
+    "zero_field_temperature_uK": 2.0,
     "failure_temperature_uK": 80.0,
     "molasses_duration_ms": 5.0,
     "time_step_us": 20.0,
@@ -22,54 +22,64 @@
   "fields": {
     "static_stray_field_mG": [
       0,
-      -60,
+      -120,
       0
     ],
     "mot_switch_off_field_mG": [
       0,
-      35,
-      35.0
+      10000,
+      10000
     ],
     "mot_decay_tau_ms": 0.5
   },
-  "coils": {
-    "coil_matrix_mG_per_unit": [
-      [
-        1.0,
-        0.0,
-        0.0
-      ],
-      [
-        0.0,
-        1.0,
-        0.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0
-      ]
-    ]
+  "coil_geometry": {
+    "turns_per_coil": 15,
+    "side_length_cm": 30.0,
+    "center_to_coil_cm": 20.0
   },
   "scan": {
-    "x": {
-      "start": -120.0,
-      "stop": 120.0,
+    "x_current_A": {
+      "start": -1.0,
+      "stop": 1.0,
       "points": 25
     },
-    "y": {
-      "start": -120.0,
-      "stop": 120.0,
+    "y_current_A": {
+      "start": -1.0,
+      "stop": 1.0,
       "points": 25
     },
-    "z": {
-      "start": -120.0,
-      "stop": 120.0,
+    "z_current_A": {
+      "start": -1.0,
+      "stop": 1.0,
       "points": 25
     }
   },
+  "refinement": {
+    "enabled": true,
+    "steps": 1,
+    "points_per_axis": 15,
+    "target_step_A": 0.01
+  },
   "output": {
     "directory": "outputs",
-    "prefix": "rb87_pgc_bias_scan"
-  }
+    "prefix": "rb87_pgc_current_scan"
+  },
+  "derived_coil_field_matrix_mG_per_A": [
+    [
+      296.34955512625527,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      296.34955512625527,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      296.34955512625527
+    ]
+  ],
+  "derived_center_field_per_axis_mG_per_A": 296.34955512625527
 }
