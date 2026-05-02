@@ -1,6 +1,6 @@
 # Rb87 bias coils current scan simulation
 
-This folder contains a current-scan version of the Rb87 optical molasses model. The compensation scan variable is now the physical current in each XYZ coil pair, and the script keeps the corresponding magnetic field at the atom-cloud center.
+This folder contains a current-scan version of the Rb87 optical molasses model. The compensation scan variable is now the physical current in each XYZ coil pair, and the script keeps the corresponding magnetic field at the chosen molasses-cloud position.
 
 ## Geometry built into this version
 
@@ -8,8 +8,8 @@ Each compensation axis is modeled as one symmetric square-coil pair:
 
 - each coil has `15` turns
 - each coil is a `30 cm x 30 cm` square
-- the center of each coil is `20 cm` from the atom cloud
-- the two coils in one axis pair generate the same field direction at the cloud center
+- the center of each coil is `20 cm` from the default cloud position
+- the two coils in one axis pair generate the same field direction near the symmetric center
 
 The script assumes:
 
@@ -18,9 +18,37 @@ The script assumes:
 - `Z` pair centers at `z = +/- 20 cm`, field along `z`
 - positive current produces positive `Bx`, `By`, `Bz` respectively
 
+## Molasses position
+
+The simulation now includes:
+
+```text
+molasses_position_mm = [x0, y0, z0]
+```
+
+with default:
+
+```text
+[0.0, 0.0, 0.0]
+```
+
+This means:
+
+- when `molasses_position_mm = [0, 0, 0]`, the cloud center is at the geometric center of the three coil pairs
+- when you move the cloud away from the origin, the code evaluates the compensation field at that shifted point
+- the model is still a single-point cloud-center model, not yet a spatial-average model over the cloud size
+
 ## Current-to-field conversion
 
-For a square coil pair, the on-axis center field is computed from the exact square-loop formula:
+The code now computes a full `3 x 3` current-to-field matrix at the chosen `molasses_position_mm` using finite-segment Biot-Savart integration for the square loops:
+
+```text
+[Bx]   [Mxx Mxy Mxz] [Ix]
+[By] = [Myx Myy Myz] [Iy]
+[Bz]   [Mzx Mzy Mzz] [Iz]
+```
+
+At the symmetric origin, this matrix is nearly diagonal and reduces to the familiar on-axis center-field conversion. For a square coil pair at the origin, the on-axis center field is:
 
 ```text
 B_pair(0) = 4 * mu0 * N * a^2 * I / [pi * (a^2 + d^2) * sqrt(2 a^2 + d^2)]
@@ -32,13 +60,13 @@ where:
 - `a` is the half side length of the square
 - `d` is the distance from the atom cloud to one coil center
 
-With the default geometry in this folder:
+With the default geometry in this folder and `molasses_position_mm = [0, 0, 0]`:
 
 ```text
 1 A -> about 296.35 mG
 ```
 
-for each axis pair at the atom-cloud center.
+for each axis pair at the cloud center.
 
 ## Files
 
@@ -69,6 +97,7 @@ launch_ui.bat
 The default UI is a local desktop interface built with `PySide6` + interactive `matplotlib`. It provides:
 
 - grouped parameter controls for fields, molasses, geometry, scan, and refinement
+- configurable molasses cloud position `X/Y/Z` in `mm`
 - JSON config load/save
 - one-click simulation runs
 - overview and dynamics figure panels
@@ -93,6 +122,7 @@ Each run writes:
 - `*_dynamics.png`: residual field and temperature dynamics
 - `*_summary.txt`: best current setpoint and corresponding field
 - `*_resolved_config.json`: exact config plus derived `mG/A` conversion
+- `*_resolved_config.json`: exact config plus the derived current-to-field matrix at the chosen molasses position
 
 The CSV keeps both:
 

@@ -544,6 +544,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         self.last_bundle: dict | None = None
         self.worker_thread: QThread | None = None
         self.worker: SimulationWorker | None = None
+        self._suspend_derived_updates = False
 
         self._set_app_style()
         self._build_ui()
@@ -916,6 +917,16 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         self.use_width_override.toggled.connect(self.update_derived_labels)
         self.magnetic_width_override_spin.setEnabled(False)
         self.magnetic_width_override_spin.valueChanged.connect(self.update_derived_labels)
+        self.molasses_position_widgets = {}
+        molasses_position_row = QWidget()
+        molasses_position_layout = QHBoxLayout(molasses_position_row)
+        molasses_position_layout.setContentsMargins(0, 0, 0, 0)
+        molasses_position_layout.setSpacing(8)
+        for axis in ("x", "y", "z"):
+            widget = self._make_double_spin(-1000.0, 1000.0, decimals=3, step=0.5, suffix=" mm")
+            widget.valueChanged.connect(self.update_derived_labels)
+            molasses_position_layout.addWidget(widget)
+            self.molasses_position_widgets[axis] = widget
 
         layout.addRow("Initial temperature", self.initial_temp_spin)
         layout.addRow("Zero-field temperature limit", self.zero_field_temp_spin)
@@ -928,6 +939,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         layout.addRow("Number of beams", self.beams_spin)
         layout.addRow("Optical-pumping width scale", self.optical_pumping_spin)
         layout.addRow("Minimum relative efficiency", self.minimum_efficiency_spin)
+        layout.addRow("Molasses position (X, Y, Z)", molasses_position_row)
         layout.addRow(self.use_width_override, self.magnetic_width_override_spin)
         return group
 
@@ -1075,6 +1087,11 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
                 optical_pumping_width_scale=float(self.optical_pumping_spin.value()),
                 minimum_relative_efficiency=float(self.minimum_efficiency_spin.value()),
                 magnetic_width_mG_override=magnetic_width_override,
+                molasses_position_mm=(
+                    float(self.molasses_position_widgets["x"].value()),
+                    float(self.molasses_position_widgets["y"].value()),
+                    float(self.molasses_position_widgets["z"].value()),
+                ),
             ),
             fields=core.FieldConfig(
                 static_stray_field_mG=(
@@ -1124,54 +1141,63 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         )
 
     def apply_config(self, config: core.SimulationConfig) -> None:
-        self.initial_temp_spin.setValue(config.molasses.initial_temperature_uK)
-        self.zero_field_temp_spin.setValue(config.molasses.zero_field_temperature_uK)
-        self.failure_temp_spin.setValue(config.molasses.failure_temperature_uK)
-        self.duration_spin.setValue(config.molasses.molasses_duration_ms)
-        self.time_step_spin.setValue(config.molasses.time_step_us)
-        self.zero_field_cooling_time_spin.setValue(config.molasses.zero_field_cooling_time_ms)
-        self.detuning_spin.setValue(config.molasses.detuning_mhz)
-        self.saturation_spin.setValue(config.molasses.saturation_parameter_per_beam)
-        self.beams_spin.setValue(config.molasses.number_of_beams)
-        self.optical_pumping_spin.setValue(config.molasses.optical_pumping_width_scale)
-        self.minimum_efficiency_spin.setValue(config.molasses.minimum_relative_efficiency)
+        self._suspend_derived_updates = True
+        try:
+            self.initial_temp_spin.setValue(config.molasses.initial_temperature_uK)
+            self.zero_field_temp_spin.setValue(config.molasses.zero_field_temperature_uK)
+            self.failure_temp_spin.setValue(config.molasses.failure_temperature_uK)
+            self.duration_spin.setValue(config.molasses.molasses_duration_ms)
+            self.time_step_spin.setValue(config.molasses.time_step_us)
+            self.zero_field_cooling_time_spin.setValue(config.molasses.zero_field_cooling_time_ms)
+            self.detuning_spin.setValue(config.molasses.detuning_mhz)
+            self.saturation_spin.setValue(config.molasses.saturation_parameter_per_beam)
+            self.beams_spin.setValue(config.molasses.number_of_beams)
+            self.optical_pumping_spin.setValue(config.molasses.optical_pumping_width_scale)
+            self.minimum_efficiency_spin.setValue(config.molasses.minimum_relative_efficiency)
+            for axis, value in zip(("x", "y", "z"), config.molasses.molasses_position_mm):
+                self.molasses_position_widgets[axis].setValue(value)
 
-        override = config.molasses.magnetic_width_mG_override
-        self.use_width_override.setChecked(override is not None)
-        self.magnetic_width_override_spin.setEnabled(override is not None)
-        self.magnetic_width_override_spin.setValue(0.0 if override is None else override)
+            override = config.molasses.magnetic_width_mG_override
+            self.use_width_override.setChecked(override is not None)
+            self.magnetic_width_override_spin.setEnabled(override is not None)
+            self.magnetic_width_override_spin.setValue(0.0 if override is None else override)
 
-        for axis, value in zip(("x", "y", "z"), config.fields.static_stray_field_mG):
-            self.static_field_widgets[axis].setValue(value)
-        for axis, value in zip(("x", "y", "z"), config.fields.mot_switch_off_field_mG):
-            self.switch_field_widgets[axis].setValue(value)
-        self.mot_decay_spin.setValue(config.fields.mot_decay_tau_ms)
+            for axis, value in zip(("x", "y", "z"), config.fields.static_stray_field_mG):
+                self.static_field_widgets[axis].setValue(value)
+            for axis, value in zip(("x", "y", "z"), config.fields.mot_switch_off_field_mG):
+                self.switch_field_widgets[axis].setValue(value)
+            self.mot_decay_spin.setValue(config.fields.mot_decay_tau_ms)
 
-        self.turns_spin.setValue(config.coil_geometry.turns_per_coil)
-        self.side_length_spin.setValue(config.coil_geometry.side_length_cm)
-        self.center_to_coil_spin.setValue(config.coil_geometry.center_to_coil_cm)
+            self.turns_spin.setValue(config.coil_geometry.turns_per_coil)
+            self.side_length_spin.setValue(config.coil_geometry.side_length_cm)
+            self.center_to_coil_spin.setValue(config.coil_geometry.center_to_coil_cm)
 
-        for axis, axis_scan in zip(
-            ("x", "y", "z"),
-            (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A),
-        ):
-            start_widget, stop_widget, points_widget = self.scan_widgets[axis]
-            start_widget.setValue(axis_scan.start)
-            stop_widget.setValue(axis_scan.stop)
-            points_widget.setValue(axis_scan.points)
+            for axis, axis_scan in zip(
+                ("x", "y", "z"),
+                (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A),
+            ):
+                start_widget, stop_widget, points_widget = self.scan_widgets[axis]
+                start_widget.setValue(axis_scan.start)
+                stop_widget.setValue(axis_scan.stop)
+                points_widget.setValue(axis_scan.points)
 
-        self.refinement_enabled.setChecked(config.refinement.enabled)
-        self.refinement_steps_spin.setValue(config.refinement.steps)
-        self.refinement_points_spin.setValue(config.refinement.points_per_axis)
-        self.target_step_spin.setValue(config.refinement.target_step_A)
+            self.refinement_enabled.setChecked(config.refinement.enabled)
+            self.refinement_steps_spin.setValue(config.refinement.steps)
+            self.refinement_points_spin.setValue(config.refinement.points_per_axis)
+            self.target_step_spin.setValue(config.refinement.target_step_A)
 
-        self.output_directory_edit.setText(config.output.directory)
-        self.output_prefix_edit.setText(config.output.prefix)
+            self.output_directory_edit.setText(config.output.directory)
+            self.output_prefix_edit.setText(config.output.prefix)
+        finally:
+            self._suspend_derived_updates = False
         self.update_derived_labels()
 
     def update_derived_labels(self) -> None:
+        if self._suspend_derived_updates:
+            return
         config = self.current_config()
-        field_per_amp = core.square_pair_center_field_mG_per_A(config.coil_geometry)
+        field_matrix = core.coil_field_matrix_mG_per_A(config)
+        matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
         magnetic_width = core.magnetic_width_mG(config)
 
         coarse_steps = {
@@ -1191,8 +1217,11 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             refinement_note = "Refinement disabled, overview figure will use the coarse-grid step."
 
         self.derived_field_label.setText(
-            "Center-field conversion\n"
-            f"1 A -> {field_per_amp:.6f} mG for each ideal axis pair\n"
+            "Current-to-field matrix at molasses position\n"
+            f"x0, y0, z0 = {core.format_position_mm(config.molasses.molasses_position_mm, precision=3)}\n"
+            f"{matrix_rows[0]}\n"
+            f"{matrix_rows[1]}\n"
+            f"{matrix_rows[2]}\n"
             f"Coil geometry: {config.coil_geometry.turns_per_coil} turns, "
             f"{config.coil_geometry.side_length_cm:.2f} cm square, "
             f"{config.coil_geometry.center_to_coil_cm:.2f} cm offset."
@@ -1254,7 +1283,6 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         self.summary_browser.setPlainText(summary_text)
         self.paths_browser.setHtml(self._paths_html(bundle_dict))
 
-        field_per_amp = core.square_pair_center_field_mG_per_A(config.coil_geometry)
         coarse_step_x = core.axis_step(bundle_dict["coarse_result"]["x_currents"])
         if refinement_result is not None and refinement_result.get("final_grid") is not None:
             final_grid = refinement_result["final_grid"]
@@ -1284,7 +1312,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
             f"{best_result['coil_field_mG'][1]:.2f}, "
             f"{best_result['coil_field_mG'][2]:.2f}"
             ") mG",
-            f"Center-field conversion = {field_per_amp:.3f} mG/A",
+            f"Evaluated at {core.format_position_mm(config.molasses.molasses_position_mm, precision=2)}",
         )
         self.resolution_card.set_text(
             f"{overview_step:.4f} A",
@@ -1389,6 +1417,7 @@ class BiasCoilsCurrentScanWindow(QMainWindow):
         <code>dT/dt = -(T - T_eq(B)) / tau_cool(B)</code></p>
         <p>Key interpretation:</p>
         <ul>
+        <li><b>Molasses position</b> sets the cloud center used to evaluate the coil-generated compensation field.</li>
         <li><b>Static stray field</b> is the long-lived background field after switch-off transients vanish.</li>
         <li><b>Switch-off residual field</b> is the transient field present at the beginning of molasses.</li>
         <li><b>Target overview step</b> controls the final current-grid spacing shown in the overview figure when local refinement is enabled.</li>

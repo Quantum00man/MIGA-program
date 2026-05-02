@@ -287,6 +287,7 @@ class TkBiasCoilsApp:
         self.result_queue: queue.Queue = queue.Queue()
         self.worker: SimulationThread | None = None
         self.last_bundle: dict | None = None
+        self._suspend_derived_updates = False
 
         self._configure_style()
         self._build_ui()
@@ -501,6 +502,27 @@ class TkBiasCoilsApp:
         width_override_var.trace_add("write", lambda *_: self.update_derived_labels())
         self._var_spin(frame, width_override_var, 0, 10000, 1.0).grid(row=override_row, column=1, sticky="ew", padx=4, pady=4)
         vars_map["magnetic_width_mG_override"] = width_override_var
+
+        position_row = override_row + 1
+        ttk.Label(frame, text="Molasses position X (mm)").grid(row=position_row, column=0, sticky="w", padx=4, pady=4)
+        position_x_var = tk.DoubleVar(value=0.0)
+        position_x_var.trace_add("write", lambda *_: self.update_derived_labels())
+        self._var_spin(frame, position_x_var, -1000, 1000, 0.5).grid(row=position_row, column=1, sticky="ew", padx=4, pady=4)
+        vars_map["molasses_position_x_mm"] = position_x_var
+
+        position_row += 1
+        ttk.Label(frame, text="Molasses position Y (mm)").grid(row=position_row, column=0, sticky="w", padx=4, pady=4)
+        position_y_var = tk.DoubleVar(value=0.0)
+        position_y_var.trace_add("write", lambda *_: self.update_derived_labels())
+        self._var_spin(frame, position_y_var, -1000, 1000, 0.5).grid(row=position_row, column=1, sticky="ew", padx=4, pady=4)
+        vars_map["molasses_position_y_mm"] = position_y_var
+
+        position_row += 1
+        ttk.Label(frame, text="Molasses position Z (mm)").grid(row=position_row, column=0, sticky="w", padx=4, pady=4)
+        position_z_var = tk.DoubleVar(value=0.0)
+        position_z_var.trace_add("write", lambda *_: self.update_derived_labels())
+        self._var_spin(frame, position_z_var, -1000, 1000, 0.5).grid(row=position_row, column=1, sticky="ew", padx=4, pady=4)
+        vars_map["molasses_position_z_mm"] = position_z_var
         return vars_map
 
     def _build_geometry_group(self, parent):
@@ -641,6 +663,7 @@ class TkBiasCoilsApp:
             "Temperature evolution:\n"
             "dT/dt = -(T - T_eq(B)) / tau_cool(B)\n\n"
             "Key interpretation:\n"
+            "- Molasses position sets the cloud center where the compensation field matrix is evaluated.\n"
             "- Static stray field is the long-lived background field after switch-off transients vanish.\n"
             "- Switch-off residual field is the transient field present at the beginning of molasses.\n"
             "- Target overview step controls the final current-grid spacing shown in the overview figure when local refinement is enabled.\n"
@@ -665,6 +688,11 @@ class TkBiasCoilsApp:
                 optical_pumping_width_scale=float(self.molasses_vars["optical_pumping_width_scale"].get()),
                 minimum_relative_efficiency=float(self.molasses_vars["minimum_relative_efficiency"].get()),
                 magnetic_width_mG_override=width_override,
+                molasses_position_mm=(
+                    float(self.molasses_vars["molasses_position_x_mm"].get()),
+                    float(self.molasses_vars["molasses_position_y_mm"].get()),
+                    float(self.molasses_vars["molasses_position_z_mm"].get()),
+                ),
             ),
             fields=core.FieldConfig(
                 static_stray_field_mG=tuple(float(self.field_vars["static"][axis].get()) for axis in ("x", "y", "z")),
@@ -706,51 +734,61 @@ class TkBiasCoilsApp:
         )
 
     def apply_config(self, config: core.SimulationConfig) -> None:
-        for axis, value in zip(("x", "y", "z"), config.fields.static_stray_field_mG):
-            self.field_vars["static"][axis].set(value)
-        for axis, value in zip(("x", "y", "z"), config.fields.mot_switch_off_field_mG):
-            self.field_vars["switch"][axis].set(value)
-        self.field_vars["tau_ms"].set(config.fields.mot_decay_tau_ms)
+        self._suspend_derived_updates = True
+        try:
+            for axis, value in zip(("x", "y", "z"), config.fields.static_stray_field_mG):
+                self.field_vars["static"][axis].set(value)
+            for axis, value in zip(("x", "y", "z"), config.fields.mot_switch_off_field_mG):
+                self.field_vars["switch"][axis].set(value)
+            self.field_vars["tau_ms"].set(config.fields.mot_decay_tau_ms)
 
-        mol = config.molasses
-        self.molasses_vars["initial_temperature_uK"].set(mol.initial_temperature_uK)
-        self.molasses_vars["zero_field_temperature_uK"].set(mol.zero_field_temperature_uK)
-        self.molasses_vars["failure_temperature_uK"].set(mol.failure_temperature_uK)
-        self.molasses_vars["molasses_duration_ms"].set(mol.molasses_duration_ms)
-        self.molasses_vars["time_step_us"].set(mol.time_step_us)
-        self.molasses_vars["zero_field_cooling_time_ms"].set(mol.zero_field_cooling_time_ms)
-        self.molasses_vars["detuning_mhz"].set(mol.detuning_mhz)
-        self.molasses_vars["saturation_parameter_per_beam"].set(mol.saturation_parameter_per_beam)
-        self.molasses_vars["number_of_beams"].set(mol.number_of_beams)
-        self.molasses_vars["optical_pumping_width_scale"].set(mol.optical_pumping_width_scale)
-        self.molasses_vars["minimum_relative_efficiency"].set(mol.minimum_relative_efficiency)
-        self.use_width_override_var.set(mol.magnetic_width_mG_override is not None)
-        self.molasses_vars["magnetic_width_mG_override"].set(0.0 if mol.magnetic_width_mG_override is None else mol.magnetic_width_mG_override)
+            mol = config.molasses
+            self.molasses_vars["initial_temperature_uK"].set(mol.initial_temperature_uK)
+            self.molasses_vars["zero_field_temperature_uK"].set(mol.zero_field_temperature_uK)
+            self.molasses_vars["failure_temperature_uK"].set(mol.failure_temperature_uK)
+            self.molasses_vars["molasses_duration_ms"].set(mol.molasses_duration_ms)
+            self.molasses_vars["time_step_us"].set(mol.time_step_us)
+            self.molasses_vars["zero_field_cooling_time_ms"].set(mol.zero_field_cooling_time_ms)
+            self.molasses_vars["detuning_mhz"].set(mol.detuning_mhz)
+            self.molasses_vars["saturation_parameter_per_beam"].set(mol.saturation_parameter_per_beam)
+            self.molasses_vars["number_of_beams"].set(mol.number_of_beams)
+            self.molasses_vars["optical_pumping_width_scale"].set(mol.optical_pumping_width_scale)
+            self.molasses_vars["minimum_relative_efficiency"].set(mol.minimum_relative_efficiency)
+            self.molasses_vars["molasses_position_x_mm"].set(mol.molasses_position_mm[0])
+            self.molasses_vars["molasses_position_y_mm"].set(mol.molasses_position_mm[1])
+            self.molasses_vars["molasses_position_z_mm"].set(mol.molasses_position_mm[2])
+            self.use_width_override_var.set(mol.magnetic_width_mG_override is not None)
+            self.molasses_vars["magnetic_width_mG_override"].set(0.0 if mol.magnetic_width_mG_override is None else mol.magnetic_width_mG_override)
 
-        self.geometry_vars["turns_per_coil"].set(config.coil_geometry.turns_per_coil)
-        self.geometry_vars["side_length_cm"].set(config.coil_geometry.side_length_cm)
-        self.geometry_vars["center_to_coil_cm"].set(config.coil_geometry.center_to_coil_cm)
+            self.geometry_vars["turns_per_coil"].set(config.coil_geometry.turns_per_coil)
+            self.geometry_vars["side_length_cm"].set(config.coil_geometry.side_length_cm)
+            self.geometry_vars["center_to_coil_cm"].set(config.coil_geometry.center_to_coil_cm)
 
-        for axis, axis_scan in zip(("x", "y", "z"), (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A)):
-            self.scan_vars[axis]["start"].set(axis_scan.start)
-            self.scan_vars[axis]["stop"].set(axis_scan.stop)
-            self.scan_vars[axis]["points"].set(axis_scan.points)
+            for axis, axis_scan in zip(("x", "y", "z"), (config.scan.x_current_A, config.scan.y_current_A, config.scan.z_current_A)):
+                self.scan_vars[axis]["start"].set(axis_scan.start)
+                self.scan_vars[axis]["stop"].set(axis_scan.stop)
+                self.scan_vars[axis]["points"].set(axis_scan.points)
 
-        self.refinement_vars["enabled"].set(config.refinement.enabled)
-        self.refinement_vars["steps"].set(config.refinement.steps)
-        self.refinement_vars["points_per_axis"].set(config.refinement.points_per_axis)
-        self.refinement_vars["target_step_A"].set(config.refinement.target_step_A)
+            self.refinement_vars["enabled"].set(config.refinement.enabled)
+            self.refinement_vars["steps"].set(config.refinement.steps)
+            self.refinement_vars["points_per_axis"].set(config.refinement.points_per_axis)
+            self.refinement_vars["target_step_A"].set(config.refinement.target_step_A)
 
-        self.output_vars["directory"].set(config.output.directory)
-        self.output_vars["prefix"].set(config.output.prefix)
+            self.output_vars["directory"].set(config.output.directory)
+            self.output_vars["prefix"].set(config.output.prefix)
+        finally:
+            self._suspend_derived_updates = False
         self.update_derived_labels()
 
     def update_derived_labels(self) -> None:
+        if self._suspend_derived_updates:
+            return
         try:
             config = self.current_config()
         except Exception:
             return
-        field_per_amp = core.square_pair_center_field_mG_per_A(config.coil_geometry)
+        field_matrix = core.coil_field_matrix_mG_per_A(config)
+        matrix_rows = core.format_field_matrix_rows(field_matrix, precision=3)
         magnetic_width = core.magnetic_width_mG(config)
 
         coarse_steps = {
@@ -770,8 +808,11 @@ class TkBiasCoilsApp:
 
         self.derived_labels[0].config(
             text=(
-                "Center-field conversion\n"
-                f"1 A -> {field_per_amp:.6f} mG for each ideal axis pair\n"
+                "Current-to-field matrix at molasses position\n"
+                f"x0, y0, z0 = {core.format_position_mm(config.molasses.molasses_position_mm, precision=3)}\n"
+                f"{matrix_rows[0]}\n"
+                f"{matrix_rows[1]}\n"
+                f"{matrix_rows[2]}\n"
                 f"Geometry: {config.coil_geometry.turns_per_coil} turns, "
                 f"{config.coil_geometry.side_length_cm:.2f} cm square, "
                 f"{config.coil_geometry.center_to_coil_cm:.2f} cm offset."
@@ -839,7 +880,6 @@ class TkBiasCoilsApp:
         self._set_text(self.summary_text, summary_text)
         self._set_text(self.outputs_text, self._outputs_text(bundle))
 
-        field_per_amp = core.square_pair_center_field_mG_per_A(config.coil_geometry)
         coarse_step_x = core.axis_step(coarse_result["x_currents"])
         if refinement_result is not None and refinement_result.get("final_grid") is not None:
             final_grid = refinement_result["final_grid"]
@@ -862,7 +902,9 @@ class TkBiasCoilsApp:
         self.metric_labels["field"][0].config(
             text=f"({best_result['coil_field_mG'][0]:.2f}, {best_result['coil_field_mG'][1]:.2f}, {best_result['coil_field_mG'][2]:.2f}) mG"
         )
-        self.metric_labels["field"][1].config(text=f"Center-field conversion = {field_per_amp:.3f} mG/A")
+        self.metric_labels["field"][1].config(
+            text=f"Evaluated at {core.format_position_mm(config.molasses.molasses_position_mm, precision=2)}"
+        )
 
         self.metric_labels["resolution"][0].config(text=f"{overview_step:.4f} A")
         self.metric_labels["resolution"][1].config(text=f"Coarse dI = {coarse_step_x:.4f} A; overview uses the final grid.")

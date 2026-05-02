@@ -17,7 +17,12 @@
     "number_of_beams": 6,
     "optical_pumping_width_scale": 1.0,
     "minimum_relative_efficiency": 0.03,
-    "magnetic_width_mG_override": null
+    "magnetic_width_mG_override": null,
+    "molasses_position_mm": [
+      0.0,
+      0.0,
+      0.0
+    ]
   },
   "fields": {
     "static_stray_field_mG": [

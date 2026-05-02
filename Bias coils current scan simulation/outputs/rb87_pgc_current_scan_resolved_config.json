@@ -17,12 +17,17 @@
     "number_of_beams": 6,
     "optical_pumping_width_scale": 1.0,
     "minimum_relative_efficiency": 0.03,
-    "magnetic_width_mG_override": null
+    "magnetic_width_mG_override": null,
+    "molasses_position_mm": [
+      0.0,
+      20.0,
+      0.0
+    ]
   },
   "fields": {
     "static_stray_field_mG": [
       0.0,
-      -120.0,
+      0.0,
       0.0
     ],
     "mot_switch_off_field_mG": [
@@ -66,20 +71,25 @@
   },
   "derived_coil_field_matrix_mG_per_A": [
     [
-      296.34955512625527,
+      293.8323596284824,
       0.0,
       0.0
     ],
     [
       0.0,
-      296.34955512625527,
+      301.3830258480634,
       0.0
     ],
     [
       0.0,
       0.0,
-      296.34955512625527
+      293.8323596284824
     ]
   ],
-  "derived_center_field_per_axis_mG_per_A": 296.34955512625527
+  "derived_molasses_position_mm": [
+    0.0,
+    20.0,
+    0.0
+  ],
+  "derived_origin_center_field_per_axis_mG_per_A": 296.3500558265186
 }

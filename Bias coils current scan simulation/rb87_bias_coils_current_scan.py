@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 from dataclasses import asdict, dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import matplotlib
@@ -46,6 +47,7 @@ class MolassesConfig:
     optical_pumping_width_scale: float = 1.0
     minimum_relative_efficiency: float = 0.03
     magnetic_width_mG_override: float | None = None
+    molasses_position_mm: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -105,11 +107,19 @@ class SimulationConfig:
 
     @classmethod
     def from_dict(cls, data: dict) -> "SimulationConfig":
+        molasses_block = data.get("molasses", {})
         field_block = data.get("fields", {})
         scan_block = data.get("scan", {})
         return cls(
             atom=AtomConfig(**data.get("atom", {})),
-            molasses=MolassesConfig(**data.get("molasses", {})),
+            molasses=MolassesConfig(
+                **{
+                    **molasses_block,
+                    "molasses_position_mm": tuple(
+                        molasses_block.get("molasses_position_mm", MolassesConfig.molasses_position_mm)
+                    ),
+                }
+            ),
             fields=FieldConfig(
                 static_stray_field_mG=tuple(
                     field_block.get("static_stray_field_mG", FieldConfig.static_stray_field_mG)
@@ -138,20 +148,148 @@ def load_config(path: Path | None) -> SimulationConfig:
     return SimulationConfig.from_dict(data)
 
 
-def square_pair_center_field_mG_per_A(geometry: CoilGeometryConfig) -> float:
-    half_side_m = 0.5 * geometry.side_length_cm * 1.0e-2
-    center_to_coil_m = geometry.center_to_coil_cm * 1.0e-2
+def molasses_position_m(config: SimulationConfig) -> np.ndarray:
+    return 1.0e-3 * np.asarray(config.molasses.molasses_position_mm, dtype=float)
 
-    numerator = 4.0 * MU0_T_M_PER_A * geometry.turns_per_coil * half_side_m**2
-    denominator = np.pi * (half_side_m**2 + center_to_coil_m**2) * np.sqrt(
-        2.0 * half_side_m**2 + center_to_coil_m**2
+
+def coil_axis_spec(axis: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if axis == "x":
+        return np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0])
+    if axis == "y":
+        return np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 0.0])
+    return np.array([0.0, 0.0, 1.0]), np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])
+
+
+def finite_segment_field_tesla(
+    point_m: np.ndarray,
+    start_m: np.ndarray,
+    end_m: np.ndarray,
+    current_A: float = 1.0,
+    segments_per_side: int = 240,
+) -> np.ndarray:
+    dl = (end_m - start_m) / segments_per_side
+    sample_index = (np.arange(segments_per_side, dtype=float) + 0.5)[:, None]
+    sample_points = start_m[None, :] + sample_index * dl[None, :]
+    displacement = point_m[None, :] - sample_points
+    radii = np.linalg.norm(displacement, axis=1)
+    valid = radii > 1.0e-15
+    if not np.any(valid):
+        return np.zeros(3)
+
+    dl_array = np.broadcast_to(dl, (valid.sum(), 3))
+    cross = np.cross(dl_array, displacement[valid])
+    return MU0_T_M_PER_A / (4.0 * np.pi) * current_A * np.sum(cross / radii[valid][:, None] ** 3, axis=0)
+
+
+def square_loop_field_tesla(
+    point_m: np.ndarray,
+    center_m: np.ndarray,
+    axis: str,
+    side_length_m: float,
+    current_A: float,
+    turns: int,
+    segments_per_side: int = 240,
+) -> np.ndarray:
+    axis_vector, u_vector, v_vector = coil_axis_spec(axis)
+    _ = axis_vector
+    half_side_m = 0.5 * side_length_m
+    corners = [
+        center_m - half_side_m * u_vector - half_side_m * v_vector,
+        center_m + half_side_m * u_vector - half_side_m * v_vector,
+        center_m + half_side_m * u_vector + half_side_m * v_vector,
+        center_m - half_side_m * u_vector + half_side_m * v_vector,
+    ]
+
+    total_field = np.zeros(3)
+    for start, end in zip(corners, corners[1:] + corners[:1]):
+        total_field += finite_segment_field_tesla(
+            point_m,
+            start,
+            end,
+            current_A=current_A,
+            segments_per_side=segments_per_side,
+        )
+    return turns * total_field
+
+
+@lru_cache(maxsize=256)
+def coil_field_matrix_mG_per_A_cached(
+    turns_per_coil: int,
+    side_length_cm: float,
+    center_to_coil_cm: float,
+    x_mm: float,
+    y_mm: float,
+    z_mm: float,
+) -> tuple[tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]]:
+    point_m = 1.0e-3 * np.array([x_mm, y_mm, z_mm], dtype=float)
+    side_length_m = 1.0e-2 * side_length_cm
+    center_to_coil_m = 1.0e-2 * center_to_coil_cm
+
+    matrix = np.zeros((3, 3))
+    for column, axis in enumerate(("x", "y", "z")):
+        axis_vector, _, _ = coil_axis_spec(axis)
+        positive_center = center_to_coil_m * axis_vector
+        negative_center = -center_to_coil_m * axis_vector
+        basis_field = square_loop_field_tesla(
+            point_m,
+            positive_center,
+            axis,
+            side_length_m,
+            current_A=1.0,
+            turns=turns_per_coil,
+        )
+        basis_field += square_loop_field_tesla(
+            point_m,
+            negative_center,
+            axis,
+            side_length_m,
+            current_A=1.0,
+            turns=turns_per_coil,
+        )
+        matrix[:, column] = TESLA_TO_MG * basis_field
+    return tuple(tuple(float(value) for value in row) for row in matrix)
+
+
+def square_pair_center_field_mG_per_A(geometry: CoilGeometryConfig) -> float:
+    matrix = coil_field_matrix_mG_per_A_cached(
+        geometry.turns_per_coil,
+        geometry.side_length_cm,
+        geometry.center_to_coil_cm,
+        0.0,
+        0.0,
+        0.0,
     )
-    return TESLA_TO_MG * numerator / denominator
+    return float(matrix[0][0])
 
 
 def coil_field_matrix_mG_per_A(config: SimulationConfig) -> np.ndarray:
-    coefficient = square_pair_center_field_mG_per_A(config.coil_geometry)
-    return np.diag([coefficient, coefficient, coefficient])
+    x_mm, y_mm, z_mm = config.molasses.molasses_position_mm
+    return np.asarray(
+        coil_field_matrix_mG_per_A_cached(
+            config.coil_geometry.turns_per_coil,
+            config.coil_geometry.side_length_cm,
+            config.coil_geometry.center_to_coil_cm,
+            float(x_mm),
+            float(y_mm),
+            float(z_mm),
+        ),
+        dtype=float,
+    )
+
+
+def format_position_mm(position_mm: tuple[float, float, float], precision: int = 3) -> str:
+    x_mm, y_mm, z_mm = position_mm
+    return f"({x_mm:.{precision}f}, {y_mm:.{precision}f}, {z_mm:.{precision}f}) mm"
+
+
+def format_field_matrix_rows(matrix_mG_per_A: np.ndarray, precision: int = 3) -> list[str]:
+    labels = ("Bx", "By", "Bz")
+    rows: list[str] = []
+    for label, row in zip(labels, np.asarray(matrix_mG_per_A, dtype=float)):
+        rows.append(
+            f"{label} = [{row[0]: .{precision}f}, {row[1]: .{precision}f}, {row[2]: .{precision}f}] mG/A"
+        )
+    return rows
 
 
 def magnetic_sensitivity_hz_per_mG(g_factor_abs: float) -> float:
@@ -454,8 +592,10 @@ def save_scan_csv(records: list[dict], output_dir: Path, prefix: str) -> Path:
 
 def save_resolved_config(config: SimulationConfig, output_dir: Path, prefix: str) -> Path:
     resolved = asdict(config)
-    resolved["derived_coil_field_matrix_mG_per_A"] = coil_field_matrix_mG_per_A(config).tolist()
-    resolved["derived_center_field_per_axis_mG_per_A"] = square_pair_center_field_mG_per_A(
+    field_matrix = coil_field_matrix_mG_per_A(config)
+    resolved["derived_coil_field_matrix_mG_per_A"] = field_matrix.tolist()
+    resolved["derived_molasses_position_mm"] = list(config.molasses.molasses_position_mm)
+    resolved["derived_origin_center_field_per_axis_mG_per_A"] = square_pair_center_field_mG_per_A(
         config.coil_geometry
     )
 
@@ -495,7 +635,7 @@ def plot_overview_on_axes(
     z_currents = plot_result["z_currents"]
     temp_grid = plot_result["temp_grid"]
     best_iz, best_iy, best_ix = plot_result["best_indices"]
-    field_per_amp = square_pair_center_field_mG_per_A(config.coil_geometry)
+    field_matrix = coil_field_matrix_mG_per_A(config)
     x_step = axis_step(x_currents)
     y_step = axis_step(y_currents)
     z_step = axis_step(z_currents)
@@ -565,7 +705,11 @@ def plot_overview_on_axes(
         0.03,
         0.05,
         (
-            f"Center field conversion:\n1 A -> {field_per_amp:.2f} mG\n"
+            f"Molasses position:\n{format_position_mm(config.molasses.molasses_position_mm, precision=2)}\n"
+            "Local field matrix [mG/A]:\n"
+            f"{format_field_matrix_rows(field_matrix, precision=1)[0]}\n"
+            f"{format_field_matrix_rows(field_matrix, precision=1)[1]}\n"
+            f"{format_field_matrix_rows(field_matrix, precision=1)[2]}\n"
             f"Overview grid step:\n"
             f"dIx={x_step:.4f} A, dIy={y_step:.4f} A, dIz={z_step:.4f} A\n"
             f"Final best current:\n"
@@ -587,7 +731,7 @@ def plot_overview_on_axes(
 
 def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> dict:
     zero_current_result = simulate_one_setting(config, np.zeros(3, dtype=float))
-    field_per_amp = square_pair_center_field_mG_per_A(config.coil_geometry)
+    field_matrix = coil_field_matrix_mG_per_A(config)
 
     time_ms = best_result["time_ms"]
     best_trace = best_result["field_trace_mG"]
@@ -635,7 +779,9 @@ def plot_dynamics_on_axes(config: SimulationConfig, best_result: dict, axes) -> 
         (
             f"Best current: ({best_result['current_xyz_A'][0]:.3f}, "
             f"{best_result['current_xyz_A'][1]:.3f}, {best_result['current_xyz_A'][2]:.3f}) A\n"
-            f"Field coefficient: {field_per_amp:.2f} mG/A"
+            f"Molasses position: {format_position_mm(config.molasses.molasses_position_mm, precision=2)}\n"
+            f"Diagonal current-to-field terms: "
+            f"Mxx={field_matrix[0, 0]:.2f}, Myy={field_matrix[1, 1]:.2f}, Mzz={field_matrix[2, 2]:.2f} mG/A"
         ),
         transform=axes[1, 1].transAxes,
         va="top",
@@ -682,11 +828,15 @@ def write_summary(
     coarse_best = coarse_result["best_result"]
     best_ix, best_iy, best_iz = best_result["current_xyz_A"]
     coil_bx, coil_by, coil_bz = best_result["coil_field_mG"]
-    field_per_amp = square_pair_center_field_mG_per_A(config.coil_geometry)
+    field_matrix = coil_field_matrix_mG_per_A(config)
 
     summary_lines = [
         "Rb87 optical molasses current-scan simulation summary",
-        f"Center-field conversion for each axis pair: 1 A -> {field_per_amp:.6f} mG",
+        f"Molasses evaluation position: {format_position_mm(config.molasses.molasses_position_mm, precision=6)}",
+        "Current-to-field matrix at that position [mG/A]:",
+        f"  {format_field_matrix_rows(field_matrix, precision=6)[0]}",
+        f"  {format_field_matrix_rows(field_matrix, precision=6)[1]}",
+        f"  {format_field_matrix_rows(field_matrix, precision=6)[2]}",
         (
             "Coarse-grid best current setpoint: "
             f"Ix={coarse_best['current_xyz_A'][0]:.6f} A, "
@@ -806,11 +956,14 @@ def main() -> None:
     )
     resolved_config_path = save_resolved_config(config, output_dir, config.output.prefix)
 
-    field_per_amp = square_pair_center_field_mG_per_A(config.coil_geometry)
+    field_matrix = coil_field_matrix_mG_per_A(config)
     current_x, current_y, current_z = best_result["current_xyz_A"]
     field_x, field_y, field_z = best_result["coil_field_mG"]
 
-    print(f"Center field conversion: 1 A -> {field_per_amp:.6f} mG")
+    print(f"Molasses evaluation position: {format_position_mm(config.molasses.molasses_position_mm, precision=6)}")
+    print("Current-to-field matrix at that position [mG/A]:")
+    for row_text in format_field_matrix_rows(field_matrix, precision=6):
+        print(f"  {row_text}")
     print(
         "Coarse-grid best current: "
         f"Ix={coarse_result['best_result']['current_xyz_A'][0]:.6f} A, "

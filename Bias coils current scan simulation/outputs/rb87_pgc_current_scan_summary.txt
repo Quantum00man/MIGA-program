@@ -1,13 +1,17 @@
 Rb87 optical molasses current-scan simulation summary
-Center-field conversion for each axis pair: 1 A -> 296.349555 mG
-Coarse-grid best current setpoint: Ix=0.000000 A, Iy=0.416667 A, Iz=0.000000 A
-Final best current setpoint: Ix=-0.004902 A, Iy=0.401961 A, Iz=-0.004902 A
-Compensation field at best setpoint: Bx=-1.452694 mG, By=119.120900 mG, Bz=-1.452694 mG
-Predicted final temperature: 2.754904 uK
-Cooling efficiency (0=no cooling, 1=zero-field limit): 0.980134
-Initial residual field magnitude: 7069.419145 mG
-Final residual field magnitude: 2.230269 mG
-Time-averaged residual field magnitude: 513.585456 mG
+Molasses evaluation position: (0.000000, 20.000000, 0.000000) mm
+Current-to-field matrix at that position [mG/A]:
+  Bx = [ 293.832360,  0.000000,  0.000000] mG/A
+  By = [ 0.000000,  301.383026,  0.000000] mG/A
+  Bz = [ 0.000000,  0.000000,  293.832360] mG/A
+Coarse-grid best current setpoint: Ix=0.000000 A, Iy=0.000000 A, Iz=0.000000 A
+Final best current setpoint: Ix=-0.004902 A, Iy=-0.004902 A, Iz=-0.004902 A
+Compensation field at best setpoint: Bx=-1.440355 mG, By=-1.477368 mG, Bz=-1.440355 mG
+Predicted final temperature: 2.754961 uK
+Cooling efficiency (0=no cooling, 1=zero-field limit): 0.980133
+Initial residual field magnitude: 7069.004817 mG
+Final residual field magnitude: 2.511500 mG
+Time-averaged residual field magnitude: 513.448734 mG
 Magnetic width used for PGC suppression: 194.996221 mG
 
 Geometry used:
@@ -16,7 +20,7 @@ Geometry used:
   center to each coil = 20.000000 cm
 
 Local refinement stages:
-  stage 1: x in [-0.083333, 0.083333] A, y in [0.333333, 0.500000] A, z in [-0.083333, 0.083333] A, best = (-0.004902, 0.401961, -0.004902) A, T = 2.754904 uK
+  stage 1: x in [-0.083333, 0.083333] A, y in [-0.083333, 0.083333] A, z in [-0.083333, 0.083333] A, best = (-0.004902, -0.004902, -0.004902) A, T = 2.754961 uK
 
 Overview figure uses the final refined grid:
   dIx = 0.009804 A, dIy = 0.009804 A, dIz = 0.009804 A
