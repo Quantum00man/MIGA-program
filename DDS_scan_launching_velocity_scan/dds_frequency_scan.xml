@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+
+<ad9958>
+  <!-- Frequency delta 6.210 MHz -->
+  <elem n="10">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107995000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114205000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.230 MHz -->
+  <elem n="11">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107985000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114215000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.250 MHz -->
+  <elem n="12">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107975000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114225000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.270 MHz -->
+  <elem n="13">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107965000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114235000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.290 MHz -->
+  <elem n="14">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107955000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114245000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.310 MHz -->
+  <elem n="15">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107945000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114255000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.330 MHz -->
+  <elem n="16">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107935000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114265000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.350 MHz -->
+  <elem n="17">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107925000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114275000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.370 MHz -->
+  <elem n="18">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107915000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114285000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+
+  <!-- Frequency delta 6.390 MHz -->
+  <elem n="19">
+    <ch0>
+      <mode>sf</mode>
+      <fr>107905000.0</fr>
+      <am>36</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>114295000.0</fr>
+      <am>23</am>
+    </ch1>
+  </elem>
+</ad9958>

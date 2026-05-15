@@ -1,0 +1,14 @@
+Allan Stability Analysis Summary
+========================================
+Input file: 2026_05_05_0943_allan.csv
+Delimiter: ',', skiprows=0, header=True
+Columns: time_col=0, value_col=1
+Outlier z-threshold (MAD): 6.0
+Points (raw/kept): 5225 / 5225
+Resample to uniform: True
+Uniform dt (s): 6.008523
+Rate (Hz): 0.166430252493
+Uniform points: 5228
+Mean after cleaning (uniform): 836008635.582
+Taus mode: octave, max_num_taus=100
+Tau count: 12

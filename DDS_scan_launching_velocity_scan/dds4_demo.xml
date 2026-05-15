@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+
+<ad9958>
+                <elem n="0">
+    <ch0>
+      <mode>sf</mode>
+      <fr>111100000.0</fr>
+      <am>28</am>
+    </ch0>
+    <ch1>
+      <mode>sf</mode>
+      <fr>111100000.0</fr>
+      <am>18</am>
+    </ch1>
+  </elem>
+   
+### Frequency delta 6.210 MHz
+<elem n="1">
+<ch0>
+<mode>sf</mode>
+<fr>107995000</fr>
+<am>36</am>
+</ch0>
+<ch1>
+<mode>sf</mode>
+<fr>114205000.0</fr>
+<am>23</am>
+    </ch1>
+  </elem>
+

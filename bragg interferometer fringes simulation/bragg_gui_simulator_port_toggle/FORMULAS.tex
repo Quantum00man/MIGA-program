@@ -43,6 +43,7 @@ This document describes the effective model implemented by the GUI-based Bragg a
 \end{itemize}
 
 It is not a full momentum-lattice propagation model. Instead, it keeps only an effective two-port interferometer subspace and treats imperfect Bragg diffraction through effective transfer probabilities, loss terms, and diffraction phases.
+The general Bragg-interferometer setting, as well as the appearance of parasitic ports, losses, and diffraction phases in nonideal Bragg diffraction, are well documented in the literature on Bragg atom interferometry and diffraction phases \cite{Giltner1995,Muller2008,Estey2015,Parker2016,Jenewein2022}.
 
 \section{Simulation Workflow}
 
@@ -96,6 +97,7 @@ The effective Bragg interferometer wavevector is
 \begin{equation}
   k_{\mathrm{eff}} = 2nk = 2n\frac{2\pi}{\lambda}.
 \end{equation}
+This is the standard large-momentum-transfer scaling for Bragg diffraction, where the interferometric phase is enhanced by the diffraction order $n$ \cite{Giltner1995,Muller2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -121,6 +123,7 @@ Therefore the deterministic phase before shot-to-shot technical noise is
 \begin{equation}
   \phi_{\mathrm{det}} = \phi_{\mathrm{base}} + \phi_{\mathrm{scan}}.
 \end{equation}
+The three-pulse Mach-Zehnder phase structure and the laser-phase imprinting formalism follow the standard light-pulse interferometer treatment \cite{Cheinet2008}. The explicit $n$ scaling is the Bragg large-momentum-transfer generalization discussed in Bragg-interferometer references such as Refs.~\cite{Giltner1995,Muller2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -277,6 +280,7 @@ Let $S_{\nu}(f)$ be the laser-frequency-noise PSD. The simulator constructs the 
 \begin{equation}
   S_{\phi,\mathrm{laser}}(f) = \frac{n^2 S_{\nu}(f)}{f^2}.
 \end{equation}
+This phase-noise treatment is an effective frequency-domain reduction consistent with the three-pulse sensitivity-function formalism used for light-pulse atom interferometers \cite{Cheinet2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -300,6 +304,7 @@ The corresponding interferometer phase-noise PSD is
   S_{\phi,\mathrm{vib}}(f) = k_{\mathrm{eff}}^2 S_z(f)
   = \frac{k_{\mathrm{eff}}^2 S_a(f)}{(2\pi f)^4}.
 \end{equation}
+The conversion from acceleration noise to displacement noise and then to phase noise is again based on the standard sensitivity-function analysis of three-pulse atom interferometers \cite{Cheinet2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -323,6 +328,7 @@ The weighted phase-noise integrand is therefore
 \end{equation}
 
 This is evaluated separately for laser noise and vibration noise.
+This transfer-function description is directly motivated by the standard sensitivity-function formalism for three-pulse atom interferometers \cite{Cheinet2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -343,6 +349,7 @@ The RMS phase noise is
 \begin{equation}
   \sigma_{\phi} = \sqrt{\sigma_{\phi}^2}.
 \end{equation}
+The code evaluates this integral numerically on a logarithmic grid; the underlying formal relation follows Ref.~\cite{Cheinet2008}.
 
 This is done independently for:
 \begin{itemize}[leftmargin=1.5em]
@@ -374,6 +381,7 @@ These are defined separately for:
   \item the mirror pulse,
   \item the second beam splitter.
 \end{itemize}
+The quantities $P$, $L$, and $\phi_d$ should be interpreted as effective parameters. They are not copied from a single exact multistate Bragg Hamiltonian, but rather serve as a reduced description of the transfer efficiency, parasitic-port loss, and diffraction phase discussed in the Bragg-diffraction literature \cite{Muller2008,Estey2015,Parker2016,Jenewein2022}.
 
 \section{Shot-to-Shot Pulse Fluctuations}
 
@@ -409,6 +417,7 @@ Each pulse is represented by the effective complex matrix
     -i e^{i\phi_d'} \sqrt{P'} & \sqrt{1-P'}
   \end{bmatrix}.
 \end{equation}
+This matrix should be read as a phenomenological two-port model inspired by the population loss, multiport output, and diffraction-phase effects analyzed in Refs.~\cite{Muller2008,Estey2015,Parker2016,Jenewein2022}. It is not presented as an exact equation reproduced from any one of those papers.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -487,6 +496,7 @@ The final state is
 \begin{equation}
   \psi_f = U_3 U_2 U_1 \psi_0.
 \end{equation}
+The sequence structure is the standard three-pulse Mach-Zehnder order used in light-pulse atom interferometry \cite{Cheinet2008}, while the specific reduced matrices are the effective Bragg model introduced in this document.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -613,6 +623,7 @@ After averaging over shots, the simulator fits the displayed normalised fringe w
 \begin{equation}
   P_{\mathrm{fit}}(\phi_0) = C_0 + C\cos(n\phi_0 + \phi_{\mathrm{fit}}).
 \end{equation}
+The cosine fringe structure is the standard output form of a two-path light-pulse atom interferometer. In a Bragg interferometer the scanned optical phase is multiplied by the diffraction order $n$ through the large-momentum-transfer phase scaling \cite{Giltner1995,Muller2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -673,6 +684,7 @@ When pulse parameters are constructed from an effective two-state Rabi model, th
     \sqrt{\Omega_{\mathrm{eff}}^2 + \Delta^2}
   \right).
 \end{equation}
+This is the standard off-resonant two-level Rabi-transition result. In the Bragg context, effective Rabi frequencies, losses, and associated phase shifts are discussed in detail in Ref.~\cite{Muller2008}.
 
 \textbf{Parameter meanings}
 \begin{itemize}[leftmargin=1.5em]
@@ -711,5 +723,45 @@ The formulas above correspond to an effective model with the following approxima
 \end{enumerate}
 
 These approximations make the simulator fast and interpretable, but they should not be confused with a full multistate Bragg propagation treatment.
+
+\begin{thebibliography}{99}
+
+\bibitem{Cheinet2008}
+P.~Cheinet, B.~Canuel, F.~Pereira Dos Santos, A.~Gauguet, F.~Leduc, and A.~Landragin,
+``Measurement of the sensitivity function in a time-domain atomic interferometer,''
+\textit{IEEE Transactions on Instrumentation and Measurement} \textbf{57}(6), 1141--1148 (2008).
+DOI: \href{https://doi.org/10.1109/TIM.2007.915148}{10.1109/TIM.2007.915148}.
+
+\bibitem{Giltner1995}
+D.~M.~Giltner, R.~W.~McGowan, and S.~A.~Lee,
+``Atom Interferometer Based on Bragg Scattering from Standing Light Waves,''
+\textit{Physical Review Letters} \textbf{75}, 2638--2641 (1995).
+DOI: \href{https://doi.org/10.1103/PhysRevLett.75.2638}{10.1103/PhysRevLett.75.2638}.
+
+\bibitem{Muller2008}
+H.~M\"uller, S.-w.~Chiow, and S.~Chu,
+``Atom-wave diffraction between the Raman-Nath and the Bragg regime: Effective Rabi frequency, losses, and phase shifts,''
+\textit{Physical Review A} \textbf{77}, 023609 (2008).
+DOI: \href{https://doi.org/10.1103/PhysRevA.77.023609}{10.1103/PhysRevA.77.023609}.
+
+\bibitem{Estey2015}
+B.~Estey, C.~Yu, P.-C.~Kuan, and H.~M\"uller,
+``High-Resolution Atom Interferometers with Suppressed Diffraction Phases,''
+\textit{Physical Review Letters} \textbf{115}, 083002 (2015).
+DOI: \href{https://doi.org/10.1103/PhysRevLett.115.083002}{10.1103/PhysRevLett.115.083002}.
+
+\bibitem{Parker2016}
+R.~H.~Parker, C.~Yu, B.~Estey, W.~Zhong, E.~Huang, and H.~M\"uller,
+``Controlling the multiport nature of Bragg diffraction in atom interferometry,''
+\textit{Physical Review A} \textbf{94}, 053618 (2016).
+DOI: \href{https://doi.org/10.1103/PhysRevA.94.053618}{10.1103/PhysRevA.94.053618}.
+
+\bibitem{Jenewein2022}
+J.~Jenewein, S.~Hartmann, A.~Roura, and E.~Giese,
+``Bragg-diffraction-induced imperfections of the signal in retroreflective atom interferometers,''
+\textit{Physical Review A} \textbf{105}, 063316 (2022).
+DOI: \href{https://doi.org/10.1103/PhysRevA.105.063316}{10.1103/PhysRevA.105.063316}.
+
+\end{thebibliography}
 
 \end{document}

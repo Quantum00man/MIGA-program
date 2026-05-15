@@ -1,0 +1,297 @@
+<?xml version="1.0" ?>
+<root>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.20 ms-->
+  <elem n="10">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>344.946875</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>1379.787500</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.30 ms-->
+  <elem n="11">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>229.964583</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>919.858333</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.40 ms-->
+  <elem n="12">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>172.473438</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>689.893750</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.50 ms-->
+  <elem n="13">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>137.978750</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>551.915000</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.60 ms-->
+  <elem n="14">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>114.982292</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>459.929167</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.70 ms-->
+  <elem n="15">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>98.556250</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>394.225000</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.80 ms-->
+  <elem n="16">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>86.236719</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>344.946875</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 0.90 ms-->
+  <elem n="17">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>76.654861</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>306.619444</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.00 ms-->
+  <elem n="18">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>68.989375</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>275.957500</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.10 ms-->
+  <elem n="19">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>62.717614</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>250.870455</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.20 ms-->
+  <elem n="20">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>57.491146</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>229.964583</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.30 ms-->
+  <elem n="21">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>53.068750</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>212.275000</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.40 ms-->
+  <elem n="22">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>49.278125</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>197.112500</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+  <!--SUBDOPPLER COOLING: FROM 2.80 GAMMA TO 21.00 GAMMA, duration time: 1.50 ms-->
+  <elem n="23">
+    <ch0>
+      <mode>ramp</mode>
+      <fr>74640437.5</fr>
+      <am>103</am>
+      <var>fr</var>
+      <ev>81539375.0</ev>
+      <dv>45.992917</dv>
+      <rr>1</rr>
+    </ch0>
+    <ch1>
+      <mode>ramp</mode>
+      <fr>115196347.3</fr>
+      <am>79</am>
+      <var>fr</var>
+      <ev>87600597.3</ev>
+      <dv>183.971667</dv>
+      <rr>1</rr>
+    </ch1>
+  </elem>
+</root>
