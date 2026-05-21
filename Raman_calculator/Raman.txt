@@ -1,0 +1,60 @@
+vrec := 5.88*10^-3
+sp := 5*10^-3
+svL := 2.5*vrec(*0.5--90nK*)
+svT := 2.65*vrec (*2.574--2.4uK,2.35--2uK*)
+keff := 2*2*Pi/(780*10^-9)
+P1 := 14*10^-3
+P2 := P1/2.6
+Isat := 16.7
+delta2 := 2*Pi*157*10^6
+desacc := -2*Pi*(1000)*10^6
+gamma := 2*Pi*6.065*10^6
+G := 1
+
+
+M := 1.443160*10^\[Minus]25
+k := 1.380649*10^\[Minus]23
+Intens1[r_, w0_] := 
+ 2*P1/(Pi*w0^2) *Exp[-2*r^2/w0^2] (*intensity at z distance from L2*)
+Intens2[r_, w0_] := 
+ 2*P2/(Pi*w0^2) *Exp[-2*r^2/w0^2] (*intensity at z distance from L2*)
+(*Weffr[r_,w0_,attn_]:=1/attn*gamma^2*(Intens1[r,w0]*Intens2[r,w0])^0.\
+5/(2*Isat)*(1/(24*desacc)+1/(8*(desacc-delta2)))/2 old*)
+Weffr[r_, w0_, attn_] := 
+ 1/attn*gamma^2*
+  G*(Intens1[r, w0]*Intens2[r, w0])^0.5/(2*Isat)*(5/(24*desacc) + 
+     3/(24*(desacc + delta2)))/2
+Integrate[2*Pi*r*Intens1[r, w0], {r, 0, Infinity}]
+Integrate[2*Pi*r*Intens2[r, w0], {r, 0, Infinity}]
+f[v_] := 0.5/svL*(2/Pi)^0.5*Exp[-1/2*(v/svL)^2]
+Integrate[
+ f[v], {v, -Infinity, 
+  Infinity}] (*********definit aussi pour v negatif.... *************)
+h[r_] := 1/(2*Pi*sp^2)*Exp[-(r^2)/(2*sp^2)]
+Integrate[
+ 2*Pi*r*h[r], {r, 0, 
+  Infinity}] (*********definit pour x,y positifs.... *************)
+h[r_, T_] := 
+ 1/(2*Pi*(sp^2 + T^2*svT^2))*Exp[-(r^2)/(2*(sp^2 + T^2*svT^2))]
+Integrate[2*Pi*r*h[r, 1], {r, 0, Infinity}]
+dispPos[T_] := (sp^2 + 
+    T^2*svT^2)^0.5  (********* la dispersion en position à T *************)
+P1 + P2
+Plot[{dispPos[T]}, {T, 0, 0.1}, MaxRecursion -> 0, PlotPoints -> 40]
+WRr[r_, w0_, delta_, attn_] := (Weffr[r, w0, attn]^2 + delta^2)^0.5
+Ptrans[T_, tau_, d_, w0_, attn_] := 
+ NIntegrate[
+  2*Pi*r*f[vL]*
+   h[r, T]*(Weffr[r, w0, attn]/WRr[r, w0, vL*keff - d, attn]*
+      Sin[WRr[r, w0, vL*keff - d, attn]*tau/2])^2, {vL, -3*svL, 
+   3*svL}, {r, 0, 2*w0}, 
+  Method -> {"AdaptiveMonteCarlo", "SymbolicProcessing" -> 0}, 
+  MaxPoints -> 10000000
+  ]
+
+Plot[Ptrans[0.056, tau, 0, 11.5*10^-3, 1],
+ 
+ {tau, 0, 300*10^-6}, MaxRecursion -> 0, PlotPoints -> 500, 
+ PlotRange -> All, 
+ PlotLegends -> {"0.091 up", 
+   "0.78 down"}] (*0.091 up ;0.78 down ;0.43 bragg*)

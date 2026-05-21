@@ -1,0 +1,455 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  pdftitle={Raman Transition Calculator Manual},
+  pdfauthor={OpenAI Codex},
+  pdfsubject={Python translation of Raman.txt},
+  pdfkeywords={Raman transition, atomic interferometer, Rabi oscillation, Python, Tkinter}
+}
+
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+\title{Raman Transition Calculator Manual\\\large Python Translation of \texttt{Raman.txt}}
+\author{Project workspace: \texttt{Raman\_calculator}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{Purpose}
+
+This document describes the Python implementation of the original Mathematica script
+\texttt{Raman.txt}. The translated application computes Raman-driven Rabi oscillations in an
+atomic interferometer and displays the free-expansion growth of the transverse atom-cloud size.
+
+The implementation goals are:
+
+\begin{itemize}
+  \item preserve the structure and default constants of the Mathematica model,
+  \item expose the main experimental parameters through a clean English-language graphical interface,
+  \item provide direct plots for both transition probability and cloud-size evolution,
+  \item document the assumptions, units, and numerical method in a form suitable for research use.
+\end{itemize}
+
+\section{Source-to-Python Translation}
+
+The Mathematica source defines a model with the following components:
+
+\begin{itemize}
+  \item Gaussian Raman-beam intensities,
+  \item an effective Raman coupling frequency depending on the large single-photon detuning,
+  \item a Gaussian longitudinal velocity distribution,
+  \item a Gaussian transverse spatial distribution that broadens during free expansion,
+  \item a two-dimensional average of the Raman transition probability over radius and velocity.
+\end{itemize}
+
+The Python code preserves these elements in \texttt{raman\_model.py}. The graphical interface in
+\texttt{app.py} provides controlled access to the same quantities and also reports derived values
+such as the on-axis Raman Rabi frequency and the estimated $\pi$-pulse time.
+
+\section{Default Parameters}
+
+The table below lists the translated defaults inherited from the Mathematica file.
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.52\linewidth}r}
+\toprule
+Quantity & Default value \\
+\midrule
+Recoil velocity $v_{\mathrm{rec}}$ & $5.88 \times 10^{-3}$ m/s \\
+Initial cloud size $\sigma_r(0)$ & 5 mm \\
+Large Raman detuning $\Delta / 2\pi$ & $-1000$ MHz \\
+Fine-structure offset $\delta_2 / 2\pi$ & 157 MHz \\
+Natural linewidth $\gamma / 2\pi$ & 6.065 MHz \\
+Raman beam power $P_1$ & 14.0 mW \\
+Raman beam power $P_2$ & 5.384615 mW \\
+Beam waist $w_0$ & 11.5 mm \\
+Free-expansion time $T$ in $P(T,\tau)$ & 56 ms \\
+Attenuation factor & 1 \\
+Coupling gain $G$ & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Temperature Mapping}
+
+The original Mathematica file directly specifies the transverse velocity spread as
+$\sigma_{v,T} = 2.65\,v_{\mathrm{rec}}$. The Python application uses the transverse temperature as
+the primary thermal input for that branch of the model. Therefore, the default transverse
+temperature is chosen such that
+
+\begin{equation}
+\sqrt{\frac{k_B T}{M}} = 2.65\,v_{\mathrm{rec}},
+\end{equation}
+
+which gives
+
+\begin{equation}
+T_{\mathrm{default}} = 2.537918~\mu\mathrm{K}.
+\end{equation}
+
+The GUI distinguishes two thermal directions:
+
+\begin{itemize}
+  \item the \textbf{transverse temperature}, which sets $\sigma_{v,T}$ and therefore the radial
+  beam convolution and cloud expansion,
+  \item the \textbf{longitudinal temperature}, which sets $\sigma_{v,L}$ and therefore the
+  velocity-selection distribution $f(v_L)$.
+\end{itemize}
+
+By default, the longitudinal temperature is linked to the transverse temperature so that the two
+directions start from the same value. The longitudinal value can then be released and edited
+independently whenever the experiment requires different thermal widths along and across the Raman
+beam axis.
+
+\section{Physical Model}
+
+\subsection{Gaussian Beam Intensities}
+
+The Gaussian intensity of each Raman beam is
+
+\begin{equation}
+I_i(r) = \frac{2P_i}{\pi w_0^2}\exp\!\left(-\frac{2r^2}{w_0^2}\right),
+\end{equation}
+
+where $i \in \{1,2\}$, $P_i$ is the optical power, and $w_0$ is the common beam waist.
+
+\subsection{Effective Raman Coupling}
+
+The translated effective Raman Rabi frequency is
+
+\begin{equation}
+\Omega_{\mathrm{eff}}(r)
+=
+\frac{\gamma^2 G}{\mathrm{attn}}
+\frac{\sqrt{I_1(r)I_2(r)}}{2I_{\mathrm{sat}}}
+\left[
+\frac{5}{24\Delta}
+\frac{3}{24(\Delta+\delta_2)}
+\right]\frac{1}{2},
+\end{equation}
+
+where:
+
+\begin{itemize}
+  \item $\Delta$ is the large Raman detuning (\texttt{desacc} in the code),
+  \item $\delta_2$ is the offset corresponding to the additional excited-state contribution,
+  \item $I_{\mathrm{sat}} = 16.7$ W/m$^2$,
+  \item $\mathrm{attn}$ is the attenuation factor from the original script,
+  \item $G$ is a dimensionless gain term retained from the Mathematica implementation.
+\end{itemize}
+
+In the Python code the absolute value of the resulting coupling is used when reporting an effective
+frequency, because the transition probability depends on $\Omega_{\mathrm{eff}}^2$.
+
+\subsection{Velocity and Spatial Distributions}
+
+The longitudinal velocity distribution is Gaussian:
+
+\begin{equation}
+f(v_L) = \frac{1}{\sqrt{2\pi}\,\sigma_{v,L}}
+\exp\!\left(-\frac{v_L^2}{2\sigma_{v,L}^2}\right).
+\end{equation}
+
+The transverse cloud size after free-expansion time $T$ is
+
+\begin{equation}
+\sigma_r(T) = \sqrt{\sigma_r(0)^2 + \sigma_{v,T}^2 T^2}.
+\end{equation}
+
+The associated radial probability density is
+
+\begin{equation}
+h(r,T) = \frac{1}{2\pi \sigma_r(T)^2}
+\exp\!\left(-\frac{r^2}{2\sigma_r(T)^2}\right).
+\end{equation}
+
+\subsection{Generalized Rabi Frequency}
+
+For each $(r, v_L)$ point, the generalized Raman Rabi frequency is
+
+\begin{equation}
+\Omega_R(r,v_L) =
+\sqrt{\Omega_{\mathrm{eff}}(r)^2 + \left(k_{\mathrm{eff}}v_L - d\right)^2},
+\end{equation}
+
+with
+
+\begin{equation}
+k_{\mathrm{eff}} = \frac{4\pi}{\lambda},
+\end{equation}
+
+and $d$ the user-specified two-photon detuning.
+
+\subsection{Transition Probability}
+
+The Raman transition probability is evaluated as
+
+\begin{equation}
+P(T,\tau)
+=
+\int \int
+2\pi r \, f(v_L)\, h(r,T)\,
+\left[
+\frac{\Omega_{\mathrm{eff}}(r)}{\Omega_R(r,v_L)}
+\sin\!\left(\frac{\Omega_R(r,v_L)\tau}{2}\right)
+\right]^2
+\mathrm{d}v_L\,\mathrm{d}r.
+\end{equation}
+
+This is a direct Python translation of the Mathematica function
+\texttt{Ptrans[T\_, tau\_, d\_, w0\_, attn\_]}.
+
+\section{Graphical Interface}
+
+The desktop interface is implemented with Tkinter and Matplotlib. The GUI is organized into three
+main groups of controls and three output tabs.
+
+\subsection{Preset Library}
+
+The interface now includes a preset library for rapid switching between common Raman operating
+conditions. Four presets are bundled with the application:
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.25\linewidth} >{\raggedright\arraybackslash}p{0.62\linewidth}}
+\toprule
+Preset & Applied values \\
+\midrule
+\texttt{Original Raman.txt Defaults} & Direct translation of the Mathematica defaults. \\
+\texttt{Raman Down} & $P_1 = 14$ mW, $P_2 = 7$ mW, $w_0 = 11.5$ mm, $T = 56$ ms, $\Delta / 2\pi = -1300$ MHz. \\
+\texttt{Raman Up} & $P_1 = 150$ mW, $P_2 = 70$ mW, $w_0 = 30$ mm, $T = 78$ ms, all remaining parameters inherited from the default set. \\
+\texttt{Raman Labeling} & $P_1 = 150$ mW, $P_2 = 70$ mW, $w_0 = 30$ mm, $T = 780$ ms, all remaining parameters inherited from the default set. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The preset values labelled by the user as ``tau = 56 ms'', ``tau = 78 ms'', and ``tau = 780 ms''
+are implemented as the advanced expansion-time parameter $T$, because the plotted Raman pulse
+duration $\tau$ remains the horizontal-axis sweep in $\mu$s.
+
+The preset panel supports four actions:
+
+\begin{itemize}
+  \item apply the currently selected preset and recompute the plots,
+  \item save the current parameter set into the selected preset name,
+  \item save the current parameter set as a new preset,
+  \item delete a locally stored preset or a local override of a bundled preset.
+\end{itemize}
+
+User-created presets and local overrides are stored in \texttt{presets.json}.
+
+\subsection{Top-right Action Bar}
+
+The interface now places the main execution controls in the top-right corner of the application
+window. This keeps the numerical input column focused on parameters while reserving a dedicated
+location for simulation management:
+
+\begin{itemize}
+  \item \texttt{Run Simulation}: execute the current parameter set,
+  \item \texttt{Reset to Defaults}: restore the translated \texttt{Raman.txt} defaults,
+  \item \texttt{Export Current CSV}: export the currently active simulation only,
+  \item \texttt{Lock Current}: preserve the current curves as reference traces,
+  \item \texttt{Clear Locked}: remove all locked reference traces.
+\end{itemize}
+
+\subsection{Primary Inputs}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\linewidth} >{\raggedright\arraybackslash}p{0.15\linewidth} >{\raggedright\arraybackslash}p{0.45\linewidth}}
+\toprule
+Field & Unit & Meaning \\
+\midrule
+Transverse temperature & $\mu$K & Thermal input used to define the transverse velocity spread $\sigma_{v,T}$, the radial beam convolution, and the cloud expansion. \\
+Use a separate longitudinal temperature & boolean & Unlocks an independent longitudinal thermal input. When disabled, the longitudinal temperature is linked to the transverse value. \\
+Longitudinal temperature & $\mu$K & Thermal input used to define the longitudinal velocity spread $\sigma_{v,L}$ entering the velocity-selection distribution $f(v_L)$. \\
+Large Raman detuning desacc / $2\pi$ & MHz & One-photon detuning entering the effective Raman coupling. \\
+Beam power $P_1$ & mW & Optical power of Raman beam 1. \\
+Beam power $P_2$ & mW & Optical power of Raman beam 2. \\
+Beam waist $w_0$ & mm & Common Gaussian waist used in the intensity model. \\
+$\tau$ minimum & $\mu$s & Lower bound of the pulse-duration sweep. \\
+$\tau$ maximum & $\mu$s & Upper bound of the pulse-duration sweep. \\
+Number of $\tau$ samples & points & Plot resolution for the pulse-duration sweep. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Advanced Model Parameters}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\linewidth} >{\raggedright\arraybackslash}p{0.15\linewidth} >{\raggedright\arraybackslash}p{0.45\linewidth}}
+\toprule
+Field & Unit & Meaning \\
+\midrule
+Expansion time $T$ before Raman pulse & ms & Free-expansion time used inside the Raman-transition integral. \\
+Initial cloud size $\sigma_r(0)$ & mm & Initial transverse root-mean-square cloud size. \\
+Two-photon detuning $d / 2\pi$ & kHz & Residual Raman detuning used in the generalized Rabi frequency. \\
+Attenuation factor & a.u. & Multiplicative suppression of $\Omega_{\mathrm{eff}}$. \\
+Coupling gain $G$ & a.u. & Dimensionless gain factor retained from the original source. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Numerical Controls}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\linewidth} >{\raggedright\arraybackslash}p{0.15\linewidth} >{\raggedright\arraybackslash}p{0.45\linewidth}}
+\toprule
+Field & Unit & Meaning \\
+\midrule
+Radial grid points & points & Number of quadrature points in the radial integral. \\
+Velocity grid points & points & Number of quadrature points in the longitudinal velocity integral. \\
+Radial cutoff & $w_0$ units & Upper radial integration limit in multiples of the beam waist. \\
+Velocity cutoff & $\sigma_{v,L}$ units & Longitudinal velocity truncation used in the numerical integral. \\
+\bottomrule
+\end{longtable}
+
+\section{Numerical Method}
+
+The original Mathematica script used adaptive Monte Carlo integration. In the Python translation, a
+deterministic tensor-product quadrature is used instead:
+
+\begin{itemize}
+  \item the radial coordinate is sampled on a uniform grid from $0$ to the user-selected radial cutoff,
+  \item the longitudinal velocity is sampled on a uniform grid from
+  $-\alpha \sigma_{v,L}$ to $+\alpha \sigma_{v,L}$, where $\alpha$ is the chosen cutoff multiplier,
+  \item the integrals are evaluated using trapezoidal quadrature,
+  \item the pulse-duration array is processed in chunks to keep memory usage modest while remaining fast enough for interactive use.
+\end{itemize}
+
+This method is appropriate for a responsive research tool, because the integrand is smooth and the
+user can directly increase the grid resolution whenever additional convergence margin is required.
+
+\section{Outputs and Interpretation}
+
+The application reports two primary plots.
+
+\subsection{Rabi Oscillation Plot}
+
+The first plot displays the transition probability $P(T,\tau)$ over the selected pulse-duration
+range. A dashed vertical line marks the estimated on-axis $\pi$-pulse duration whenever it lies
+inside the plotted window. The plot tab includes an automatic vertical-axis scaling option so that
+small-amplitude Raman signals are displayed with an appropriate zoom level rather than being forced
+onto a fixed $0$ to $1$ scale.
+
+\subsection{Cloud-Size Evolution Plot}
+
+The second plot displays
+
+\begin{equation}
+\sigma_r(t) = \sqrt{\sigma_r(0)^2 + \sigma_{v,T}^2 t^2}
+\end{equation}
+
+from $t = 0$ to the user-selected free-expansion time $T$. The horizontal axis is displayed in an
+automatically chosen unit (\textmu s, ms, or s) depending on the selected expansion interval.
+
+This behavior is intentionally aligned with the original Mathematica definition
+\texttt{dispPos[T]}, which describes cloud broadening during free expansion prior to the Raman
+interaction. The same fixed interaction time $T$ is then used inside the Raman-transition integral
+$P(T,\tau)$.
+
+\subsection{Derived Values Panel}
+
+The derived-values panel summarizes:
+
+\begin{itemize}
+  \item longitudinal and transverse velocity spreads,
+  \item initial and expanded cloud sizes,
+  \item on-axis peak beam intensities,
+  \item on-axis effective Raman Rabi frequency,
+  \item estimated on-axis $\pi$-pulse time,
+  \item numerical grid settings and integration cutoffs.
+\end{itemize}
+
+\subsection{Interactive Plot Tools}
+
+The Matplotlib toolbar remains available for pan and zoom. In addition, the application provides
+direct in-figure interaction:
+
+\begin{itemize}
+  \item hover readout of the nearest sampled point on either curve,
+  \item click-to-pin markers with numerical coordinate labels,
+  \item double-click or the \texttt{Reset Plot View} button to restore the latest auto-generated axis limits,
+  \item a \texttt{Clear Plot Markers} button to remove pinned annotations.
+\end{itemize}
+
+\subsection{Locked Result Overlays}
+
+The application can preserve the current simulation result as a locked reference while new
+parameter sets are computed. When multiple simulations are displayed simultaneously:
+
+\begin{itemize}
+  \item locked curves are drawn as dashed traces,
+  \item the current simulation is drawn as a solid trace,
+  \item plot legends are enabled automatically,
+  \item each legend label is generated from only the parameters that differ across the displayed
+  simulations, keeping the legend concise while still informative.
+\end{itemize}
+
+\section{How to Run the Software}
+
+From the project directory:
+
+\begin{verbatim}
+python3 app.py
+\end{verbatim}
+
+If dependencies need to be installed:
+
+\begin{verbatim}
+python3 -m pip install -r requirements.txt
+\end{verbatim}
+
+To execute the smoke tests:
+
+\begin{verbatim}
+python3 -m unittest discover -s tests -v
+\end{verbatim}
+
+To rebuild this PDF:
+
+\begin{verbatim}
+pdflatex -interaction=nonstopmode -halt-on-error \
+  -output-directory=docs docs/raman_calculator_manual.tex
+\end{verbatim}
+
+\section{Project File Summary}
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.36\linewidth} >{\raggedright\arraybackslash}p{0.52\linewidth}}
+\toprule
+File & Role \\
+\midrule
+\texttt{Raman.txt} & Original Mathematica source retained for reference. \\
+\texttt{raman\_model.py} & Physics model, unit conversions, validation, and numerical solver. \\
+\texttt{app.py} & Graphical desktop application with plots and parameter entry. \\
+\texttt{presets.json} & User-written preset store containing custom presets and local overrides. \\
+\texttt{tests/test\_raman\_model.py} & Numerical smoke tests for the translated model. \\
+\texttt{README.md} & Quick-start and project summary. \\
+\texttt{docs/raman\_calculator\_manual.tex} & Full technical manual. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Closing Remarks}
+
+This Python translation is intentionally conservative: it stays close to the original Mathematica
+structure, makes units explicit, and separates the physical model from the interface so that future
+extensions remain straightforward. Typical next steps for a laboratory workflow would be to add
+batch export of parameter scans, fit measured Rabi data, or expose independent longitudinal and
+transverse temperatures if the experiment requires a more anisotropic thermal model.
+
+\end{document}
