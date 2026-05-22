@@ -2,7 +2,7 @@
 
 This project converts the original Mathematica script `Raman.txt` into a Python application for simulating Raman-driven Rabi oscillations in an atomic interferometer and tracking the atom-cloud size over the selected free-expansion interval.
 
-The interface is written in English and is designed for experimental use: clear units, explicit parameter meanings, a direct translation of the original model, and immediate plotting of both transition probability and cloud expansion.
+The interface is written in English and is designed for experimental use: clear units, explicit parameter meanings, a direct translation of the original model, and immediate access to both the Raman simulation page and the Raman detuning page.
 
 ## What the application does
 
@@ -10,6 +10,8 @@ The desktop GUI computes:
 
 1. The Raman transition probability as a function of pulse duration `tau`
 2. The atom-cloud transverse root-mean-square size `sigma_r(T)` from `T = 0` to the selected free-expansion time
+3. Raman detuning branches or transverse velocity using the original detuning Python logic
+4. A detuning-based calibration of `alpha` and `vx` from flying-up and falling-down scan results
 
 The application preserves the structure of the original Mathematica model:
 
@@ -22,10 +24,14 @@ The application preserves the structure of the original Mathematica model:
 ## Files
 
 - `Raman.txt`: original Mathematica source
+- `Raman deturning/Raman_deturning_4.0.py`: original standalone Raman detuning calculator retained for reference
+- `Raman deturning/Raman_transition_deturning_4.0.pdf`: original detuning documentation retained for reference
 - `raman_model.py`: translated physics model and numerical solver
+- `raman_detuning_model.py`: integrated Raman detuning and calibration model
 - `app.py`: Tkinter + Matplotlib desktop interface
 - `presets.json`: local preset store created or updated when presets are saved from the GUI
 - `tests/test_raman_model.py`: smoke tests for the translated model
+- `tests/test_raman_detuning_model.py`: tests for the integrated detuning and calibration logic
 - `docs/raman_calculator_manual.tex`: detailed LaTeX manual
 - `docs/raman_calculator_manual.pdf`: rendered manual when a local LaTeX engine is available
 
@@ -133,6 +139,13 @@ Start the GUI:
 python3 app.py
 ```
 
+## Main pages
+
+The application now has two top-level pages:
+
+- `Simulation`: Raman transition probability, cloud expansion, presets, and locked-curve comparison
+- `Detuning`: Raman detuning calculator, velocity inversion, and calibration of `alpha` and `vx`
+
 ## Built-in presets
 
 The GUI now includes bundled presets that can be applied, edited, and saved locally:
@@ -208,6 +221,37 @@ The GUI provides:
   - on-axis Raman Rabi frequency
   - estimated `pi`-pulse duration
   - numerical integration settings
+
+## Detuning page
+
+The `Detuning` page preserves the logic of the original `Raman_deturning_4.0.py` script and adds it as a dedicated GUI workflow.
+
+### Calculator modes
+
+- `vx -> Detuning`: compute all four detuning branches for a given `vx`
+- `Detuning -> vx`: infer `vx` from a signed detuning, the motion direction, and the transition type
+
+### Experimental constants
+
+- `vz (m/s)`: vertical velocity
+- `alpha (deg)`: beam angle relative to the `z` axis
+- `Laser wavelength (nm)`: used to construct `k` and `keff`
+- `Recoil frequency (kHz)`: two-photon recoil term
+
+### Calibration workflow
+
+The calibration tool asks for:
+
+- the signed detuning extracted from the `flying up` scan
+- the signed detuning extracted from the `falling down` scan
+- the transition direction: `F1→F2` or `F2→F1`
+
+The program then reconstructs:
+
+- `alpha`
+- `vx`
+
+using the same detuning model as the original script. The sign of each entered detuning automatically selects the corresponding `Delta>0` or `Delta<0` branch. After calibration, the recovered `alpha` can be applied back to the detuning constants, and the recovered `vx` is copied into the calculator input for immediate reuse.
 
 ### Rabi-axis autoscaling
 

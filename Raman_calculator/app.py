@@ -36,6 +36,22 @@ from raman_model import (
     choose_display_time_axis,
     simulate_rabi_oscillation,
 )
+from raman_detuning_model import (
+    DEFAULT_ALPHA_DEG,
+    DEFAULT_LASER_WAVELENGTH_M,
+    DEFAULT_RECOIL_FREQUENCY_KHZ,
+    DEFAULT_VZ_M_S,
+    FALLING_DOWN,
+    FLYING_UP,
+    TRANSITION_F1_TO_F2,
+    TRANSITION_F2_TO_F1,
+    CalibrationResult,
+    DetuningConstants,
+    VelocityInversionResult,
+    calibrate_alpha_and_vx_from_scans,
+    compute_detuning_khz,
+    compute_vx_from_detuning_auto,
+)
 
 
 APP_BACKGROUND = "#eef2f7"
@@ -58,6 +74,8 @@ LOCKED_RESULT_COLORS = [
     "#8c6d1f",
 ]
 TIME_UNIT_FACTORS = {"s": 1.0, "ms": 1e3, "us": 1e6, "ns": 1e9}
+TRANSITION_CHOICES = [TRANSITION_F1_TO_F2, TRANSITION_F2_TO_F1]
+MOTION_CHOICES = [FLYING_UP, FALLING_DOWN]
 
 PRESET_FILE = Path(__file__).with_name("presets.json")
 BOOLEAN_FIELDS = {"use_separate_longitudinal_temperature"}
@@ -221,12 +239,15 @@ class RamanCalculatorApp:
         self.crosshair_lines: dict[str, tuple[object, object]] = {}
         self.marker_artists: dict[str, dict[str, object]] = {}
         self.toolbar: NavigationToolbar2Tk | None = None
+        self.detuning_vars = self._create_detuning_variables()
+        self.last_detuning_calibration: CalibrationResult | None = None
 
         self.status_var = tk.StringVar(
             value="Ready. Review the input definitions, then run the simulation."
         )
 
         self._build_layout()
+        self._refresh_header_action_state()
         self._configure_temperature_linkage()
         self.reset_to_defaults()
         self.root.after(250, self.run_simulation)
@@ -355,13 +376,29 @@ class RamanCalculatorApp:
 
         self._build_header_actions(header)
 
-        main = ttk.Frame(outer, style="App.TFrame")
-        main.pack(fill="both", expand=True)
-        main.columnconfigure(0, weight=0)
-        main.columnconfigure(1, weight=1)
-        main.rowconfigure(0, weight=1)
+        self.main_notebook = ttk.Notebook(outer, style="Notebook.TNotebook")
+        self.main_notebook.pack(fill="both", expand=True)
+        self.simulation_page = ttk.Frame(self.main_notebook, style="App.TFrame", padding=4)
+        self.detuning_page = ttk.Frame(self.main_notebook, style="App.TFrame", padding=4)
+        self.main_notebook.add(self.simulation_page, text="Simulation")
+        self.main_notebook.add(self.detuning_page, text="Detuning")
+        self.main_notebook.bind("<<NotebookTabChanged>>", self._on_main_page_changed)
 
-        controls_card = ttk.Frame(main, style="Card.TFrame", padding=18)
+        self._build_simulation_page(self.simulation_page)
+        self._build_detuning_page(self.detuning_page)
+
+        status_bar = ttk.Frame(outer, style="App.TFrame")
+        status_bar.pack(fill="x", pady=(12, 0))
+        ttk.Label(status_bar, textvariable=self.status_var, style="Status.TLabel").pack(
+            anchor="w"
+        )
+
+    def _build_simulation_page(self, parent: ttk.Frame) -> None:
+        parent.columnconfigure(0, weight=0)
+        parent.columnconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1)
+
+        controls_card = ttk.Frame(parent, style="Card.TFrame", padding=18)
         controls_card.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
         controls_card.configure(width=420)
         controls_card.grid_propagate(False)
@@ -374,7 +411,7 @@ class RamanCalculatorApp:
 
         self._build_control_sections()
 
-        right_panel = ttk.Frame(main, style="App.TFrame")
+        right_panel = ttk.Frame(parent, style="App.TFrame")
         right_panel.grid(row=0, column=1, sticky="nsew")
         right_panel.rowconfigure(0, weight=1)
         right_panel.columnconfigure(0, weight=1)
@@ -392,12 +429,6 @@ class RamanCalculatorApp:
         self._build_plot_tab(plots_tab)
         self._build_derived_tab(derived_tab)
         self._build_notes_tab(notes_tab)
-
-        status_bar = ttk.Frame(outer, style="App.TFrame")
-        status_bar.pack(fill="x", pady=(12, 0))
-        ttk.Label(status_bar, textvariable=self.status_var, style="Status.TLabel").pack(
-            anchor="w"
-        )
 
     def _build_header_actions(self, parent: ttk.Frame) -> None:
         action_block = ttk.Frame(parent, style="App.TFrame")
@@ -450,6 +481,367 @@ class RamanCalculatorApp:
             wraplength=420,
             justify="right",
         ).grid(row=1, column=2, sticky="e")
+
+    def _create_detuning_variables(self) -> dict[str, tk.Variable]:
+        return {
+            "mode": tk.StringVar(value="vx2detuning"),
+            "input_label": tk.StringVar(value="vx (mm/s):"),
+            "input_value": tk.StringVar(),
+            "motion": tk.StringVar(value=FLYING_UP),
+            "transition": tk.StringVar(value=TRANSITION_F1_TO_F2),
+            "vz_m_s": tk.StringVar(value=f"{DEFAULT_VZ_M_S:.5f}"),
+            "alpha_deg": tk.StringVar(value=f"{DEFAULT_ALPHA_DEG:.4f}"),
+            "laser_wavelength_nm": tk.StringVar(
+                value=f"{DEFAULT_LASER_WAVELENGTH_M * 1e9:.3f}"
+            ),
+            "recoil_frequency_khz": tk.StringVar(
+                value=f"{DEFAULT_RECOIL_FREQUENCY_KHZ:.3f}"
+            ),
+            "calibration_up_khz": tk.StringVar(),
+            "calibration_down_khz": tk.StringVar(),
+            "calibration_transition": tk.StringVar(value=TRANSITION_F1_TO_F2),
+            "calculator_result": tk.StringVar(
+                value="Choose a mode, enter the value, and run the detuning calculator."
+            ),
+            "calibration_result": tk.StringVar(
+                value=(
+                    "Enter the signed flying-up and falling-down resonance detunings to "
+                    "recover alpha and vx."
+                )
+            ),
+        }
+
+    def _simulation_tab_active(self) -> bool:
+        return self.main_notebook.nametowidget(self.main_notebook.select()) is self.simulation_page
+
+    def _on_main_page_changed(self, _event: tk.Event[tk.Misc] | None = None) -> None:
+        self._refresh_header_action_state()
+
+    def _refresh_header_action_state(self) -> None:
+        simulation_active = self._simulation_tab_active()
+        shared_state = "normal" if simulation_active and not self.is_running else "disabled"
+        self.run_button.configure(state=shared_state)
+        self.lock_button.configure(state=shared_state)
+        self.reset_button.configure(state=shared_state)
+        self.export_button.configure(state=shared_state)
+        self.clear_locked_button.configure(state=shared_state)
+
+    def _build_detuning_page(self, parent: ttk.Frame) -> None:
+        parent.columnconfigure(0, weight=0)
+        parent.columnconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1)
+
+        controls_card = ttk.Frame(parent, style="Card.TFrame", padding=18)
+        controls_card.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+        controls_card.configure(width=430)
+        controls_card.grid_propagate(False)
+        controls_card.rowconfigure(0, weight=1)
+        controls_card.columnconfigure(0, weight=1)
+
+        scrollable = ScrollableFrame(controls_card, style="App.TFrame")
+        scrollable.grid(row=0, column=0, sticky="nsew")
+        controls = scrollable.inner
+
+        self._build_detuning_constants_section(controls)
+        self._build_detuning_calculator_section(controls)
+        self._build_detuning_calibration_section(controls)
+
+        results_panel = ttk.Frame(parent, style="App.TFrame")
+        results_panel.grid(row=0, column=1, sticky="nsew")
+        results_panel.rowconfigure(0, weight=1)
+        results_panel.columnconfigure(0, weight=1)
+
+        notebook = ttk.Notebook(results_panel, style="Notebook.TNotebook")
+        notebook.grid(row=0, column=0, sticky="nsew")
+
+        calculator_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
+        calibration_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
+        notes_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
+        notebook.add(calculator_tab, text="Calculator Result")
+        notebook.add(calibration_tab, text="Calibration Result")
+        notebook.add(notes_tab, text="Detuning Notes")
+
+        self.detuning_result_text = tk.Text(
+            calculator_tab,
+            wrap="word",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            relief="flat",
+            font=("Aptos", 10),
+            padx=8,
+            pady=8,
+        )
+        self.detuning_result_text.pack(fill="both", expand=True)
+        self._set_readonly_text(
+            self.detuning_result_text,
+            str(self.detuning_vars["calculator_result"].get()),
+        )
+
+        self.detuning_calibration_text = tk.Text(
+            calibration_tab,
+            wrap="word",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            relief="flat",
+            font=("Aptos", 10),
+            padx=8,
+            pady=8,
+        )
+        self.detuning_calibration_text.pack(fill="both", expand=True)
+        self._set_readonly_text(
+            self.detuning_calibration_text,
+            str(self.detuning_vars["calibration_result"].get()),
+        )
+
+        notes = tk.Text(
+            notes_tab,
+            wrap="word",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            relief="flat",
+            font=("Aptos", 10),
+            padx=8,
+            pady=8,
+        )
+        notes.pack(fill="both", expand=True)
+        notes.insert(
+            "1.0",
+            (
+                "Detuning model scope\n\n"
+                "This page integrates the original Raman_deturning_4.0.py logic without "
+                "changing the sign conventions or inversion rules.\n\n"
+                "Forward calculation\n\n"
+                "Given vx, the tool reports the four physical detuning branches:\n"
+                "flying up, Delta>0\n"
+                "flying up, Delta<0\n"
+                "falling down, Delta>0\n"
+                "falling down, Delta<0\n\n"
+                "Inverse calculation\n\n"
+                "Given a signed detuning value and the selected motion direction, the tool "
+                "automatically chooses the correct branch and returns vx.\n\n"
+                "Calibration\n\n"
+                "Provide the signed resonance detuning extracted from a flying-up scan and a "
+                "falling-down scan for the same transition direction. The tool then reconstructs "
+                "alpha and vx using the same detuning model. The calibrated alpha can be applied "
+                "back to the detuning constants for subsequent calculations.\n"
+            ),
+        )
+        notes.configure(state="disabled")
+
+    def _build_detuning_constants_section(self, parent: ttk.Frame) -> None:
+        section = ttk.LabelFrame(
+            parent,
+            text="Experimental Constants",
+            style="Section.TLabelframe",
+        )
+        section.pack(fill="x", padx=4, pady=(4, 14))
+        self._add_detuning_numeric_field(
+            section,
+            "vz_m_s",
+            "Vertical velocity vz",
+            "m/s",
+            "Fixed longitudinal launch velocity used by the original detuning script.",
+        )
+        self._add_detuning_numeric_field(
+            section,
+            "alpha_deg",
+            "Beam angle alpha",
+            "deg",
+            "Angle between the Raman beam and the z-axis. This is the quantity targeted by calibration.",
+        )
+        self._add_detuning_numeric_field(
+            section,
+            "laser_wavelength_nm",
+            "Laser wavelength",
+            "nm",
+            "Laser wavelength used to build k and keff.",
+        )
+        self._add_detuning_numeric_field(
+            section,
+            "recoil_frequency_khz",
+            "Recoil frequency",
+            "kHz",
+            "Two-photon recoil frequency entering the detuning formulas.",
+        )
+
+    def _build_detuning_calculator_section(self, parent: ttk.Frame) -> None:
+        section = ttk.LabelFrame(
+            parent,
+            text="Detuning Calculator",
+            style="Section.TLabelframe",
+        )
+        section.pack(fill="x", padx=4, pady=(0, 14))
+
+        mode_row = ttk.Frame(section, style="Card.TFrame")
+        mode_row.pack(fill="x")
+        ttk.Radiobutton(
+            mode_row,
+            text="vx -> Detuning",
+            variable=self.detuning_vars["mode"],
+            value="vx2detuning",
+            command=self._update_detuning_mode_label,
+        ).pack(side="left", padx=(0, 12))
+        ttk.Radiobutton(
+            mode_row,
+            text="Detuning -> vx",
+            variable=self.detuning_vars["mode"],
+            value="detuning2vx",
+            command=self._update_detuning_mode_label,
+        ).pack(side="left")
+
+        input_frame = ttk.Frame(section, style="Card.TFrame")
+        input_frame.pack(fill="x", pady=(10, 0))
+        ttk.Label(
+            input_frame,
+            textvariable=self.detuning_vars["input_label"],
+            style="Field.TLabel",
+            width=18,
+        ).pack(side="left")
+        ttk.Entry(
+            input_frame,
+            textvariable=self.detuning_vars["input_value"],
+            width=16,
+        ).pack(side="left")
+
+        motion_frame = ttk.Frame(section, style="Card.TFrame")
+        motion_frame.pack(fill="x", pady=(10, 0))
+        ttk.Label(motion_frame, text="Motion mode", style="Field.TLabel", width=18).pack(
+            side="left"
+        )
+        ttk.Combobox(
+            motion_frame,
+            textvariable=self.detuning_vars["motion"],
+            values=MOTION_CHOICES,
+            state="readonly",
+            width=14,
+        ).pack(side="left")
+
+        transition_frame = ttk.Frame(section, style="Card.TFrame")
+        transition_frame.pack(fill="x", pady=(10, 0))
+        ttk.Label(
+            transition_frame, text="Transition", style="Field.TLabel", width=18
+        ).pack(side="left")
+        ttk.Combobox(
+            transition_frame,
+            textvariable=self.detuning_vars["transition"],
+            values=TRANSITION_CHOICES,
+            state="readonly",
+            width=10,
+        ).pack(side="left")
+
+        ttk.Button(
+            section,
+            text="Calculate Detuning Tool",
+            style="Primary.TButton",
+            command=self.calculate_detuning_tool,
+        ).pack(fill="x", pady=(12, 0))
+        ttk.Label(
+            section,
+            text=(
+                "Forward mode reports all four physical detuning branches. In inverse mode, "
+                "the selected motion direction and the sign of the detuning determine the formula."
+            ),
+            style="Muted.TLabel",
+            wraplength=320,
+            justify="left",
+        ).pack(anchor="w", pady=(10, 0))
+
+    def _build_detuning_calibration_section(self, parent: ttk.Frame) -> None:
+        section = ttk.LabelFrame(
+            parent,
+            text="Alpha / vx Calibration",
+            style="Section.TLabelframe",
+        )
+        section.pack(fill="x", padx=4, pady=(0, 10))
+
+        self._add_detuning_numeric_field(
+            section,
+            "calibration_up_khz",
+            "Flying-up scan result",
+            "kHz",
+            "Signed resonance detuning obtained from the flying-up scan.",
+        )
+        self._add_detuning_numeric_field(
+            section,
+            "calibration_down_khz",
+            "Falling-down scan result",
+            "kHz",
+            "Signed resonance detuning obtained from the falling-down scan.",
+        )
+
+        transition_frame = ttk.Frame(section, style="Card.TFrame")
+        transition_frame.pack(fill="x", pady=(0, 12))
+        ttk.Label(
+            transition_frame, text="Transition", style="Field.TLabel", width=18
+        ).pack(side="left")
+        ttk.Combobox(
+            transition_frame,
+            textvariable=self.detuning_vars["calibration_transition"],
+            values=TRANSITION_CHOICES,
+            state="readonly",
+            width=10,
+        ).pack(side="left")
+
+        ttk.Button(
+            section,
+            text="Run Calibration",
+            style="Primary.TButton",
+            command=self.run_detuning_calibration,
+        ).pack(fill="x", pady=(0, 8))
+        self.apply_calibration_button = ttk.Button(
+            section,
+            text="Apply Calibration to Constants",
+            style="Secondary.TButton",
+            command=self.apply_last_detuning_calibration,
+        )
+        self.apply_calibration_button.pack(fill="x")
+        ttk.Label(
+            section,
+            text=(
+                "Calibration assumes the flying-up and falling-down scan results correspond "
+                "to the same transition direction. The sign of each entered detuning selects "
+                "the Delta>0 or Delta<0 branch automatically. The current alpha field is not "
+                "used as an input during calibration; it is reconstructed from the scan results."
+            ),
+            style="Muted.TLabel",
+            wraplength=320,
+            justify="left",
+        ).pack(anchor="w", pady=(10, 0))
+
+    def _add_detuning_numeric_field(
+        self,
+        parent: ttk.LabelFrame,
+        key: str,
+        label: str,
+        unit: str,
+        description: str,
+    ) -> None:
+        frame = ttk.Frame(parent, style="Card.TFrame")
+        frame.pack(fill="x", pady=(0, 12))
+        ttk.Label(frame, text=label, style="Field.TLabel").pack(anchor="w")
+        row = ttk.Frame(frame, style="Card.TFrame")
+        row.pack(fill="x", pady=(4, 0))
+        ttk.Entry(row, textvariable=self.detuning_vars[key], width=16).pack(side="left")
+        ttk.Label(row, text=unit, style="Muted.TLabel").pack(side="left", padx=(8, 0))
+        ttk.Label(
+            frame,
+            text=description,
+            style="Muted.TLabel",
+            wraplength=320,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+    def _update_detuning_mode_label(self) -> None:
+        if str(self.detuning_vars["mode"].get()) == "vx2detuning":
+            self.detuning_vars["input_label"].set("vx (mm/s):")
+            return
+        self.detuning_vars["input_label"].set("Detuning (kHz):")
+
+    def _set_readonly_text(self, widget: tk.Text, content: str) -> None:
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        widget.insert("1.0", content)
+        widget.configure(state="disabled")
 
     def _build_control_sections(self) -> None:
         self._build_preset_section()
@@ -1394,6 +1786,170 @@ class RamanCalculatorApp:
         self._refresh_plot_only()
         self.status_var.set("Cleared all locked reference curves.")
 
+    def _read_detuning_constants(self) -> DetuningConstants:
+        constants = DetuningConstants(
+            vz_m_s=float(str(self.detuning_vars["vz_m_s"].get()).strip()),
+            alpha_deg=float(str(self.detuning_vars["alpha_deg"].get()).strip()),
+            laser_wavelength_m=float(
+                str(self.detuning_vars["laser_wavelength_nm"].get()).strip()
+            )
+            * 1e-9,
+            recoil_frequency_khz=float(
+                str(self.detuning_vars["recoil_frequency_khz"].get()).strip()
+            ),
+        )
+        constants.validate()
+        return constants
+
+    def calculate_detuning_tool(self) -> None:
+        try:
+            constants = self._read_detuning_constants()
+            input_value = float(str(self.detuning_vars["input_value"].get()).strip())
+        except Exception as exc:
+            messagebox.showerror(
+                "Detuning input error",
+                f"Please review the detuning-page inputs.\n\n{exc}",
+                parent=self.root,
+            )
+            return
+
+        mode = str(self.detuning_vars["mode"].get())
+        motion = str(self.detuning_vars["motion"].get())
+        transition = str(self.detuning_vars["transition"].get())
+
+        if mode == "vx2detuning":
+            detunings = compute_detuning_khz(input_value, transition, constants)
+            lines = [
+                "Raman detuning results",
+                "",
+                f"Input vx: {input_value:.6f} mm/s",
+                f"Transition: {transition}",
+                (
+                    f"Constants: vz = {constants.vz_m_s:.6f} m/s, "
+                    f"alpha = {constants.alpha_deg:.6f} deg, "
+                    f"lambda = {constants.laser_wavelength_m * 1e9:.6f} nm, "
+                    f"wr / 2pi = {constants.recoil_frequency_khz:.6f} kHz"
+                ),
+                "",
+            ]
+            for label, value in detunings.items():
+                lines.append(f"{label}: {value:.6f} kHz")
+            content = "\n".join(lines)
+            self.detuning_vars["calculator_result"].set(content)
+            self._set_readonly_text(self.detuning_result_text, content)
+            self.status_var.set("Computed the Raman detuning branches from vx.")
+            return
+
+        try:
+            inversion = compute_vx_from_detuning_auto(
+                input_value, motion, transition, constants
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Detuning inversion error",
+                str(exc),
+                parent=self.root,
+            )
+            return
+
+        content = "\n".join(
+            [
+                "Velocity inversion result",
+                "",
+                f"Input detuning: {input_value:.6f} kHz",
+                f"Motion mode: {motion}",
+                f"Transition: {transition}",
+                f"Recovered vx: {inversion.vx_mm_s:.6f} mm/s",
+                f"Formula used: {inversion.used_case}",
+                "",
+                (
+                    f"Constants: vz = {constants.vz_m_s:.6f} m/s, "
+                    f"alpha = {constants.alpha_deg:.6f} deg, "
+                    f"lambda = {constants.laser_wavelength_m * 1e9:.6f} nm, "
+                    f"wr / 2pi = {constants.recoil_frequency_khz:.6f} kHz"
+                ),
+            ]
+        )
+        self.detuning_vars["calculator_result"].set(content)
+        self._set_readonly_text(self.detuning_result_text, content)
+        self.status_var.set("Recovered vx from the signed Raman detuning.")
+
+    def run_detuning_calibration(self) -> None:
+        try:
+            constants = DetuningConstants(
+                vz_m_s=float(str(self.detuning_vars["vz_m_s"].get()).strip()),
+                alpha_deg=0.0,
+                laser_wavelength_m=float(
+                    str(self.detuning_vars["laser_wavelength_nm"].get()).strip()
+                )
+                * 1e-9,
+                recoil_frequency_khz=float(
+                    str(self.detuning_vars["recoil_frequency_khz"].get()).strip()
+                ),
+            )
+            constants.validate()
+            flying_up_detuning_khz = float(
+                str(self.detuning_vars["calibration_up_khz"].get()).strip()
+            )
+            falling_down_detuning_khz = float(
+                str(self.detuning_vars["calibration_down_khz"].get()).strip()
+            )
+            transition = str(self.detuning_vars["calibration_transition"].get())
+            calibration = calibrate_alpha_and_vx_from_scans(
+                flying_up_detuning_khz,
+                falling_down_detuning_khz,
+                transition,
+                constants,
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Calibration error",
+                f"Could not calibrate alpha and vx from the provided scan results.\n\n{exc}",
+                parent=self.root,
+            )
+            return
+
+        self.last_detuning_calibration = calibration
+        content = "\n".join(
+            [
+                "Calibration result",
+                "",
+                f"Transition: {transition}",
+                f"Flying-up scan input: {flying_up_detuning_khz:.6f} kHz",
+                f"Falling-down scan input: {falling_down_detuning_khz:.6f} kHz",
+                f"Detected flying-up branch: {calibration.flying_up_case}",
+                f"Detected falling-down branch: {calibration.falling_down_case}",
+                "",
+                f"Recovered alpha: {calibration.alpha_deg:.6f} deg",
+                f"Recovered vx: {calibration.vx_mm_s:.6f} mm/s",
+                "",
+                (
+                    "The reconstruction uses the same detuning model as the original script, "
+                    "with the sign of each entered detuning selecting the Delta>0 or Delta<0 branch."
+                ),
+            ]
+        )
+        self.detuning_vars["calibration_result"].set(content)
+        self._set_readonly_text(self.detuning_calibration_text, content)
+        self.status_var.set("Calibrated alpha and vx from flying-up and falling-down scan results.")
+
+    def apply_last_detuning_calibration(self) -> None:
+        if self.last_detuning_calibration is None:
+            messagebox.showinfo(
+                "No calibration available",
+                "Run the detuning calibration first.",
+                parent=self.root,
+            )
+            return
+
+        self.detuning_vars["alpha_deg"].set(f"{self.last_detuning_calibration.alpha_deg:.6f}")
+        self.detuning_vars["input_value"].set(f"{self.last_detuning_calibration.vx_mm_s:.6f}")
+        self.detuning_vars["mode"].set("vx2detuning")
+        self._update_detuning_mode_label()
+        self.status_var.set(
+            "Applied the calibrated alpha to the detuning constants and copied the calibrated vx into the calculator input."
+        )
+
     def reset_to_defaults(self) -> None:
         self._apply_field_values(self._default_field_values())
         self._refresh_preset_selector("Original Raman.txt Defaults")
@@ -1534,12 +2090,8 @@ class RamanCalculatorApp:
 
     def _set_running_state(self, running: bool) -> None:
         self.is_running = running
+        self._refresh_header_action_state()
         state = "disabled" if running else "normal"
-        self.run_button.configure(state=state)
-        self.lock_button.configure(state=state)
-        self.reset_button.configure(state=state)
-        self.export_button.configure(state=state)
-        self.clear_locked_button.configure(state=state)
         self.save_preset_button.configure(state=state)
         self.save_as_preset_button.configure(state=state)
         self.delete_preset_button.configure(state=state)

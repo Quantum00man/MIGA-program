@@ -39,14 +39,19 @@
 
 This document describes the Python implementation of the original Mathematica script
 \texttt{Raman.txt}. The translated application computes Raman-driven Rabi oscillations in an
-atomic interferometer and displays the free-expansion growth of the transverse atom-cloud size.
+atomic interferometer, displays the free-expansion growth of the transverse atom-cloud size, and
+integrates a second Raman-detuning workflow translated from the user's standalone Python tool in
+\texttt{Raman deturning/Raman\_deturning\_4.0.py}.
 
 The implementation goals are:
 
 \begin{itemize}
   \item preserve the structure and default constants of the Mathematica model,
+  \item preserve the calculation logic of the original Raman-detuning script,
   \item expose the main experimental parameters through a clean English-language graphical interface,
   \item provide direct plots for both transition probability and cloud-size evolution,
+  \item provide a dedicated calibration workflow for reconstructing $\alpha$ and $v_x$ from
+  flying-up and falling-down detuning scans,
   \item document the assumptions, units, and numerical method in a form suitable for research use.
 \end{itemize}
 
@@ -65,6 +70,11 @@ The Mathematica source defines a model with the following components:
 The Python code preserves these elements in \texttt{raman\_model.py}. The graphical interface in
 \texttt{app.py} provides controlled access to the same quantities and also reports derived values
 such as the on-axis Raman Rabi frequency and the estimated $\pi$-pulse time.
+
+The project now also contains an integrated detuning model in \texttt{raman\_detuning\_model.py}.
+That module preserves the branch logic of the earlier standalone Python detuning calculator and
+adds a calibration routine that recovers the Raman-beam angle $\alpha$ and transverse velocity
+$v_x$ from two signed detuning measurements.
 
 \section{Default Parameters}
 
@@ -143,8 +153,7 @@ The translated effective Raman Rabi frequency is
 \frac{\gamma^2 G}{\mathrm{attn}}
 \frac{\sqrt{I_1(r)I_2(r)}}{2I_{\mathrm{sat}}}
 \left[
-\frac{5}{24\Delta}
-\frac{3}{24(\Delta+\delta_2)}
+\frac{5}{24\Delta} + \frac{3}{24(\Delta+\delta_2)}
 \right]\frac{1}{2},
 \end{equation}
 
@@ -219,10 +228,143 @@ P(T,\tau)
 This is a direct Python translation of the Mathematica function
 \texttt{Ptrans[T\_, tau\_, d\_, w0\_, attn\_]}.
 
+\section{Raman Detuning Model}
+
+\subsection{Wave-vector and Recoil Definitions}
+
+The integrated detuning tool uses the same conventions as the original standalone Python script.
+The laser wave number is
+
+\begin{equation}
+k = \frac{2\pi}{\lambda},
+\end{equation}
+
+the effective Raman wave number is
+
+\begin{equation}
+k_{\mathrm{eff}} = 2k = \frac{4\pi}{\lambda},
+\end{equation}
+
+and the recoil term is represented as an angular frequency
+
+\begin{equation}
+\omega_r = 2\pi f_r,
+\end{equation}
+
+where $f_r$ is entered in kHz in the GUI.
+
+\subsection{Four Detuning Branches}
+
+Let $v_z$ be the known vertical atomic velocity, $\alpha$ the Raman-beam angle relative to the
+$z$ axis, and $v_x$ the transverse velocity to be inferred or propagated. The transition direction
+controls the recoil sign through
+
+\begin{equation}
+s_{\mathrm{tr}} =
+\begin{cases}
++1, & \text{for } \mathrm{F1}\rightarrow\mathrm{F2}, \\
+-1, & \text{for } \mathrm{F2}\rightarrow\mathrm{F1}.
+\end{cases}
+\end{equation}
+
+The detuning model then provides four signed branches:
+
+\begin{align}
+\delta_{\mathrm{up},+} &= k_{\mathrm{eff}}v_z\sin\alpha + k_{\mathrm{eff}}v_x\cos\alpha + s_{\mathrm{tr}}\omega_r, \\
+\delta_{\mathrm{up},-} &= -k_{\mathrm{eff}}v_z\sin\alpha - k_{\mathrm{eff}}v_x\cos\alpha + s_{\mathrm{tr}}\omega_r, \\
+\delta_{\mathrm{down},+} &= k_{\mathrm{eff}}v_z\sin\alpha - k_{\mathrm{eff}}v_x\cos\alpha + s_{\mathrm{tr}}\omega_r, \\
+\delta_{\mathrm{down},-} &= -k_{\mathrm{eff}}v_z\sin\alpha + k_{\mathrm{eff}}v_x\cos\alpha + s_{\mathrm{tr}}\omega_r.
+\end{align}
+
+In the GUI these four cases are reported as:
+
+\begin{itemize}
+  \item \texttt{flying up, $\Delta>0$},
+  \item \texttt{flying up, $\Delta<0$},
+  \item \texttt{falling down, $\Delta>0$},
+  \item \texttt{falling down, $\Delta<0$}.
+\end{itemize}
+
+The sign of the entered or computed detuning therefore matters operationally: it is used to
+identify which branch of the original model is active.
+
+\subsection{Velocity Inversion}
+
+When the user selects the \texttt{Detuning -> vx} mode, the application keeps the original branch
+logic of the standalone script. The user provides:
+
+\begin{itemize}
+  \item a signed detuning in kHz,
+  \item the motion direction (\texttt{flying up} or \texttt{falling down}),
+  \item the transition direction (\texttt{F1→F2} or \texttt{F2→F1}).
+\end{itemize}
+
+The sign of the detuning automatically selects either the $\Delta>0$ or $\Delta<0$ branch, and
+the program returns both the recovered $v_x$ and the branch that was used internally.
+
+\subsection{Calibration from Flying-up and Falling-down Scans}
+
+The calibration page addresses the case in which $\alpha$ and $v_x$ are both initially unknown.
+The user enters:
+
+\begin{itemize}
+  \item the signed detuning extracted from the \texttt{flying up} scan,
+  \item the signed detuning extracted from the \texttt{falling down} scan,
+  \item the transition direction used in both scans.
+\end{itemize}
+
+Define the sign selectors
+
+\begin{equation}
+s_{\mathrm{up}} = \mathrm{sign}(\delta_{\mathrm{up}}), \qquad
+s_{\mathrm{down}} = \mathrm{sign}(\delta_{\mathrm{down}}),
+\end{equation}
+
+and the branch-reduced quantities
+
+\begin{equation}
+U = \frac{\delta_{\mathrm{up}} - s_{\mathrm{tr}}\omega_r}{s_{\mathrm{up}}}, \qquad
+D = \frac{\delta_{\mathrm{down}} - s_{\mathrm{tr}}\omega_r}{s_{\mathrm{down}}}.
+\end{equation}
+
+These satisfy
+
+\begin{equation}
+U = k_{\mathrm{eff}}v_z\sin\alpha + k_{\mathrm{eff}}v_x\cos\alpha,
+\end{equation}
+
+\begin{equation}
+D = k_{\mathrm{eff}}v_z\sin\alpha - k_{\mathrm{eff}}v_x\cos\alpha.
+\end{equation}
+
+Therefore, the calibration step reconstructs the beam angle and transverse velocity from
+
+\begin{equation}
+\sin\alpha = \frac{U + D}{2k_{\mathrm{eff}}v_z},
+\end{equation}
+
+\begin{equation}
+v_x = \frac{U - D}{2k_{\mathrm{eff}}\cos\alpha}.
+\end{equation}
+
+This is exactly the logic implemented in the integrated Python calibration routine. After a
+successful calibration, the GUI can apply the recovered $\alpha$ back into the detuning constants
+and copy the recovered $v_x$ into the calculator input field for immediate reuse.
+
 \section{Graphical Interface}
 
-The desktop interface is implemented with Tkinter and Matplotlib. The GUI is organized into three
-main groups of controls and three output tabs.
+The desktop interface is implemented with Tkinter and Matplotlib. The GUI is organized into two
+top-level pages, \texttt{Simulation} and \texttt{Detuning}, so that the full Raman-transition and
+detuning workflows remain available in a single application.
+
+\subsection{Page Structure}
+
+\begin{itemize}
+  \item \texttt{Simulation}: Raman transition probability, atom-cloud expansion, presets, locked
+  overlays, and interactive plotting.
+  \item \texttt{Detuning}: Raman detuning forward calculation, inverse $v_x$ recovery, and
+  calibration of $\alpha$ and $v_x$ from scan results.
+\end{itemize}
 
 \subsection{Preset Library}
 
@@ -257,11 +399,11 @@ The preset panel supports four actions:
 
 User-created presets and local overrides are stored in \texttt{presets.json}.
 
-\subsection{Top-right Action Bar}
+\subsection{Simulation-page Action Bar}
 
 The interface now places the main execution controls in the top-right corner of the application
-window. This keeps the numerical input column focused on parameters while reserving a dedicated
-location for simulation management:
+window whenever the \texttt{Simulation} page is active. This keeps the numerical input column
+focused on parameters while reserving a dedicated location for simulation management:
 
 \begin{itemize}
   \item \texttt{Run Simulation}: execute the current parameter set,
@@ -314,6 +456,26 @@ Radial grid points & points & Number of quadrature points in the radial integral
 Velocity grid points & points & Number of quadrature points in the longitudinal velocity integral. \\
 Radial cutoff & $w_0$ units & Upper radial integration limit in multiples of the beam waist. \\
 Velocity cutoff & $\sigma_{v,L}$ units & Longitudinal velocity truncation used in the numerical integral. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Detuning-page Inputs}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.30\linewidth} >{\raggedright\arraybackslash}p{0.15\linewidth} >{\raggedright\arraybackslash}p{0.45\linewidth}}
+\toprule
+Field & Unit & Meaning \\
+\midrule
+\texttt{vz} & m/s & Known vertical atomic velocity used in the detuning model. \\
+\texttt{alpha} & deg & Raman-beam angle relative to the vertical axis. Used by the forward and inverse detuning calculators; not required as an input for calibration. \\
+Laser wavelength & nm & Optical wavelength used to construct $k$ and $k_{\mathrm{eff}}$. \\
+Recoil frequency & kHz & Two-photon recoil-frequency term converted internally to $\omega_r$. \\
+Mode selector & --- & Switches between \texttt{vx -> Detuning} and \texttt{Detuning -> vx}. \\
+Input field & mm/s or kHz & Accepts either $v_x$ or a signed detuning, depending on the selected mode. \\
+Motion direction & --- & Specifies \texttt{flying up} or \texttt{falling down} for inverse calculations. \\
+Transition direction & --- & Specifies \texttt{F1→F2} or \texttt{F2→F1}. \\
+Calibration flying-up detuning & kHz & Signed result extracted from the flying-up scan. \\
+Calibration falling-down detuning & kHz & Signed result extracted from the falling-down scan. \\
+Calibration transition & --- & Transition direction used during the calibration scans. \\
 \bottomrule
 \end{longtable}
 
@@ -397,6 +559,19 @@ parameter sets are computed. When multiple simulations are displayed simultaneou
   \item plot legends are enabled automatically,
   \item each legend label is generated from only the parameters that differ across the displayed
   simulations, keeping the legend concise while still informative.
+\end{itemize}
+
+\subsection{Detuning-page Outputs}
+
+The \texttt{Detuning} page provides three text-based result areas:
+
+\begin{itemize}
+  \item \texttt{Calculator Result}: reports either the four detuning branches or the recovered
+  $v_x$ and the internally selected branch,
+  \item \texttt{Calibration Result}: reports the reconstructed $\alpha$, reconstructed $v_x$, and
+  the sign branch identified for both the flying-up and falling-down scan inputs,
+  \item \texttt{Detuning Notes}: summarizes the model scope and the meaning of the sign
+  conventions.
 \end{itemize}
 
 \section{How to Run the Software}
