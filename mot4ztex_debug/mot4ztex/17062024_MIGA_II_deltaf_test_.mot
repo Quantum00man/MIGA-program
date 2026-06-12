@@ -1,0 +1,465 @@
+LOOP
+
+COMMENT
+
+Launching sequence for tmot5
+in progress testing version
+
+ENDCOMMENT
+
+INIT
+
+#	Bias_X =4.200				(31)
+#	Bias_Y =5.500				(33)
+#	Bias_Z =4.200				(35)
+
+	DDS1 [0]				(2)
+	
+	DDS5 [0]				(14)
+
+ENDINIT
+
+INNER
+
+## Sequence to ckeck the signal of AOM 3D UP and AOM 3D DOWN ##
+
+##################################
+#            3D MOT              #<PARAMETER0>
+##################################
+
+#TURN ON SHIM FIELDS AND 3D MOT MAGNETS#
+
++20us 3DMOT_Coils = ON					(67) #MOT coils on
++20us DDS1 [13]						(2) # scan from -1.9---3.0
++20us DDS4 [23]						(8)
++20us DDS5 [5]						(14) # -2.6 GAMMA
+
+#TURN ON 3D MOT LIGHT#
++10us TTL 2DMOT_Shutter = ON 				(48) #2D MOT shutter up. 2D MOT on
++10us 3DMOT_Up_Shutter = ON 				(46) #shutter up. up AOM
++10us 3DMOT_Down_Shutter = ON 				(47) #shutter up. down AOM
++10us Detection_Shutter=OFF				(45) #shutter up
++10us Raman_Dw_Shutter=OFF				(40) #shutter up
++10us Raman_Up_Shutter=OFF				(41) #shutter up
++10us Repump_MOT_Shutter = ON				(42) #shutter up. repump
++10us Repump_push_Shutter = OFF			(43) #shutter up. repump
+
+#+10us AOM_3DMOT_Up= OFF					(51) #AOM 3D_Up enabled
+
+#+10us AOM_3DMOT_Down= OFF				(53) #AOM 3D_Dw enabled
++10us AOM_Raman1= OFF 					(49) #AOM repump enabled
++10us AOM_Raman2= ON 					(50) #AOM Raman2 enabled
+#WARNING. OUTPUT LIGHT POSSIBLE#
+
+#3D MOT LIGHT INTENSITY and frequency#
++100us AOM_3DMOT_Up =0.740	(21) #up beams. power set 950 650 550  #24.5 mW 740
+###################################################################################### Detuning between UP and DOWN for launching
++30us AOM_3DMOT_Down =0.517		(20) #down beams. power set 950 500 #26 mW 380 0.5 
+########################################################################################
+#+30us VCA_3DMOT_Down =2.3				(26) #2.3
++20us AOM_Detection =5				(22) #thermalization
++10us AOM_Det= OFF					(52)
++30us AOM_Raman1 =0.950					(23) #repump. power set 30
++20us AOM_Raman2 =0.950					(24) #thermalization
+
+
+#WARNING. OUTPUT LIGHT GUARANTEED#
+
+#+10us Detection_Shutter=ON				(45) #shutter up
+#+10us AOM_Det= OFF					(52)
+################################
+#       3D MOT release		#
+################################
+
+
+# ********** molasses ************************************
++350ms TTL 2DMOT_Shutter = OFF			(48) #loading time 800 350
+
+#+1us Exp_trig= ON      	   				(60)
+#+20us Bias_X =5.700					(31) #Bias coils in X direction 5750 5150
+#+20us Bias_Y =4.600     			    	(33) #Bias coils in Y direction 4690 4800 
+#+20us Bias_Z =2.800	      				(35) #Bias coils in Z direction 2520 2800
++55us TTL 3DMOT_Coils = OFF				(67) #MOT coils off, delay 3.23 10 3
+#+1us DDS1 [2]						(1) # -2GAMMA
+#+1us DDS1 [16]						(2) # -4 GAMMA
+#+1us VCA_3DMOT_Down =2.0				(26) 
+
+#********** launching *********************************** 
++1us DDS4 [28]						(7)  #changes freq for launch 6200 6500 2
+#+0.5ms AOM_Raman1 =0.000 				(23)
++36ms DDS4 trigger = ON				(12) #Change the state from here 18 28 32
++1us Exp_trig= ON      	   			(60)
++10us bais Y=<PARAMETER0>			(33)
+#+1us DDS1 [13]						(1) # -2GAMMA
+#+1us DDS1 trigger = ON					(6) # -1.9 GAMMA 10
+
+# ********** frequency ramp ***************************************
+
++400us DDS1 [117]					(2) # Freq ramp 710 -1.9----15GAMMA ##Launchingtime## best parameter:450, optimal gamma end value: -32 GAMMA 12.35 microKelvin 490 3.8uK
+
+##+600us DDS1 trigger = ON					(6) # -1.9 GAMMA 10
++20us DDS1 ramp = ON 					(5)  
+
+# ********** power ramp ***************************************
+##+1us VCA_3DMOT_Down =2.4				(26) 
+
+#+500us  RAMP VCA AOM_UP_DOWN TO 0V IN 0.9ms (90 STEPS) (26) #674microsecond  MAX det signal 962mv ##old power ramp
+#+2us TTL_AOM_Raman1 = ON				(49) # Turn off repump_mot laser before power ramp
+
++500us AOM_3DMOT_Up =0.739591 				(21)
++5us AOM_3DMOT_Up =0.739516 				(21)
++5us AOM_3DMOT_Up =0.739427 				(21)
++5us AOM_3DMOT_Up =0.739322 				(21)
++5us AOM_3DMOT_Up =0.739198 				(21)
++5us AOM_3DMOT_Up =0.739051 				(21)
++5us AOM_3DMOT_Up =0.738877 				(21)
++5us AOM_3DMOT_Up =0.738671 				(21)
++5us AOM_3DMOT_Up =0.738427 				(21)
++5us AOM_3DMOT_Up =0.738139 				(21)
++5us AOM_3DMOT_Up =0.737799 				(21)
++5us AOM_3DMOT_Up =0.737396 				(21)
++5us AOM_3DMOT_Up =0.739591 				(21)
++5us AOM_3DMOT_Up =0.739516 				(21)
++5us AOM_3DMOT_Up =0.739427 				(21)
++5us AOM_3DMOT_Up =0.739322 				(21)
++5us AOM_3DMOT_Up =0.739198 				(21)
++5us AOM_3DMOT_Up =0.739051 				(21)
++5us AOM_3DMOT_Up =0.738877 				(21)
++5us AOM_3DMOT_Up =0.738671 				(21)
++5us AOM_3DMOT_Up =0.738427 				(21)
++5us AOM_3DMOT_Up =0.738139 				(21)
++5us AOM_3DMOT_Up =0.737799 				(21)
++5us AOM_3DMOT_Up =0.737396 				(21)
++5us AOM_3DMOT_Up =0.736920 				(21)
++5us AOM_3DMOT_Down =0.499724 				(20)
++5us AOM_Raman1 =0.949475 				(23)
++5us AOM_3DMOT_Up =0.736357 				(21)
++5us AOM_3DMOT_Down =0.499673 				(20)
++5us AOM_Raman1 =0.949379 				(23)
++5us AOM_3DMOT_Up =0.735692 				(21)
++5us AOM_3DMOT_Down =0.499613 				(20)
++5us AOM_Raman1 =0.949265 				(23)
++5us AOM_3DMOT_Up =0.734907 				(21)
++5us AOM_3DMOT_Down =0.499542 				(20)
++5us AOM_Raman1 =0.949130 				(23)
++5us AOM_3DMOT_Up =0.733980 				(21)
++5us AOM_3DMOT_Down =0.499458 				(20)
++5us AOM_Raman1 =0.948970 				(23)
++5us AOM_3DMOT_Up =0.732885 				(21)
++5us AOM_3DMOT_Down =0.499359 				(20)
++5us AOM_Raman1 =0.948781 				(23)
++5us AOM_3DMOT_Up =0.731594 				(21)
++5us AOM_3DMOT_Down =0.499241 				(20)
++5us AOM_Raman1 =0.948558 				(23)
++5us AOM_3DMOT_Up =0.730072 				(21)
++5us AOM_3DMOT_Down =0.499102 				(20)
++5us AOM_Raman1 =0.948294 				(23)
++5us AOM_3DMOT_Up =0.728278 				(21)
++5us AOM_3DMOT_Down =0.498937 				(20)
++5us AOM_Raman1 =0.947981 				(23)
++5us AOM_3DMOT_Up =0.726166 				(21)
++5us AOM_3DMOT_Down =0.498743 				(20)
++5us AOM_Raman1 =0.947611 				(23)
++5us AOM_3DMOT_Up =0.723683 				(21)
++5us AOM_3DMOT_Down =0.498513 				(20)
++5us AOM_Raman1 =0.947174 				(23)
++5us AOM_3DMOT_Up =0.720765 				(21)
++5us AOM_3DMOT_Down =0.498241 				(20)
++5us AOM_Raman1 =0.946657 				(23)
++5us AOM_3DMOT_Up =0.717342 				(21)
++5us AOM_3DMOT_Down =0.497919 				(20)
++5us AOM_Raman1 =0.946046 				(23)
++5us AOM_3DMOT_Up =0.713333 				(21)
++5us AOM_3DMOT_Down =0.497539 				(20)
++5us AOM_Raman1 =0.945324 				(23)
++5us AOM_3DMOT_Up =0.708645 				(21)
++5us AOM_3DMOT_Down =0.497090 				(20)
++5us AOM_Raman1 =0.944470 				(23)
++5us AOM_3DMOT_Up =0.703175 				(21)
++5us AOM_3DMOT_Down =0.496559 				(20)
++5us AOM_Raman1 =0.943462 				(23)
++5us AOM_3DMOT_Up =0.696810 				(21)
++5us AOM_3DMOT_Down =0.495932 				(20)
++5us AOM_Raman1 =0.942271 				(23)
++5us AOM_3DMOT_Up =0.689423 				(21)
++5us AOM_3DMOT_Down =0.495193 				(20)
++5us AOM_Raman1 =0.940866 				(23)
++5us AOM_3DMOT_Up =0.680880 				(21)
++5us AOM_3DMOT_Down =0.494320 				(20)
++5us AOM_Raman1 =0.939209 				(23)
++5us AOM_3DMOT_Up =0.671039 				(21)
++5us AOM_3DMOT_Down =0.493292 				(20)
++5us AOM_Raman1 =0.937254 				(23)
++5us AOM_3DMOT_Up =0.659752 				(21)
++5us AOM_3DMOT_Down =0.492080 				(20)
++5us AOM_Raman1 =0.934951 				(23)
++5us AOM_3DMOT_Up =0.646874 				(21)
++5us AOM_3DMOT_Down =0.490653 				(20)
++5us AOM_Raman1 =0.932241 				(23)
++5us AOM_3DMOT_Up =0.632268 				(21)
++5us AOM_3DMOT_Down =0.488975 				(20)
++5us AOM_Raman1 =0.929052 				(23)
++5us AOM_3DMOT_Up =0.615810 				(21)
++5us AOM_3DMOT_Down =0.487004 				(20)
++5us AOM_Raman1 =0.925307 				(23)
++5us AOM_3DMOT_Up =0.597405 				(21)
++5us AOM_3DMOT_Down =0.484691 				(20)
++5us AOM_Raman1 =0.920912 				(23)
++5us AOM_3DMOT_Up =0.576994 				(21)
++5us AOM_3DMOT_Down =0.481982 				(20)
++5us AOM_Raman1 =0.915765 				(23)
++5us AOM_3DMOT_Up =0.554569 				(21)
++5us AOM_3DMOT_Down =0.478814 				(20)
++5us AOM_Raman1 =0.909747 				(23)
++5us AOM_3DMOT_Up =0.530180 				(21)
++5us AOM_3DMOT_Down =0.475118 				(20)
++5us AOM_Raman1 =0.902725 				(23)
++5us AOM_3DMOT_Up =0.503949 				(21)
++5us AOM_3DMOT_Down =0.470817 				(20)
++5us AOM_Raman1 =0.894553 				(23)
++5us AOM_3DMOT_Up =0.476071 				(21)
++5us AOM_3DMOT_Down =0.465826 				(20)
++5us AOM_Raman1 =0.885070 				(23)
++5us AOM_3DMOT_Up =0.446816 				(21)
++5us AOM_3DMOT_Down =0.460054 				(20)
++5us AOM_Raman1 =0.874103 				(23)
++5us AOM_3DMOT_Up =0.416522 				(21)
++5us AOM_3DMOT_Down =0.453405 				(20)
++5us AOM_Raman1 =0.861469 				(23)
++5us AOM_3DMOT_Up =0.385581 				(21)
++5us AOM_3DMOT_Down =0.445778 				(20)
++5us AOM_Raman1 =0.846979 				(23)
++5us AOM_3DMOT_Up =0.354419 				(21)
++5us AOM_3DMOT_Down =0.437077 				(20)
++5us AOM_Raman1 =0.830447 				(23)
++5us AOM_3DMOT_Up =0.323478 				(21)
++5us AOM_3DMOT_Down =0.427208 				(20)
++5us AOM_Raman1 =0.811695 				(23)
++5us AOM_3DMOT_Up =0.293184 				(21)
++5us AOM_3DMOT_Down =0.416088 				(20)
++5us AOM_Raman1 =0.790567 				(23)
++5us AOM_3DMOT_Up =0.263929 				(21)
++5us AOM_3DMOT_Down =0.403652 				(20)
++5us AOM_Raman1 =0.766938 				(23)
++5us AOM_3DMOT_Up =0.236051 				(21)
++5us AOM_3DMOT_Down =0.389861 				(20)
++5us AOM_Raman1 =0.740736 				(23)
++5us AOM_3DMOT_Up =0.209820 				(21)
++5us AOM_3DMOT_Down =0.374709 				(20)
++5us AOM_Raman1 =0.711946 				(23)
++5us AOM_3DMOT_Up =0.185431 				(21)
++5us AOM_3DMOT_Down =0.358230 				(20)
++5us AOM_Raman1 =0.680636 				(23)
++5us AOM_3DMOT_Up =0.163006 				(21)
++5us AOM_3DMOT_Down =0.340506 				(20)
++5us AOM_Raman1 =0.646962 				(23)
++5us AOM_3DMOT_Up =0.142595 				(21)
++5us AOM_3DMOT_Down =0.321670 				(20)
++5us AOM_Raman1 =0.611172 				(23)
++5us AOM_3DMOT_Up =0.124190 				(21)
++5us AOM_3DMOT_Down =0.301903 				(20)
++5us AOM_Raman1 =0.573616 				(23)
++5us AOM_3DMOT_Up =0.107732 				(21)
++5us AOM_3DMOT_Down =0.281434 				(20)
++5us AOM_Raman1 =0.534724 				(23)
++5us AOM_3DMOT_Up =0.093126 				(21)
++5us AOM_3DMOT_Down =0.260527 				(20)
++5us AOM_Raman1 =0.495002 				(23)
++5us AOM_3DMOT_Up =0.080248 				(21)
++5us AOM_3DMOT_Down =0.239473 				(20)
++5us AOM_Raman1 =0.454998 				(23)
++5us AOM_3DMOT_Up =0.068961 				(21)
++5us AOM_3DMOT_Down =0.218566 				(20)
++5us AOM_Raman1 =0.415276 				(23)
++5us AOM_3DMOT_Up =0.059120 				(21)
++5us AOM_3DMOT_Down =0.198097 				(20)
++5us AOM_Raman1 =0.376384 				(23)
++5us AOM_3DMOT_Up =0.050577 				(21)
++5us AOM_3DMOT_Down =0.178330 				(20)
++5us AOM_Raman1 =0.338828 				(23)
++5us AOM_3DMOT_Up =0.043190 				(21)
++5us AOM_3DMOT_Down =0.159494 				(20)
++5us AOM_Raman1 =0.303038 				(23)
++5us AOM_3DMOT_Up =0.036825 				(21)
++5us AOM_3DMOT_Down =0.141770 				(20)
++5us AOM_Raman1 =0.269364 				(23)
++5us AOM_3DMOT_Up =0.031355 				(21)
++5us AOM_3DMOT_Down =0.125291 				(20)
++5us AOM_Raman1 =0.238054 				(23)
++5us AOM_3DMOT_Up =0.026667 				(21)
++5us AOM_3DMOT_Down =0.110139 				(20)
++5us AOM_Raman1 =0.209264 				(23)
++5us AOM_3DMOT_Up =0.022658 				(21)
++5us AOM_3DMOT_Down =0.096348 				(20)
++5us AOM_Raman1 =0.183062 				(23)
++5us AOM_3DMOT_Up =0.019235 				(21)
++5us AOM_3DMOT_Down =0.083912 				(20)
++5us AOM_Raman1 =0.159433 				(23)
++5us AOM_3DMOT_Up =0.016317 				(21)
++5us AOM_3DMOT_Down =0.072792 				(20)
++5us AOM_Raman1 =0.138305 				(23)
++5us AOM_3DMOT_Up =0.013834 				(21)
++5us AOM_3DMOT_Down =0.062923 				(20)
++5us AOM_Raman1 =0.119553 				(23)
++5us AOM_3DMOT_Up =0.011722 				(21)
++5us AOM_3DMOT_Down =0.054222 				(20)
++5us AOM_Raman1 =0.103021 				(23)
++5us AOM_3DMOT_Up =0.009928 				(21)
++5us AOM_3DMOT_Down =0.046595 				(20)
++5us AOM_Raman1 =0.088531 				(23)
++5us AOM_3DMOT_Up =0.008406 				(21)
++5us AOM_3DMOT_Down =0.039946 				(20)
++5us AOM_Raman1 =0.075897 				(23)
++5us AOM_3DMOT_Up =0.007115 				(21)
++5us AOM_3DMOT_Down =0.034174 				(20)
++5us AOM_Raman1 =0.064930 				(23)
++5us AOM_3DMOT_Up =0.006020 				(21)
++5us AOM_3DMOT_Down =0.029183 				(20)
++5us AOM_Raman1 =0.055447 				(23)
++5us AOM_3DMOT_Up =0.005093 				(21)
++5us AOM_3DMOT_Down =0.024882 				(20)
++5us AOM_Raman1 =0.047275 				(23)
++5us AOM_3DMOT_Up =0.004308 				(21)
++5us AOM_3DMOT_Down =0.021186 				(20)
++5us AOM_Raman1 =0.040253 				(23)
++5us AOM_3DMOT_Up =0.003643 				(21)
++5us AOM_3DMOT_Down =0.018018 				(20)
++5us AOM_Raman1 =0.034235 				(23)
++5us AOM_3DMOT_Up =0.003080 				(21)
++5us AOM_3DMOT_Down =0.015309 				(20)
++5us AOM_Raman1 =0.029088 				(23)
++5us AOM_3DMOT_Up =0.002604 				(21)
++5us AOM_3DMOT_Down =0.012996 				(20)
++5us AOM_Raman1 =0.024693 				(23)
++5us AOM_3DMOT_Up =0.002201 				(21)
++5us AOM_3DMOT_Down =0.011025 				(20)
++5us AOM_Raman1 =0.020948 				(23)
++5us AOM_3DMOT_Up =0.001861 				(21)
++5us AOM_3DMOT_Down =0.009347 				(20)
++5us AOM_Raman1 =0.017759 				(23)
++5us AOM_3DMOT_Up =0.001573 				(21)
++5us AOM_3DMOT_Down =0.007920 				(20)
++5us AOM_Raman1 =0.015049 				(23)
++5us AOM_3DMOT_Up =0.001329 				(21)
++5us AOM_3DMOT_Down =0.006708 				(20)
++5us AOM_Raman1 =0.012746 				(23)
++5us AOM_3DMOT_Up =0.001123 				(21)
++5us AOM_3DMOT_Down =0.005680 				(20)
++5us AOM_Raman1 =0.010791 				(23)
++5us AOM_3DMOT_Up =0.000949 				(21)
++5us AOM_3DMOT_Down =0.004807 				(20)
++5us AOM_Raman1 =0.009134 				(23)
++5us AOM_3DMOT_Up =0.000802 				(21)
++5us AOM_3DMOT_Down =0.004068 				(20)
++5us AOM_Raman1 =0.007729 				(23)
++5us AOM_3DMOT_Up =0.000678 				(21)
++5us AOM_3DMOT_Down =0.003441 				(20)
++5us AOM_Raman1 =0.006538 				(23)
++5us AOM_3DMOT_Up =0.000573 				(21)
++5us AOM_3DMOT_Down =0.002910 				(20)
++5us AOM_Raman1 =0.005530 				(23)
++5us AOM_3DMOT_Up =0.000484 				(21)
++5us AOM_3DMOT_Down =0.002461 				(20)
++5us AOM_Raman1 =0.004676 				(23)
++5us AOM_3DMOT_Up =0.000409 				(21)
++5us AOM_3DMOT_Down =0.002081 				(20)
++5us AOM_Raman1 =0.003954 				(23)
+
+
+
+
+# ********** close  ***************************************
+     	   			
+
++3us TTL_AOM_Raman1 = ON				(49)#0.6 0.3 BUG: with 368 microsecond the detection switch off directly 367
++2us AOM_3DMOT_Down= ON				(53) #1.8 5.8
++0.36us AOM_3DMOT_Up= ON				(51) #2.56 2.86 2.96 2.36 5.1 7 8 12 15.1 2.56 0.36
++1us TTL Repump_MOT_Shutter = OFF			(42)
++20us TTL 3DMOT_Up_Shutter = OFF 			(46) #shutter up. up AOM
++10us TTL 3DMOT_Down_Shutter = OFF 			(47) #shutter up. down AOM 5
+
+
++5ms AOM_3DMOT_Down= OFF				(53) # thermalization
++2us AOM_3DMOT_Up= OFF					(51) # thermalization
++5us AOM_3DMOT_Up =0.740 				(21)
++5us AOM_3DMOT_Down =0.5 				(20)
+#+30us VCA_3DMOT_Down =2.3				(26)
++2us AOM_Raman1 =0.950					(23) #repump. power set 30
++2us AOM_Raman2 =0.950					(24) #thermalization
+
+# ********** Bottom Raman  ***************************************
+
++20us TTL_bias_bar = ON				(66)
++10ms DDS1 [123]					(2) #30 73 117  235 278 321 <PARAMETER1>
++2us TTL_AOM_Raman1 = ON				(49) # beam range 27000-31500   Raman down pulse start  40465
+
+
++20us TTL_shutter_Raman_Down = OFF			(40) #
+
+
++40483us TTL_AOM_Raman1 = OFF				(49) # beam range 27000-31500   Raman down pulse start  40465 38465
+
+
++10us TTL_AOM_Raman1 = ON				(49) #65 for 300, Pulse of 80 to check t7 peak (Xin-Hao page 114)
+#+200ns TTL_AOM_Raman2 = ON			(50)
+
+
+
++20us TTL_shutter_Raman_Down = OFF			(40)
+#+20us TTL_shutter_Raman_Up = OFF			(41)
+
++3ms TTL_AOM_Raman1 = OFF				(49) #65 for 300, thermalization
+#+1us TTL_AOM_Raman2 = OFF				(50) # thermalization
+
+
+
+
+
+
+
+
+
+################################
+#       Det			#
+################################
++20us DDS1 [12]						(2)  #Detection frequency, 1.8 GAMMA optimal value #12
++600ms TTL_AOM_Raman1 = ON				(49)
++2us AOM_Raman1 =0.2					(23)
++2us TTL_Repump_det = OFF				(44)
++2us AOM_Det= ON					(52)
++2us Det_shutter = ON					(45)
++11ms AOM_Det= OFF					(52)
++2us TTL_AOM_Raman1 = OFF				(49) #Detection on
++1us redpitaya = ON					(68)
++200ms TTL_AOM_Raman1 = ON				(49)
++2us AOM_Det= ON					(52)
++2us Det_shutter = OFF					(45)
++5ms AOM_Det= OFF					(52)
++2us TTL_Repump_det = OFF				(44)
++5ms TTL_AOM_Raman1 = OFF				(49)
+
+
+################################
+#       	close		#
+################################
++2us AOM_Raman1 =0.950					(23)
++1us redpitaya = ON					(68)
++3us Exp_trig= OFF 					(60)
++20us DAC_AOM_Raman1 = 0.000                      	(23)
+
+#+1us TTL_AOM_Raman1 = ON				(49)
+#+1us TTL_AOM_Raman2 = ON				(50)
+
++1us Repump_Det_Shutter = OFF				(44)
++20us TTL_bias_bar = OFF				(66)
++5us DDS1 [13]						(2)
++5us DDS4 [23]						(8)
++5us DDS5 [5]						(14)
+
+
+
+ENDINNER
+
+ITERATIONS 1
+
+ENDLOOP

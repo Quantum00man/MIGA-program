@@ -1,0 +1,1113 @@
+/* Functions.c: */
+/* M. Prevedelli (2009) */
+
+#include "Types.h"
+#include "Functions.h"
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+
+action FunList[FUNLISTSIZE];
+unsigned GFIBcs[ADDRSPACE];
+
+unsigned cTest(val v)
+{
+  return v.ival & 0xffff;
+}
+
+unsigned cAD9958state(val v)
+{
+  return ((v.ival & 0x3ff) | 0x4000);
+}
+
+unsigned cAD9958selfstate(val v)
+{
+  return (cAD9958state(v) | 0x0400);
+}
+
+unsigned cAD9958dxstate(val v)
+{
+  return ((v.ival & 0x3ff) | 0x4000);
+}
+
+unsigned cAD9958dxselfstate(val v)
+{
+  return (cAD9958dxstate(v) | 0x0200);
+}
+
+unsigned cAD9958dxRampCh0(val v)
+{
+  return v.bval ? 0x1000 : 0;
+}
+
+unsigned cAD9958dxRampCh1(val v)
+{
+  return v.bval ? 0x2000 : 0;
+}
+
+unsigned cAD9958dxRampCh0Ch1(val v)
+{
+  return v.bval ? 0x3000 : 0;
+}
+
+unsigned cAD9959state(val v)
+{
+  return ((v.ival & 0x1ff) | 0x4000);
+}
+
+unsigned cAD9959selfstate(val v)
+{
+  return (cAD9959state(v) | 0x0200);
+}
+
+unsigned cAD9854state(val v)
+{
+  return ((v.ival & 0x1ff) | 0x4000);
+}
+
+unsigned cAD9854selfstate(val v)
+{
+  return (cAD9854state(v) | 0x0200);
+}
+
+unsigned cAD9854fsk(val v)
+{
+  return v.bval ? 0x2000 : 0;
+}
+
+unsigned cGFIBtrig(val v)
+{
+  return ((v.ival & 0x8000) | 0x8000);
+}
+
+unsigned cDAC0state(val v)
+{
+  return ((v.ival & 0x7ff) | 0x4000);
+}
+
+unsigned cDAC1state(val v)
+{
+  return (cDAC0state(v) | 0x800);
+}
+
+unsigned cDAC2state(val v)
+{
+  return (cDAC0state(v) | 0x1000);
+}
+
+unsigned cDAC3state(val v)
+{
+  return (cDAC0state(v) | 0x1800);
+}
+
+unsigned cDAC0selfstate(val v)
+{
+  return ((v.ival & 0x7ff) | 0x6000);
+}
+
+unsigned cDAC1selfstate(val v)
+{
+  return (cDAC0selfstate(v) | 0x800);
+}
+
+unsigned cDAC2selfstate(val v)
+{
+  return (cDAC0selfstate(v) | 0x1000);
+}
+
+unsigned cDAC3selfstate(val v)
+{
+  return (cDAC0selfstate(v) | 0x1800);
+}
+
+unsigned cTTLD0(val v)
+{
+  return v.bval ? 0x1 : 0;
+}
+
+unsigned cTTLD1(val v)
+{
+  return v.bval ? 0x2 : 0;
+}
+
+unsigned cTTLD2(val v)
+{
+  return v.bval ? 0x4 : 0;
+}
+
+unsigned cTTLD3(val v)
+{
+  return v.bval ? 0x8 : 0;
+}
+
+unsigned cTTLD4(val v)
+{
+  return v.bval ? 0x10 : 0;
+}
+
+unsigned cTTLD5(val v)
+{
+  return v.bval ? 0x20 : 0;
+}
+
+unsigned cTTLD6(val v)
+{
+  return v.bval ? 0x40 : 0;
+}
+
+unsigned cTTLD7(val v)
+{
+  return v.bval ? 0x80 : 0;
+}
+
+unsigned cTTLD8(val v)
+{
+  return v.bval ? 0x100 : 0;
+}
+
+unsigned cTTLD9(val v)
+{
+  return v.bval ? 0x200 : 0;
+}
+
+unsigned cTTLD10(val v)
+{
+  return v.bval ? 0x400 : 0;
+}
+
+unsigned cTTLD11(val v)
+{
+  return v.bval ? 0x800 : 0;
+}
+
+unsigned cTTLD12(val v)
+{
+  return v.bval ? 0x1000 : 0;
+}
+
+unsigned cTTLD13(val v)
+{
+  return v.bval ? 0x2000 : 0;
+}
+
+unsigned cTTLD14(val v)
+{
+  return v.bval ? 0x4000 : 0;
+}
+
+unsigned cTTLD15(val v)
+{
+  return v.bval ? 0x8000 : 0;
+}
+
+unsigned cDAC8(val v)
+{
+  double aux=v.fval;
+  unsigned dacout,neg=0;
+
+  if(aux<0)
+    {
+      neg=1;
+      aux=-aux;
+    }
+
+  dacout=(aux*32768./15.);
+
+  if(neg)
+    dacout=0x10000-dacout;
+
+  return dacout;
+}
+
+
+void InitFunList()
+{
+  action *p;
+  int i;
+
+  for(i=0;i<FUNLISTSIZE;FunList[i++].id=0);
+  for(i=0;i<ADDRSPACE;GFIBcs[i++]=0);
+
+  //Generic GFIB write
+  p=&FunList[iTest];
+  p->ds="GFIB";
+  p->cn="Test: None";
+  p->un="";
+  p->type=TEST_A;
+  p->id=iTest;
+  p->fam=fTest;
+  p->gfib.addr=0;
+  p->gfib.mask=0xffff;
+  p->compile=cTest;
+
+//quadruple dds AD9959 NOVATECH (GFIB #6)
+  p=&FunList[iDDS1State];
+  p->ds="DDS #1 State";
+  p->cn="DDS #1 State: Board 6";
+  p->type=ENUM_A;
+  p->id=iDDS1State;
+  p->cval.ival=0;
+  p->fam=fDDS1State;
+  p->gfib.addr=6;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9959state;
+
+  p=&FunList[iDDS1SelfState];
+  p->ds="DDS #1 Self State";
+  p->cn="DDS #1 Self State: Board 6";
+  p->type=ENUM_A;
+  p->id=iDDS1SelfState;
+  p->fam=fDDS1SelfState;
+  p->gfib.addr=6;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9959selfstate;
+
+  p=&FunList[iDDS1Trig];
+  p->ds="DDS #1 Trigger";
+  p->cn="DDS #1 Trigger: Board 6";
+  p->type=SIMPLE_A;
+  p->id=iDDS1Trig;
+  p->fam=fDDS1Trig;
+  p->gfib.addr=6;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+//quadruple dds AD9959 NOVATECH (GFIB #7)
+  p=&FunList[iDDS2State];
+  p->ds="DDS #2 State";
+  p->cn="DDS #2 State: Board 7";
+  p->type=ENUM_A;
+  p->id=iDDS2State;
+  p->cval.ival=0;
+  p->fam=fDDS2State;
+  p->gfib.addr=7;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9959state;
+
+  p=&FunList[iDDS2SelfState];
+  p->ds="DDS #2 Self State";
+  p->cn="DDS #2 Self State: Board 7";
+  p->type=ENUM_A;
+  p->id=iDDS2SelfState;
+  p->fam=fDDS2SelfState;
+  p->gfib.addr=7;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9959selfstate;
+
+  p=&FunList[iDDS2Trig];
+  p->ds="DDS #2 Trigger";
+  p->cn="DDS #2 Trigger: Board 7";
+  p->type=SIMPLE_A;
+  p->id=iDDS2Trig;
+  p->fam=fDDS2Trig;
+  p->gfib.addr=7;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+//dual dds AD9958 (GFIB #8)
+  p=&FunList[iDDS3State];
+  p->ds="DDS #3 State";
+  p->cn="DDS #3 State: Board 8";
+  p->type=ENUM_A;
+  p->id=iDDS3State;
+  p->cval.ival=0;
+  p->fam=fDDS3State;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9958dxstate;
+
+  p=&FunList[iDDS3SelfState];
+  p->ds="DDS #3 Self State";
+  p->cn="DDS #3 Self State: Board 8";
+  p->type=ENUM_A;
+  p->id=iDDS3SelfState;
+  p->fam=fDDS3SelfState;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=512;
+  p->compile=cAD9958dxselfstate;
+
+  p=&FunList[iDDS3RampCh0];
+  p->ds="DDS #3 Ramp Ch0";
+  p->cn="DDS #3 Ramp Ch0: Board 8";
+  p->type=BINARY_A;
+  p->id=iDDS3RampCh0;
+  p->fam=fDDS3Ramp;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->compile=cAD9958dxRampCh0;
+
+  p=&FunList[iDDS3RampCh1];
+  p->ds="DDS #3 Ramp Ch1";
+  p->cn="DDS #3 Ramp Ch1: Board 8";
+  p->type=BINARY_A;
+  p->id=iDDS3RampCh1;
+  p->fam=fDDS3Ramp;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->compile=cAD9958dxRampCh1;
+
+  p=&FunList[iDDS3RampCh0Ch1];
+  p->ds="DDS #3 Ramp Ch0 & Ch1";
+  p->cn="DDS #3 Ramp Ch0 & Ch1: Board 8";
+  p->type=BINARY_A;
+  p->id=iDDS3RampCh0Ch1;
+  p->fam=fDDS3Ramp;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->compile=cAD9958dxRampCh0Ch1;
+
+  p=&FunList[iDDS3Trig];
+  p->ds="DDS #3 Trigger";
+  p->cn="DDS #3 Trigger: Board 8";
+  p->type=SIMPLE_A;
+  p->id=iDDS3Trig;
+  p->fam=fDDS3Trig;
+  p->gfib.addr=8;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+
+
+//////////////////////////////////////////////////////////////////
+//		DAC4 (GFIB #3)					//
+//////////////////////////////////////////////////////////////////
+  p=&FunList[iATTAOMPDHRefState];
+  p->ds="DAC4 #1 Ch. 0 - ATT AOM PDH Ref";
+  p->cn="DAC4 #1 Ch. 0 - ATT AOM PDH Ref: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMPDHRefState;
+  p->fam=fATTAOMPDHRefState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0state;
+
+  p=&FunList[iATTAOMDimpleState];
+  p->ds="DAC4 #1 Ch. 1 - ATT AOM Dimple";
+  p->cn="DAC4 #1 Ch. 1 - ATT AOM Dimple: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMDimpleState;
+  p->fam=iATTAOMDimpleState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1state;
+
+  p=&FunList[iATTAOMRepumpState];
+  p->ds="DAC4 #1 Ch. 2 - ATT AOM Repump";
+  p->cn="DAC4 #1 Ch. 2 - ATT AOM Repump: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMRepumpState;
+  p->fam=fATTAOMRepumpState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2state;
+
+  p=&FunList[iATTAOMTEM01State];
+  p->ds="DAC4 #1 Ch. 3 - ATT AOM TEM01";
+  p->cn="DAC4 #1 Ch. 3 - ATT AOM TEM01: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMTEM01State;
+  p->fam=fATTAOMTEM01State;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3state;
+
+  p=&FunList[iATTAOMPDHRefSelfState];
+  p->ds="DAC4 #1 Self Ch. 0 - ATT AOM PDH Ref";
+  p->cn="DAC4 #1 Self Ch. 0 - ATT AOM PDH Ref: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMPDHRefSelfState;
+  p->fam=fATTAOMPDHRefSelfState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0selfstate;
+
+  p=&FunList[iATTAOMDimpleSelfState];
+  p->ds="DAC4 #1 Self Ch. 1 - ATT AOM Dimple";
+  p->cn="DAC4 #1 Self Ch. 1 - ATT AOM Dimple: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMDimpleSelfState;
+  p->fam=fATTAOMDimpleSelfState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1selfstate;
+
+  p=&FunList[iATTAOMRepumpSelfState];
+  p->ds="DAC4 #1 Self Ch. 2 - ATT AOM Repump";
+  p->cn="DAC4 #1 Self Ch. 2 - ATT AOM Repump: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMRepumpSelfState;
+  p->fam=fATTAOMRepumpSelfState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2selfstate;
+
+  p=&FunList[iATTAOMTEM01SelfState];
+  p->ds="DAC4 #1 Self Ch. 3 - ATT AOM TEM01";
+  p->cn="DAC4 #1 Self Ch. 3 - ATT AOM TEM01: Board 3";
+  p->type=ENUM_A;
+  p->id=iATTAOMTEM01SelfState;
+  p->fam=fATTAOMTEM01SelfState;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3selfstate;
+
+  p=&FunList[iBRD1DACTrig];
+  p->ds="DAC #1 Trigger";
+  p->cn="DAC #1 Trigger: Board 3";
+  p->type=SIMPLE_A;
+  p->id=iBRD1DACTrig;
+  p->fam=fBRD1DACTrig;
+  p->gfib.addr=3;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+//////////////////////////////////////////////////////////////////
+//		DAC4 (GFIB #4)					//
+//////////////////////////////////////////////////////////////////
+  p=&FunList[iATTAOMCoolState];
+  p->ds="DAC4 #2 Ch. 0 - ATT AOM Cool";
+  p->cn="DAC4 #2 Ch. 0 - ATT AOM Cool: Board 4";
+  p->type=ENUM_A;
+  p->id=iATTAOMCoolState;
+  p->fam=fATTAOMCoolState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0state;
+
+  p=&FunList[iBcompXState];
+  p->ds="DAC4 #2 Ch. 1 - B comp X";
+  p->cn="DAC4 #2 Ch. 1 - B comp X: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompXState;
+  p->fam=fBcompXState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1state;
+
+  p=&FunList[iBcompYState];
+  p->ds="DAC4 #2 Ch. 2 - B comp Y";
+  p->cn="DAC4 #2 Ch. 2 - B comp Y: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompYState;
+  p->fam=fBcompYState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2state;
+
+  p=&FunList[iBcompZState];
+  p->ds="DAC4 #2 Ch. 3 - B comp Z";
+  p->cn="DAC4 #2 Ch. 3 - B comp Z: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompZState;
+  p->fam=fBcompZState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3state;
+
+  p=&FunList[iATTAOMCoolSelfState];
+  p->ds="DAC4 #2 Self Ch. 0 - ATT AOM Cool";
+  p->cn="DAC4 #2 Self Ch. 0 - ATT AOM Cool: Board 4";
+  p->type=ENUM_A;
+  p->id=iATTAOMCoolSelfState;
+  p->fam=fATTAOMCoolSelfState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0selfstate;
+
+  p=&FunList[iBcompXSelfState];
+  p->ds="DAC4 #2 Self Ch. 1 - B comp X";
+  p->cn="DAC4 #2 Self Ch. 1 - B comp X: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompXSelfState;
+  p->fam=fBcompXSelfState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1selfstate;
+
+  p=&FunList[iBcompYSelfState];
+  p->ds="DAC4 #2 Self Ch. 2 - B comp Y";
+  p->cn="DAC4 #2 Self Ch. 2 - B comp Y: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompYSelfState;
+  p->fam=fBcompYSelfState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2selfstate;
+
+  p=&FunList[iBcompZSelfState];
+  p->ds="DAC4 #2 Self Ch. 3 - B comp Z";
+  p->cn="DAC4 #2 Self Ch. 3 - B comp Z: Board 4";
+  p->type=ENUM_A;
+  p->id=iBcompZSelfState;
+  p->fam=fBcompZSelfState;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3selfstate;
+
+  p=&FunList[iBRD2DACTrig];
+  p->ds="DAC #2 Trigger";
+  p->cn="DAC #2 Trigger: Board 4";
+  p->type=SIMPLE_A;
+  p->id=iBRD2DACTrig;
+  p->fam=fBRD2DACTrig;
+  p->gfib.addr=4;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+
+//////////////////////////////////////////////////////////////////
+//		DAC4 (GFIB #5)					//
+//////////////////////////////////////////////////////////////////
+  p=&FunList[iMOTBFieldState];
+  p->ds="DAC4 #3 Ch. 0 - MOT B Field";
+  p->cn="DAC4 #3 Ch. 0 - MOT B Field: Board 5";
+  p->type=ENUM_A;
+  p->id=iMOTBFieldState;
+  p->fam=fMOTBFieldState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0state;
+
+  p=&FunList[iFixLinePLState];
+  p->ds="DAC4 #3 Ch. 1 - Fix Line PL";
+  p->cn="DAC4 #3 Ch. 1 - Fix Line PL: Board 5";
+  p->type=ENUM_A;
+  p->id=iFixLinePLState;
+  p->fam=fFixLinePLState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1state;
+
+  p=&FunList[iOffsetLockFshiftState];
+  p->ds="DAC4 #3 Ch. 2 - Offset Lock Fshift";
+  p->cn="DAC4 #3 Ch. 2 - Offset Lock Fshift: Board 5";
+  p->type=ENUM_A;
+  p->id=iOffsetLockFshiftState;
+  p->fam=fOffsetLockFshiftState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2state;
+
+  p=&FunList[iPDHLockFshiftState];
+  p->ds="DAC4 #3 Ch. 3 - PDH Lock Fshift";
+  p->cn="DAC4 #3 Ch. 3 - PDH Lock Fshift: Board 5";
+  p->type=ENUM_A;
+  p->id=iPDHLockFshiftState;
+  p->fam=fPDHLockFshiftState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3state;
+
+  p=&FunList[iMOTBFieldSelfState];
+  p->ds="DAC4 #3 Self Ch. 0 - MOT B Field";
+  p->cn="DAC4 #3 Self Ch. 0 - MOT B Field: Board 5";
+  p->type=ENUM_A;
+  p->id=iMOTBFieldSelfState;
+  p->fam=fMOTBFieldSelfState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC0selfstate;
+
+  p=&FunList[iFixLinePLSelfState];
+  p->ds="DAC4 #3 Self Ch. 1 - Fix Line PL";
+  p->cn="DAC4 #3 Self Ch. 1 - Fix Line PL: Board 5";
+  p->type=ENUM_A;
+  p->id=iFixLinePLSelfState;
+  p->fam=fFixLinePLSelfState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC1selfstate;
+
+  p=&FunList[iOffsetLockFshiftSelfState];
+  p->ds="DAC4 #3 Self Ch. 2 - Offset Lock Fshift";
+  p->cn="DAC4 #3 Self Ch. 2 - Offset Lock Fshift: Board 5";
+  p->type=ENUM_A;
+  p->id=iOffsetLockFshiftSelfState;
+  p->fam=fOffsetLockFshiftSelfState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC2selfstate;
+
+  p=&FunList[iPDHLockFshiftSelfState];
+  p->ds="DAC4 #3 Self Ch. 3 - PDH Lock Fshift";
+  p->cn="DAC4 #3 Self Ch. 3 - PDH Lock Fshift: Board 5";
+  p->type=ENUM_A;
+  p->id=iPDHLockFshiftSelfState;
+  p->fam=fPDHLockFshiftSelfState;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->gfib.smax=2048;
+  p->compile=cDAC3selfstate;
+
+  p=&FunList[iBRD3DACTrig];
+  p->ds="DAC #3 Trigger";
+  p->cn="DAC #3 Trigger: Board 5";
+  p->type=SIMPLE_A;
+  p->id=iBRD3DACTrig;
+  p->fam=fBRD3DACTrig;
+  p->gfib.addr=5;
+  p->gfib.mask=0xffff;
+  p->compile=cGFIBtrig;
+
+
+//////////////////////////////////////////////////////////////////
+//		DIGITAL OUTPUT (GFIB #1)			//
+//////////////////////////////////////////////////////////////////
+  p=&FunList[iTrigger];
+  p->ds="D0_B1 - Trigger";
+  p->cn="D0 - Trigger: Board 1";
+  p->type=BINARY_A;
+  p->id=iTrigger;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0001;
+  p->compile=cTTLD0;
+
+  p=&FunList[i3DMOTField];
+  p->ds="D1_B1 - 3D MOT Field";
+  p->cn="D1 - 3D MOT Field: Board 1";
+  p->type=BINARY_A;
+  p->id=i3DMOTField;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0002;
+  p->compile=cTTLD1;
+
+  p=&FunList[iSHUTTER3DMOTA];
+  p->ds="D2_B1 - SHUTTER 3DMOT A";
+  p->cn="D2 - SHUTTER 3DMOT A: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTER3DMOTA;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0004;
+  p->compile=cTTLD2;
+
+  p=&FunList[iSHUTTER3DMOTB];
+  p->ds="D3_B1 - SHUTTER 3DMOT B";
+  p->cn="D3 - SHUTTER 3DMOT B: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTER3DMOTB;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0008;
+  p->compile=cTTLD3;
+
+  p=&FunList[iCameraTrigger];
+  p->ds="D4_B1 - Camera Trigger";
+  p->cn="D4 - Camera Trigger: Board 1";
+  p->type=BINARY_A;
+  p->id=iCameraTrigger;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0010;
+  p->compile=cTTLD4;
+
+  p=&FunList[i2DMOTField];
+  p->ds="D5_B1 - 2DMOT Field";
+  p->cn="D5 - 2DMOT Field: Board 1";
+  p->type=BINARY_A;
+  p->id=i2DMOTField;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0020;
+  p->compile=cTTLD5;
+
+  p=&FunList[iSHUTTERProbe];
+  p->ds="D6_B1 - SHUTTER Probe";
+  p->cn="D6 - SHUTTER Probe: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTERProbe;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0040;
+  p->compile=cTTLD6;
+
+  p=&FunList[iSHUTTERTrap];
+  p->ds="D7_B1 - SHUTTER Trap";
+  p->cn="D7 - SHUTTER Trap: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTERTrap;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0080;
+  p->compile=cTTLD7;
+
+  p=&FunList[iSHUTTER2DMOT];
+  p->ds="D8_B1 - SHUTTER 2DMOT";
+  p->cn="D8 - SHUTTER 2DMOT: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTER2DMOT;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0100;
+  p->compile=cTTLD8;
+
+  p=&FunList[iSwitchPDHPZT];
+  p->ds="D9_B1 - Switch PDH PZT";
+  p->cn="D9 - Switch PDH PZT: Board 1";
+  p->type=BINARY_A;
+  p->id=iSwitchPDHPZT;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0200;
+  p->compile=cTTLD9;
+
+  p=&FunList[iSHUTTERRepump];
+  p->ds="D10_B1 - SHUTTER Repump";
+  p->cn="D10 - SHUTTER Repump: Board 1";
+  p->type=BINARY_A;
+  p->id=iSHUTTERRepump;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0400;
+  p->compile=cTTLD10;
+
+  p=&FunList[iSwitch1529Lock];
+  p->ds="D11_B1 - Switch 1529 Lock";
+  p->cn="D11 - Switch 1529 Lock: Board 1";
+  p->type=BINARY_A;
+  p->id=iSwitch1529Lock;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x0800;
+  p->compile=cTTLD11;
+
+  p=&FunList[iPowerLockSwitch];
+  p->ds="D12_B1 - Power Lock Switch";
+  p->cn="D12 - Power Lock Switch: Board 1";
+  p->type=BINARY_A;
+  p->id=iPowerLockSwitch;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x1000;
+  p->compile=cTTLD12;
+
+  p=&FunList[iShutterCCDTrigger];
+  p->ds="D13_B1 - Shutter CCD Trigger";
+  p->cn="D13 - Shutter CCD Trigger: Board 1";
+  p->type=BINARY_A;
+  p->id=iShutterCCDTrigger;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x2000;
+  p->compile=cTTLD13;
+
+  p=&FunList[iTriggerAgilent];
+  p->ds="D14_B1 - Trigger Agilent";
+  p->cn="D14 - Trigger Agilent: Board 1";
+  p->type=BINARY_A;
+  p->id=iTriggerAgilent;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x4000;
+  p->compile=cTTLD14;
+
+  p=&FunList[iSwitchAgilentORFix];
+  p->ds="D15_B1 - Switch Agilent OR Fix ";
+  p->cn="D15 - Switch Agilent OR Fix: Board 1";
+  p->type=BINARY_A;
+  p->id=iSwitchAgilentORFix;
+  p->fam=fTTLD_1;
+  p->gfib.addr=1;
+  p->gfib.mask=0x8000;
+  p->compile=cTTLD15;
+
+
+//////////////////////////////////////////////////////////////////
+//		DIGITAL OUTPUT (GFIB #2)			//
+//////////////////////////////////////////////////////////////////
+  p=&FunList[iTrigger2];
+  p->ds="D0_B2 - Trigger2";
+  p->cn="D0 - Trigger2: Board 2";
+  p->type=BINARY_A;
+  p->id=iTrigger2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0001;
+  p->compile=cTTLD0;
+
+  p=&FunList[iSHUTTERProbe1];
+  p->ds="D1_B2 - SHUTTER Probe1";
+  p->cn="D1 - SHUTTER Probe1: Board 2";
+  p->type=BINARY_A;
+  p->id=iSHUTTERProbe1;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0002;
+  p->compile=cTTLD1;
+
+  p=&FunList[iSHUTTERProbe2];
+  p->ds="D2_B2 - SHUTTER Probe2";
+  p->cn="D2 - SHUTTER Probe2: Board 2";
+  p->type=BINARY_A;
+  p->id=iSHUTTERProbe2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0004;
+  p->compile=cTTLD2;
+
+  p=&FunList[iSwitchPDHHF];
+  p->ds="D3_B2 - Switch PDH HF ";
+  p->cn="D3 - Switch PDH HF : Board 2";
+  p->type=BINARY_A;
+  p->id=iSwitchPDHHF;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0008;
+  p->compile=cTTLD3;
+
+  p=&FunList[iSwitch1529INTEG];
+  p->ds="D4_B2 - Switch 1529 INTEG";
+  p->cn="D4 - Switch 1529 INTEG: Board 2";
+  p->type=BINARY_A;
+  p->id=iSwitch1529INTEG;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0010;
+  p->compile=cTTLD4;
+
+  p=&FunList[iTriggerFirefly];
+  p->ds="D5_B2 - Trigger Firefly";
+  p->cn="D5 - Trigger Firefly: Board 2";
+  p->type=BINARY_A;
+  p->id=iTriggerFirefly;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0020;
+  p->compile=cTTLD5;
+
+  p=&FunList[iTTLD6_2];
+  p->ds="TTL D6_2";
+  p->cn="TTL D6: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD6_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0040;
+  p->compile=cTTLD6;
+
+  p=&FunList[iTTLD7_2];
+  p->ds="TTL D7_2";
+  p->cn="TTL D7: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD7_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0080;
+  p->compile=cTTLD7;
+
+  p=&FunList[iTTLD8_2];
+  p->ds="TTL D8_2";
+  p->cn="TTL D8: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD8_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0100;
+  p->compile=cTTLD8;
+
+  p=&FunList[iTTLD9_2];
+  p->ds="TTL D9_2";
+  p->cn="TTL D9: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD9_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0200;
+  p->compile=cTTLD9;
+
+  p=&FunList[iTTLD10_2];
+  p->ds="TTL D10_2";
+  p->cn="TTL D10: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD10_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0400;
+  p->compile=cTTLD10;
+
+  p=&FunList[iTTLD11_2];
+  p->ds="TTL D11_2";
+  p->cn="TTL D11: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD11_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x0800;
+  p->compile=cTTLD11;
+
+  p=&FunList[iTTLD12_2];
+  p->ds="TTL D12_2";
+  p->cn="TTL D12: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD12_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x1000;
+  p->compile=cTTLD12;
+
+  p=&FunList[iTTLD13_2];
+  p->ds="TTL D13_2";
+  p->cn="TTL D13: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD13_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x2000;
+  p->compile=cTTLD13;
+
+  p=&FunList[iTTLD14_2];
+  p->ds="TTL D14_2";
+  p->cn="TTL D14: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD14_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x4000;
+  p->compile=cTTLD14;
+
+  p=&FunList[iTTLD15_2];
+  p->ds="TTL D15_2";
+  p->cn="TTL D15: Board 2";
+  p->type=BINARY_A;
+  p->id=iTTLD15_2;
+  p->fam=fTTLD_2;
+  p->gfib.addr=2;
+  p->gfib.mask=0x8000;
+  p->compile=cTTLD15;
+
+  p=&FunList[iDAC8_0];
+  p->ds="DAC8 Ch0";
+  p->cn="Ch0: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_0;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_1];
+  p->ds="DAC8 Ch1";
+  p->cn="Ch1: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_1;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_2];
+  p->ds="DAC8 Ch2";
+  p->cn="Ch2: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_2;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_3];
+  p->ds="DAC8 Ch3";
+  p->cn="Ch3: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_3;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_4];
+  p->ds="DAC8 Ch4";
+  p->cn="Ch4: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_4;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_5];
+  p->ds="DAC8 Ch5";
+  p->cn="Ch5: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_5;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+  
+  p=&FunList[iDAC8_6];
+  p->ds="DAC8 Ch6";
+  p->cn="Ch6: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_6;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+  p=&FunList[iDAC8_7];
+  p->ds="DAC8 Ch7";
+  p->cn="Ch7: Board9";
+  p->type=SCALAR_A;
+  p->min=-12.;
+  p->max=12.;
+  p->fm="%2.4f";
+  p->id=iDAC8_7;
+  p->fam=fDAC8;
+  p->compile=cDAC8;
+  p->gfib.addr=10;
+  p->gfib.mask=0xffff;
+
+}

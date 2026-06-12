@@ -1,0 +1,26 @@
+LOOP
+
+COMMENT
+
+Test Mot4 per FPGA
+
+ENDCOMMENT
+
+INIT
+           GFIB [2] = 0x1234                        (99) 
+           GFIB [2] = 0x5678                        (99)
+
+
+ENDINIT
+
+INNER
+
++1s GFIB [2] = 0xa5a5			(99) 
++1s GFIB [2] = 0x5a5a			(99) BREAK
++1s GFIB [2] = 0xa5a5			(99) 
+ENDINNER
+
+
+ITERATIONS 5
+
+ENDLOOP 

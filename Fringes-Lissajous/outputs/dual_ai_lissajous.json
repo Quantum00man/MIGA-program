@@ -1,0 +1,31 @@
+{
+  "scan": {
+    "t_min_ms": 1.0,
+    "t_max_ms": 12.0,
+    "n_points": 500,
+    "clip_to_probability": false
+  },
+  "upper": {
+    "label": "Upper AI",
+    "period_t2_ms2": 31.0,
+    "phase_rad": 0.0,
+    "offset": 0.45,
+    "peak_to_peak": 0.45,
+    "color": "#0f6c5c"
+  },
+  "lower": {
+    "label": "Lower AI",
+    "period_t2_ms2": 31.0,
+    "phase_rad": 0.261,
+    "offset": 0.45,
+    "peak_to_peak": 0.45,
+    "color": "#c45b12"
+  },
+  "summary": [
+    "T scan: 1.000 to 12.000 ms (500 points)",
+    "T^2 span: 1.000 to 144.000 ms^2 (window 143.000 ms^2)",
+    "Upper AI: 4.61 cycles across the scan, P in [0.225, 0.675]",
+    "Lower AI: 4.61 cycles across the scan, P in [0.225, 0.675]",
+    "Phase difference at T^2 = 0: 0.261 rad (14.95 deg)"
+  ]
+}

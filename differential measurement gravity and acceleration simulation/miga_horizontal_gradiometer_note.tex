@@ -1,0 +1,236 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,array}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue,citecolor=black}
+
+\title{A simulator for fringe-derived acceleration and source-mass design in a horizontal first-order Bragg atom gradiometer}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Differential atom interferometry provides direct access to spatially varying inertial signals while suppressing common-mode phase noise. This note documents a compact simulation framework for a horizontal two-point gradiometer composed of two atom interferometers, MIGA21 and MIGA22, separated by a baseline $L$ and interrogated by the same first-order Bragg beam. The simulator addresses three connected tasks. First, it converts measured fringe observables, either a fringe period in a scan over $T^2$ or the angular frequency of phase accumulation versus $T^2$, into the total acceleration measured along the Bragg axis, subtracts the Bragg projection of the background laboratory gravity, and only then converts the result into the effective acceleration reported on the horizontal $x$ axis. Second, it computes the gravitational perturbation produced by a point-like source mass at arbitrary coordinates. Third, it provides two source-mass design views: an inverse-design curve that gives the mass required at different positions along the $x$ axis to reproduce a measured differential gradient, and a forward model that shows how the accelerations and gradients vary when the mass is scanned at one fixed position. The entire framework is written to keep the geometry, sign convention and physical approximations explicit.
+\end{abstract}
+
+\section{Geometry and sign convention}
+
+The simulator assumes two atom interferometers placed on a horizontal line,
+\begin{equation}
+\mathbf{r}_{21} = (0,0),
+\qquad
+\mathbf{r}_{22} = (L,0),
+\end{equation}
+where MIGA21 defines the coordinate origin and MIGA22 is displaced by the baseline $L$. The Bragg interrogation beam is not assumed to be exactly parallel to the horizontal axis. Instead, the beam makes a small angle $\alpha$ with the $x$ axis. The corresponding unit vector is
+\begin{equation}
+\hat{\mathbf{e}}_{B} = (\cos\alpha, \sin\alpha).
+\end{equation}
+The default value used in the graphical interface is $\alpha = 1.28~\mathrm{mrad}$. The laboratory gravity is treated as a uniform background field $\mathbf{g}_{\mathrm{lab}} = (0,-g_0)$, with default magnitude $g_0 = 9.81~\mathrm{m/s^2}$. 
+
+All differential quantities follow one unambiguous convention,
+\begin{equation}
+\Delta q = q_{22} - q_{21},
+\end{equation}
+so that the gradiometric signal is always defined as the value at MIGA22 minus the value at MIGA21.
+
+\section{Source-mass gravitational field}
+
+The source object is modeled as a point mass $M$ placed at
+\begin{equation}
+\mathbf{r}_{M} = (x_M, y_M).
+\end{equation}
+Its Newtonian gravitational field at a sensor position $\mathbf{r}_i$ is
+\begin{equation}
+\mathbf{g}_i = G M \frac{\mathbf{r}_{M} - \mathbf{r}_i}{\left|\mathbf{r}_{M} - \mathbf{r}_i\right|^3},
+\label{eq:newton_field}
+\end{equation}
+where $G$ is the Newtonian gravitational constant. Writing
+\begin{equation}
+\mathbf{g}_i = (g_{x,i}, g_{y,i}),
+\end{equation}
+we distinguish three related quantities.
+
+First, $g_{x,i}$ is the true horizontal acceleration at interferometer $i$. Second, the Bragg-sensitive projection is
+\begin{equation}
+ g_{B,i} = \mathbf{g}_i \cdot \hat{\mathbf{e}}_{B} = g_{x,i}\cos\alpha + g_{y,i}\sin\alpha.
+ \label{eq:bragg_projection}
+\end{equation}
+Third, the simulator reports an effective horizontal acceleration inferred from the Bragg projection,
+\begin{equation}
+ g^{\mathrm{est}}_{x,i} = \frac{g_{B,i}}{\cos\alpha} = g_{x,i} + g_{y,i}\tan\alpha.
+ \label{eq:x_estimate}
+\end{equation}
+Equation~\eqref{eq:x_estimate} is the quantity most closely connected to experiment when the fitted fringe signal is interpreted as a horizontal acceleration even though the beam is slightly tilted. If $g_{y,i}$ is negligible, then $g^{\mathrm{est}}_{x,i}$ reduces to the true $g_{x,i}$. If $g_{y,i}$ is not negligible, the tilt introduces a geometric correction proportional to $g_{y,i}\tan\alpha$.
+
+The simulator displays the actual vector components $(g_{x,i}, g_{y,i})$, the Bragg projection $g_{B,i}$, and the inferred horizontal quantity $g^{\mathrm{est}}_{x,i}$ side by side, because these three numbers answer different experimental questions.
+
+\section{First-order Bragg phase and fringe inversion}
+
+For first-order Bragg diffraction the effective wave vector is
+\begin{equation}
+ k_{\mathrm{eff}} = \frac{4\pi}{\lambda},
+\end{equation}
+where $\lambda$ is the Bragg laser wavelength. The leading-order atom-interferometer phase is modeled as
+\begin{equation}
+ \phi(T) = k_{\mathrm{eff}} a_B T^2 + \phi_0,
+ \label{eq:phase_model}
+\end{equation}
+where $a_B$ is the acceleration projected along the Bragg axis and $\phi_0$ is a phase offset independent of $T^2$ in this minimal model.
+
+Because the experimental scan is often performed directly in the variable $T^2$, the same relation can be written as
+\begin{equation}
+ \phi(T^2) = \omega_{T^2} T^2 + \phi_0,
+ \qquad
+ \omega_{T^2} = k_{\mathrm{eff}} a_B.
+ \label{eq:phase_slope}
+\end{equation}
+This immediately gives the Bragg-axis acceleration from a fitted phase slope,
+\begin{equation}
+ a_B = \frac{\omega_{T^2}}{k_{\mathrm{eff}}}.
+ \label{eq:beam_from_omega}
+\end{equation}
+If the directly fitted quantity is instead the fringe period $P_{T^2}$ in a scan over $T^2$, one oscillation corresponds to a phase increment of $2\pi$, so that
+\begin{equation}
+ k_{\mathrm{eff}} a_B P_{T^2} = 2\pi,
+\end{equation}
+and therefore
+\begin{equation}
+ \left|a_B\right| = \frac{2\pi}{k_{\mathrm{eff}} P_{T^2}}.
+ \label{eq:beam_from_period}
+\end{equation}
+The sign of $a_B$ is not determined by the period alone and must therefore be specified separately. This is why the graphical interface exposes an explicit sign selector whenever the input mode is ``Fringe period''.
+
+The fringe fit first returns the total Bragg-axis acceleration $a^{\mathrm{tot}}_{B,i}$. The Bragg projection of the background gravity is
+\begin{equation}
+ a_{g,B} = \mathbf{g}_{\mathrm{lab}} \cdot \hat{\mathbf{e}}_{B} = -g_0 \sin\alpha.
+ \label{eq:gravity_projection}
+\end{equation}
+The background-corrected Bragg-axis acceleration is therefore
+\begin{equation}
+ a^{\mathrm{net}}_{B,i} = a^{\mathrm{tot}}_{B,i} - a_{g,B},
+ \label{eq:beam_net}
+\end{equation}
+and the quantity ultimately reported as an experimentally inferred horizontal acceleration is
+\begin{equation}
+ a^{\mathrm{meas}}_{x,i} = \frac{a^{\mathrm{net}}_{B,i}}{\cos\alpha}.
+ \label{eq:measured_x}
+\end{equation}
+The differential signal inferred from the two fringe measurements is
+\begin{equation}
+ \Delta a^{\mathrm{meas}}_x = a^{\mathrm{meas}}_{x,22} - a^{\mathrm{meas}}_{x,21},
+\end{equation}
+and the corresponding measured gradient is
+\begin{equation}
+ \Gamma^{\mathrm{meas}}_x = \frac{\Delta a^{\mathrm{meas}}_x}{L}.
+ \label{eq:measured_gradient}
+\end{equation}
+Because the same background gravity projection is removed from both interferometers, this correction is common-mode and the differential gradient is unchanged so long as both interferometers share the same $\alpha$. This corrected gradient is the target quantity used by the inverse-design model.
+
+\section{Model 1: inverse design for a source mass constrained to the x axis}
+
+A practically useful design question is the following: if a source object is forced to lie on the horizontal axis $y=0$, what mass is required at each possible position $x_s$ to reproduce the gradient inferred from the fringes? In this geometry the gravitational field of the source mass has no vertical component at either interferometer, so the actual horizontal acceleration and the Bragg-based horizontal estimate coincide.
+
+For a trial source position $x_s$, the simulator first computes the differential horizontal acceleration produced by a unit mass,
+\begin{equation}
+ \Delta a^{(1\,\mathrm{kg})}_x(x_s) = a^{(1\,\mathrm{kg})}_{x,22}(x_s) - a^{(1\,\mathrm{kg})}_{x,21}(x_s).
+\end{equation}
+The mass required to reproduce the measured target differential acceleration is then
+\begin{equation}
+ M_{\mathrm{req}}(x_s) = \frac{\Delta a^{\mathrm{meas}}_x}{\Delta a^{(1\,\mathrm{kg})}_x(x_s)}.
+ \label{eq:required_mass}
+\end{equation}
+The code shows two curves.
+
+The first is the signed equivalent mass from Eq.~\eqref{eq:required_mass}. This quantity can be negative if the sign of the gravitational response at a given placement point is opposite to the measured target. A negative value does not correspond to a realizable positive mass, but it is useful as a diagnostic because it reveals where the geometry produces the wrong-sign gradient.
+
+The second is the positive feasible mass, obtained by masking all locations where Eq.~\eqref{eq:required_mass} returns a negative value. This curve answers the engineering question directly: at a given allowed placement position on the $x$ axis, how much positive mass is needed to reproduce the measured gradient?
+
+The inverse-design curve diverges near singular points where the source would overlap one of the interferometers, and also near any position where the unit-mass differential response approaches zero. The simulator leaves these regions blank rather than hiding the singular behaviour.
+
+\section{Model 2: forward scan of mass at one fixed position}
+
+The second source-mass model fixes the source coordinates $(x_M, y_M)$ and scans the mass value itself. This is a direct forward model for questions such as: if an object is known to sit at one location, how do the individual accelerations and the differential gradient scale as the mass is changed?
+
+Because Newtonian gravity is linear in mass, every acceleration in Eq.~\eqref{eq:newton_field} scales linearly with $M$. The simulator therefore plots the following quantities as functions of the mass value:
+\begin{align}
+ a_{x,21}(M), \qquad a_{x,22}(M), \qquad \Delta a_x(M), \qquad \Gamma_x(M) = \frac{\Delta a_x(M)}{L}.
+\end{align}
+In addition, because the Bragg beam is tilted by $\alpha$, the code also computes the gradient inferred from the Bragg-projected readout,
+\begin{equation}
+ \Gamma^{\mathrm{est}}_x(M) = \frac{g^{\mathrm{est}}_{x,22}(M) - g^{\mathrm{est}}_{x,21}(M)}{L}.
+\end{equation}
+This additional curve is important whenever the source mass has a non-zero vertical offset $y_M$, because then the experimentally inferred horizontal gradient need not coincide exactly with the true horizontal gradient.
+
+\section{Synthetic fringe display}
+
+To preserve a direct link between the inferred acceleration and the raw observable, the graphical interface generates synthetic fringes according to
+\begin{equation}
+ S_i(T^2) = C_i \cos\!\left(k_{\mathrm{eff}} a_{B,i} T^2 + \phi_{0,i}\right),
+ \label{eq:synthetic_signal}
+\end{equation}
+where $C_i$ is the contrast and $\phi_{0,i}$ is a phase offset. Two families of traces are displayed. One family uses the Bragg-axis accelerations inferred from the fringe inputs. The other uses the Bragg-axis accelerations predicted by the currently selected source mass. Their comparison provides an immediate visual check of whether the current source-mass geometry is consistent with the observed fringe periodicity.
+
+\section{Meaning of the main quantities}
+
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}p{0.50\textwidth}}
+\toprule
+Symbol & Units & Meaning \\
+\midrule
+$L$ & m & Horizontal separation between MIGA21 and MIGA22. \\
+$\alpha$ & rad or mrad & Angle between the Bragg axis and the horizontal $x$ axis. \\
+$\lambda$ & m or nm & Bragg wavelength used to compute $k_{\mathrm{eff}}$. \\
+$k_{\mathrm{eff}}$ & $\mathrm{m^{-1}}$ & Effective wave vector for first-order Bragg diffraction. \\
+$(x_M, y_M)$ & m & Coordinates of the source mass in the simulation plane. \\
+$M$ & kg & Source mass. \\
+$\mathbf{g}_i$ & $\mathrm{m/s^2}$ & Full gravitational acceleration vector at interferometer $i$. \\
+$g_{x,i}$ & $\mathrm{m/s^2}$ & True horizontal acceleration at interferometer $i$. \\
+$g_{B,i}$ & $\mathrm{m/s^2}$ & Source-mass acceleration projected on the Bragg axis. \\
+$a_{g,B}$ & $\mathrm{m/s^2}$ & Projection of the uniform laboratory gravity onto the Bragg axis, equal to $-g_0\sin\alpha$. \\
+$a^{\mathrm{tot}}_{B,i}$ & $\mathrm{m/s^2}$ & Total Bragg-axis acceleration inferred directly from the fringe observable before gravity subtraction. \\
+$a^{\mathrm{net}}_{B,i}$ & $\mathrm{m/s^2}$ & Bragg-axis acceleration after subtraction of the background gravity projection. \\
+$g^{\mathrm{est}}_{x,i}$ & $\mathrm{m/s^2}$ & Horizontal acceleration inferred from the Bragg projection using Eq.~\eqref{eq:x_estimate}. \\
+$T^2$ & $\mathrm{s^2}$ or $\mathrm{ms^2}$ & Scan variable used to reveal the interferometric fringes. \\
+$P_{T^2}$ & $\mathrm{s^2}$ or $\mathrm{ms^2}$ & Fringe period in a scan over $T^2$. \\
+$\omega_{T^2}$ & $\mathrm{rad/s^2}$ or $\mathrm{rad/ms^2}$ & Angular frequency of phase versus $T^2$. \\
+$a^{\mathrm{meas}}_x$ & $\mathrm{m/s^2}$ & Experimental horizontal acceleration inferred after subtracting the background-gravity Bragg projection. \\
+$\Delta a_x$ & $\mathrm{m/s^2}$ & Differential horizontal acceleration, always defined as MIGA22 minus MIGA21. \\
+$\Gamma_x$ & $\mathrm{s^{-2}}$ & Differential horizontal acceleration divided by the baseline. \\
+$M_{\mathrm{req}}(x_s)$ & kg & Positive or signed mass required at the horizontal location $x_s$ to match the measured gradient. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Software structure}
+
+The implementation is divided into a lightweight physics backend and a graphical interface.
+
+\paragraph{Physics backend.}
+The file \texttt{miga\_physics.py} contains the Newtonian field model, the Bragg-axis projection, the conversion between fringe observables and Bragg-axis acceleration, the mapping from Bragg-axis acceleration to inferred horizontal acceleration, the inverse-design calculation for a source constrained to the $x$ axis, and the forward mass scan at one fixed position.
+
+\paragraph{Graphical interface.}
+The file \texttt{gravity\_gradient\_simulator.py} provides a Tkinter-based interface with embedded Matplotlib figures. The right-hand side contains four interactive plots: the current geometry, the synthetic fringes, the inverse-design mass curve along the $x$ axis, and the forward mass scan at one fixed position. Standard Matplotlib pan, zoom and save interactions are exposed through the toolbar, and the hover/pick feedback reports curve coordinates directly in the GUI.
+
+\section{Assumptions and boundaries}
+
+The simulator is intentionally compact and therefore bounded.
+
+First, the source object is represented as a point mass. This is exact for a spherically symmetric mass observed outside its radius, but only an approximation for an extended or highly anisotropic object.
+
+Second, the interferometer phase is reduced to the leading-order term $k_{\mathrm{eff}} a_B T^2 + \phi_0$. Finite pulse duration, wavefront curvature, Coriolis coupling, vibration transfer functions, laser phase noise and other higher-order systematics are not included.
+
+Third, the conversion from the Bragg-axis signal to an inferred horizontal acceleration uses Eqs.~\eqref{eq:gravity_projection}--\eqref{eq:measured_x}. This removes the uniform laboratory-gravity projection before the horizontal inference is formed, but it still does not by itself recover the true horizontal acceleration if the source-induced vertical component of the acceleration field is appreciable.
+
+Fourth, the inverse-design model assumes that the object is constrained to the horizontal axis $y=0$. This is a deliberate model reduction that makes the required-mass curve directly interpretable as a placement map along the instrument axis.
+
+\section{Conclusion}
+
+The simulator provides a compact and explicit route from fringe observables to experimentally reported horizontal acceleration in a two-point Bragg gradiometer with a small beam tilt. By incorporating the angle $\alpha$, the code distinguishes between the true gravitational field, the acceleration projected along the Bragg axis, and the effective horizontal acceleration inferred from that projection. It then connects the measured differential gradient to two practical source-mass models: an inverse placement map along the $x$ axis and a forward mass scan at one fixed position. The result is a small but physically transparent tool for interpreting measured fringes and for designing source-mass configurations against a gradiometric target.
+
+\end{document}

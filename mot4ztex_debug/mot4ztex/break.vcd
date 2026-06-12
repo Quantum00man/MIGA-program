@@ -1,0 +1,15 @@
+$timescale 1ns $end
+$scope module loop1 $end
+$var reg 16 A2 ADDR_2 [15:0] $end
+$enddefinitions $end
+$dumpvars
+b0101011001111000 A2
+bxxxxxxxxxxxxxxxx A2
+$end
+#100
+#1000000000
+b1010010110100101 A2
+#2000000000
+b0101101001011010 A2
+#3000000000
+b1010010110100101 A2

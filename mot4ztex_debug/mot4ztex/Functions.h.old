@@ -1,0 +1,172 @@
+/* Functions.h: Function codes */
+/* M. Prevedelli (2009) */ 
+
+#include "Types.h"
+
+#ifndef _Functions_
+#define _Functions_
+
+#define iTest    (FUNLISTSIZE-1)
+#define fTest    (FUNLISTSIZE-1)
+
+/* id codes: must be less than FUNLISTSIZE */
+
+/* DDS #1 - addr GFIB 6 */
+#define iDDS1State     		1
+#define iDDS1SelfState     	2
+#define iDDS1Trig     		3
+
+/* DDS #2 - addr GFIB 7 */
+#define iDDS2State     		4
+#define iDDS2SelfState     	5
+#define iDDS2Trig     		6
+
+/* DDS #3 - addr GFIB 8 */
+#define iDDS3State     		7
+#define iDDS3SelfState     	8
+#define iDDS3RampCh0		9
+#define iDDS3RampCh1	       10
+#define iDDS3RampCh0Ch1	       11
+#define iDDS3Trig     	       12
+
+/* DAC #1 - addr GFIB 3 */
+#define iATTAOMPDHRefState     20
+#define iATTAOMDimpleState     21
+#define iATTAOMRepumpState     22
+#define iATTAOMTEM01State      23
+#define iATTAOMPDHRefSelfState 24
+#define iATTAOMDimpleSelfState 25
+#define iATTAOMRepumpSelfState 26
+#define iATTAOMTEM01SelfState  27
+#define iBRD1DACTrig           28
+
+/* DAC #2 - addr GFIB 4 */
+#define iATTAOMCoolState       30
+#define iBcompXState           31
+#define iBcompYState           32
+#define iBcompZState           33
+#define iATTAOMCoolSelfState   34
+#define iBcompXSelfState       35
+#define iBcompYSelfState       36
+#define iBcompZSelfState       37
+#define iBRD2DACTrig           38
+
+/* DAC #3 - addr GFIB 5 */
+#define iMOTBFieldState        40
+#define iFixLinePLState        41
+#define iOffsetLockFshiftState 42
+#define iPDHLockFshiftState    43
+#define iMOTBFieldSelfState    44
+#define iFixLinePLSelfState    45
+#define iOffsetLockFshiftSelfState     46
+#define iPDHLockFshiftSelfState 47
+#define iBRD3DACTrig           48
+
+#define iTrigger               50
+#define i3DMOTField            51
+#define iSHUTTER3DMOTA         52
+#define iSHUTTER3DMOTB         53
+#define iCameraTrigger         54
+#define i2DMOTField            55
+#define iSHUTTERProbe          56
+#define iSHUTTERTrap           57
+#define iSHUTTER2DMOT          58
+#define iSwitchPDHPZT          59
+#define iSHUTTERRepump         60
+#define iSwitch1529Lock        61
+#define iPowerLockSwitch       62
+#define iShutterCCDTrigger     63
+#define iTriggerAgilent        64
+#define iSwitchAgilentORFix    65
+
+#define iTrigger2              70
+#define iSHUTTERProbe1         71
+#define iSHUTTERProbe2         72
+#define iSwitchPDHHF           73
+#define iSwitch1529INTEG       74
+#define iTriggerFirefly        75
+#define iTTLD6_2               76
+#define iTTLD7_2               77
+#define iTTLD8_2               78
+#define iTTLD9_2               79
+#define iTTLD10_2              80
+#define iTTLD11_2              81
+#define iTTLD12_2              82
+#define iTTLD13_2              83
+#define iTTLD14_2              84
+#define iTTLD15_2              85
+
+#define iDAC8_0	               86
+#define iDAC8_1	               87
+#define iDAC8_2	               88
+#define iDAC8_3	               89
+#define iDAC8_4	               90
+#define iDAC8_5	               91
+#define iDAC8_6	               92
+#define iDAC8_7	               93
+
+
+/* families: must be less than FUNLISTSIZE */
+
+#define fDDS1State		1
+#define fDDS1SelfState		2
+#define fDDS1Trig		3
+
+#define fDDS2State		4
+#define fDDS2SelfState		5
+#define fDDS2Trig		6
+
+#define fDDS3State		7
+#define fDDS3SelfState		8
+#define fDDS3Ramp		9
+#define fDDS3Trig	       10
+
+#define fATTAOMPDHRefState     20
+#define fATTAOMDimpleState     21
+#define fATTAOMRepumpState     22
+#define fATTAOMTEM01State      23
+#define fATTAOMPDHRefSelfState 24
+#define fATTAOMDimpleSelfState 25
+#define fATTAOMRepumpSelfState 26
+#define fATTAOMTEM01SelfState  27
+#define fBRD1DACTrig           28
+
+#define fATTAOMCoolState       30
+#define fBcompXState           31
+#define fBcompYState           32
+#define fBcompZState           33
+#define fATTAOMCoolSelfState   34
+#define fBcompXSelfState       35
+#define fBcompYSelfState       36
+#define fBcompZSelfState       37
+#define fBRD2DACTrig           38
+
+#define fMOTBFieldState        40
+#define fFixLinePLState        41
+#define fOffsetLockFshiftState 42
+#define fPDHLockFshiftState    43
+#define fMOTBFieldSelfState    44
+#define fFixLinePLSelfState    45
+#define fOffsetLockFshiftSelfState     46
+#define fPDHLockFshiftSelfState 47
+#define fBRD3DACTrig           48
+
+#define fTTLD_1	               50
+#define fTTLD_2	               51
+
+#define fDAC8	               52
+
+#endif /* _Functions_ */
+
+
+
+
+
+
+
+
+
+
+
+
+

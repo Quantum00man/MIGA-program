@@ -1,0 +1,53 @@
+                Table of Codes             
+
+(1)	DDS #1 State
+(2)	DDS #1 Self State
+(3)	DDS #1 Trigger
+(4)	DDS #2 State
+(5)	DDS #2 Self State
+(6)	DDS #2 Trigger
+(7)	DDS #3 State
+(8)	DDS #3 Self State
+(9)	DDS #3 Trigger
+(10)	DDS #4 State
+(11)	DDS #4 Self State
+(12)	DDS #4 Trigger
+(13)	DDSIQ State
+(14)	DDSIQ Self State
+(15)	DDSIQ FSK
+(16)	DDSIQ Trigger
+(20)	DAC4 #1 Ch. 0
+(21)	DAC4 #1 Ch. 1
+(22)	DAC4 #1 Ch. 2
+(23)	DAC4 #1 Ch. 3
+(24)	DAC4 #1 Self Ch. 0
+(25)	DAC4 #1 Self Ch. 1
+(26)	DAC4 #1 Self Ch. 2
+(27)	DAC4 #1 Self Ch. 3
+(28)	DAC #1 Trigger
+(30)	DAC4 #2 Ch. 0
+(31)	DAC4 #2 Ch. 1
+(32)	DAC4 #2 Ch. 2
+(33)	DAC4 #2 Ch. 3
+(34)	DAC4 #2 Self Ch. 0
+(35)	DAC4 #2 Self Ch. 1
+(36)	DAC4 #2 Self Ch. 2
+(37)	DAC4 #2 Self Ch. 3
+(38)	DAC #2 Trigger
+(40)	TTL D0
+(41)	TTL D1
+(42)	TTL D2
+(43)	TTL D3
+(44)	TTL D4
+(45)	TTL D5
+(42)	TTL D6
+(47)	TTL D7
+(48)	TTL D8
+(49)	TTL D9
+(50)	TTL D10
+(51)	TTL D11
+(52)	TTL D12
+(53)	TTL D13
+(54)	TTL D14
+(55)	TTL D15
+(99)	GFIB

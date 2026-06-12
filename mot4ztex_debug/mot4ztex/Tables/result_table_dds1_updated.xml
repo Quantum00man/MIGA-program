@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<ad9958>
+  <elem>6<ch0><mode>sf</mode><fr>73884999.962</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>118999999.948</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>7<ch0><mode>sf</mode><fr>73947999.976</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>118739999.947</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>8<ch0><mode>sf</mode><fr>74009999.982</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>118499999.982</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>9<ch0><mode>sf</mode><fr>74072999.996</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>118239999.982</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>10<ch0><mode>sf</mode><fr>74134999.886</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>117999999.900</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>11<ch0><mode>sf</mode><fr>74197999.900</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>117739999.900</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>12<ch0><mode>sf</mode><fr>74259999.907</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>117499999.935</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>15<ch0><mode>sf</mode><fr>74449999.956</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>116739999.969</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>18<ch0><mode>sf</mode><fr>74634999.968</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>115999999.922</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>20<ch0><mode>sf</mode><fr>74759999.989</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>115489999.996</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>24<ch0><mode>sf</mode><fr>75010399.916</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>114489999.949</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>30<ch0><mode>sf</mode><fr>75385399.978</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>112999999.896</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>36<ch0><mode>sf</mode><fr>75760399.923</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>111491999.938</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>50<ch0><mode>sf</mode><fr>128010390.908</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>41329499.916</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>60<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>77259999.933</ev><dv>    299.886</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>105499999.947</ev><dv>   1199.893</dv><rr>10</rr></ch1></elem>
+  <elem>66<ch0><mode>sf</mode><fr>73884999.962</fr><am>200</am><ph>0</ph></ch0><ch1><mode>sf</mode><fr>176282999.921</fr><am>200</am><ph>0</ph></ch1></elem>
+  <elem>78<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>78384999.884</ev><dv>    411.994</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>100999999.908</ev><dv>   1649.954</dv><rr>10</rr></ch1></elem>
+  <elem>90<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>79139999.929</ev><dv>    487.897</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>97999999.998</ev><dv>   1949.957</dv><rr>10</rr></ch1></elem>
+  <elem>102<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>79879999.976</ev><dv>    561.937</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>94991999.911</ev><dv>   2249.959</dv><rr>10</rr></ch1></elem>
+  <elem>120<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>81009999.965</ev><dv>    674.976</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>90491999.988</ev><dv>   2699.904</dv><rr>10</rr></ch1></elem>
+  <elem>121<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>81009999.965</ev><dv>   1349.952</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>90491999.988</ev><dv>   5399.925</dv><rr>10</rr></ch1></elem>
+  <elem>150<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>82889999.961</ev><dv>    862.987</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>82991999.923</ev><dv>   3450.899</dv><rr>10</rr></ch1></elem>
+  <elem>180<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>84759999.998</ev><dv>   1049.950</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>75489999.959</ev><dv>   4200.963</dv><rr>10</rr></ch1></elem>
+  <elem>181<ch0><mode>ramp</mode><var>fr</var><fr>74634999.968</fr><am>200</am><ev>84759999.998</ev><dv>   1349.952</dv><rr>10</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>115999999.922</fr><am>200</am><ev>75489999.959</ev><dv>   5399.925</dv><rr>10</rr></ch1></elem>
+  <elem>362<ch0><mode>ramp</mode><var>fr</var><fr>74259999.907</fr><am>200</am><ev>77259999.933</ev><dv>      1.979</dv><rr>100</rr></ch0><ch1><mode>ramp</mode><var>fr</var><fr>117499999.935</fr><am>200</am><ev>105499999.947</ev><dv>     11.991</dv><rr>100</rr></ch1></elem>
+</ad9958>

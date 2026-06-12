@@ -1,0 +1,865 @@
+LOOP
+
+COMMENT
+
+Launching sequence for tmot5
+in progress testing version
+
+ENDCOMMENT
+
+INIT
+
+
+
+	DDS1 [0]				(2)
+	
+	DDS5 [0]				(14)
+
+ENDINIT
+
+INNER
+
+## Sequence to ckeck the signal of AOM 3D UP and AOM 3D DOWN ##
+
+##################################
+#            3D MOT              #<PARAMETER0>
+##################################
+
+#TURN ON SHIM FIELDS AND 3D MOT MAGNETS#
++2us Bais_coils_X=7.07 			(31)#7.128 7.1
++2us Bais_coils_Y=6.06 			(33)#6.102 6.05
++2us Bais_coils_Z=3.75 			(35)#3.75 3.75
+
++1ms 3DMOT_Coils = ON					(67) #MOT coils on
++2us Bais_coils = OFF					(65) #Bais coils on
++20us DDS1 [0]					(2) # scan from -1.9---3.0 13 11 13   2.8Gamma 9 (optimal)
++20us DDS4 [0]						(8)
++20us DDS5 [0]						(14) # -2.6 GAMMA   #5  -3.0 gamma(optimal) 7
++10us DDS4 trigger = OFF				(12)
+#TURN ON 3D MOT LIGHT#
++10us TTL 2DMOT_Shutter = ON 				(48) #2D MOT shutter up. 2D MOT on
++10us 3DMOT_Up_Shutter = ON 				(46) #shutter up. up AOM
++10us 3DMOT_Down_Shutter = ON 				(47) #shutter up. down AOM
++10us Detection_Shutter=OFF				(45) #shutter up
++2us Raman_Dw_Shutter=OFF				(40) #shutter up
++2us Raman_Up_Shutter=OFF				(41) #shutter up
++10us Repump_MOT_Shutter = ON				(42) #shutter up. repump
++10us Repump_push_Shutter = OFF			(43) #shutter up. repump
+
+#+10us AOM_3DMOT_Up= OFF					(51) #AOM 3D_Up enabled
+
+#+10us AOM_3DMOT_Down= ON				(53) #AOM 3D_Dw enabled
++10us AOM_Raman1= OFF 					(49) #AOM repump enabled
++10us AOM_Raman2= ON 					(50) #AOM Raman2 enabled
+
+#WARNING. OUTPUT LIGHT POSSIBLE#
+
+#3D MOT LIGHT INTENSITY and frequency#
++100us AOM_3DMOT_Up =0.950	(21) #up beams. power set 950 650 550  #24.5 mW 740 660 690 760 600
+###################################################################################### Detuning between UP and DOWN for launching
++30us AOM_3DMOT_Down =0.950		(20) #down beams. power set 950 500 #26 mW 380 0.5 0.550 590 635 650 580 510 600
+########################################################################################
+
++20us AOM_Detection =0.4				(22) #thermalization 1.0
++10us AOM_Det= OFF					(52)
++30us AOM_Raman1 =0.950					(23) #repump. power set 30
++20us AOM_Raman2 =0.950					(24) #thermalization
+
+
+
+#WARNING. OUTPUT LIGHT GUARANTEED#
+
+
+
+################################
+#       3D MOT release		#
+################################
+
+
+# ********** molasses ************************************
++300ms DDS1 [4]					(1) #cooling for molasses 2.8gamma-->3.2gamma
++300ms TTL 2DMOT_Shutter = OFF			(48) #loading time 800 350 600
+
++55us TTL 3DMOT_Coils = OFF				(67) #MOT coils off, delay 3.23 10 3
++1us DDS1 trigger					(6)
+#********** launching *********************************** 
+
++1us DDS4 [6]						(7)  #changes freq for launch 6200 6500 2, same amplitude for 3D DOWN and UP
++2ms DDS1 [3]						(1)  #-2.8gamma for launching
++5ms DDS4 trigger 					(12) #Change the state from here 18 28 32 36 10
++1us DDS1 trigger					(6)
+
++2us Exp_trig = ON      	   			(60)
+
+# ********** frequency ramp ***************************************
+
++700us DDS1 [1]					(2) # Freq ramp 710 -1.9----15GAMMA ##Launchingtime## best parameter:450, optimal gamma end value: -32 GAMMA 12.35 microKelvin 490 3.8uK 600 800 300
+
+
++20us DDS1 ramp = ON 					(5)  
+# ********** power ramp ***************************************
+
++800us AOM_3DMOT_Up =0.939562 			(21) #750
++5us AOM_3DMOT_Down =0.939562 			(20)
++5us AOM_Raman1 =0.939562 			(23)
++5us AOM_3DMOT_Up =0.933349 			(21)
++5us AOM_3DMOT_Down =0.933349 			(20)
++5us AOM_Raman1 =0.933349 			(23)
++5us AOM_3DMOT_Up =0.923541 			(21)
++5us AOM_3DMOT_Down =0.923541 			(20)
++5us AOM_Raman1 =0.923541 			(23)
++5us AOM_3DMOT_Up =0.908215 			(21)
++5us AOM_3DMOT_Down =0.908215 			(20)
++5us AOM_Raman1 =0.908215 			(23)
++5us AOM_3DMOT_Up =0.884640 			(21)
++5us AOM_3DMOT_Down =0.884640 			(20)
++5us AOM_Raman1 =0.884640 			(23)
++5us AOM_3DMOT_Up =0.849238 			(21)
++5us AOM_3DMOT_Down =0.849238 			(20)
++5us AOM_Raman1 =0.849238 			(23)
++5us AOM_3DMOT_Up =0.797957 			(21)
++5us AOM_3DMOT_Down =0.797957 			(20)
++5us AOM_Raman1 =0.797957 			(23)
++5us AOM_3DMOT_Up =0.727419 			(21)
++5us AOM_3DMOT_Down =0.727419 			(20)
++5us AOM_Raman1 =0.727419 			(23)
++5us AOM_3DMOT_Up =0.636992 			(21)
++5us AOM_3DMOT_Down =0.636992 			(20)
++5us AOM_Raman1 =0.636992 			(23)
++5us AOM_3DMOT_Up =0.530989 			(21)
++5us AOM_3DMOT_Down =0.530989 			(20)
++5us AOM_Raman1 =0.530989 			(23)
++5us AOM_3DMOT_Up =0.419011 			(21)
++5us AOM_3DMOT_Down =0.419011 			(20)
++5us AOM_Raman1 =0.419011 			(23)
++5us AOM_3DMOT_Up =0.313008 			(21)
++5us AOM_3DMOT_Down =0.313008 			(20)
++5us AOM_Raman1 =0.313008 			(23)
++5us AOM_3DMOT_Up =0.222581 			(21)
++5us AOM_3DMOT_Down =0.222581 			(20)
++5us AOM_Raman1 =0.222581 			(23)
++5us AOM_3DMOT_Up =0.152043 			(21)
++5us AOM_3DMOT_Down =0.152043 			(20)
++5us AOM_Raman1 =0.152043 			(23)
++5us AOM_3DMOT_Up =0.100762 			(21)
++5us AOM_3DMOT_Down =0.100762 			(20)
++5us AOM_Raman1 =0.100762 			(23)
++5us AOM_3DMOT_Up =0.065360 			(21)
++5us AOM_3DMOT_Down =0.065360 			(20)
++5us AOM_Raman1 =0.065360 			(23)
++5us AOM_3DMOT_Up =0.041785 			(21)
++5us AOM_3DMOT_Down =0.041785 			(20)
++5us AOM_Raman1 =0.041785 			(23)
++5us AOM_3DMOT_Up =0.026459 			(21)
++5us AOM_3DMOT_Down =0.026459 			(20)
++5us AOM_Raman1 =0.026459 			(23)
++5us AOM_3DMOT_Up =0.016651 			(21)
++5us AOM_3DMOT_Down =0.016651 			(20)
++5us AOM_Raman1 =0.016651 			(23)
++5us AOM_3DMOT_Up =0.010000 			(21)
++5us AOM_3DMOT_Down =0.010000 			(20)
++5us AOM_Raman1 =0.010000 			(23)
+
+
+
+
+# ********** close  ***************************************
+     	   			
++2ms AOM_3DMOT_Up= ON				(51) #2.56 2.86 2.96 2.36 5.1 7 8 12 15.1 2.56 0.36
++1us Bais_coils = ON					(65) #Bais coils off
++2us Bais_coils_X=5 				(31)
++2us Bais_coils_Y=5 				(33)
++2us Bais_coils_Z=5 				(35)
++0.2us TTL_AOM_Raman1 = ON				(49)#0.6 0.3 BUG: with 368 microsecond the detection switch off directly 367
+
++1us AOM_3DMOT_Down= ON				(53) #1.8 5.8 0.1
+
++1us TTL Repump_MOT_Shutter = OFF			(42)
++14us TTL 3DMOT_Up_Shutter = OFF 			(46) #shutter up. up AOM
++10us TTL 3DMOT_Down_Shutter = OFF 			(47) #shutter up. down AOM 5
++2us TTL_bias_bar = ON				(66)#2
+
++5ms AOM_3DMOT_Down= OFF				(53) # thermalization
++2us AOM_3DMOT_Up= OFF					(51) # thermalization
++5us AOM_3DMOT_Up =0.950 				(21)
++5us AOM_3DMOT_Down =0.950 				(20)
+
++1us AOM_Raman1 =0.223					(23) #repump. power set 30 0.293  45mw; 0.2435 15mw 0.223 4.285mw
++2us AOM_Raman2 =0.33					(24) #thermalization       406 0.383 25mw; 0.3165 8.3mw 0.31 7.77mw
+
+######################################
+#   Raman_down_velocity_selection    #<PARAMETER0>
+######################################
++18us DDS1 [118]					(2) #Set raman delt -771.7 mF0 129; 93 120 69 118
++31.7ms TTL_AOM_Raman1 = ON				(49)#42.4 33.4
+
++2us Raman_Dw_Shutter=OFF				(40) #turn on shutter
++15.2ms TTL_AOM_Raman1 = OFF				(49)#Raman down pulse #5000 10 15 15.1
+
+
++136us TTL_AOM_Raman1 = ON				(49) #150 pulse duration 270
++2us Raman_Dw_Shutter= OFF				(40) #turn on shutter
++2us AOM_Det= ON					(52)
++2us Det_Shutter = ON					(45)
++1us redpitaya = ON				(68)
++5ms TTL_AOM_Raman1 = OFF				(49)
+ #
+
+######################################
+#   Detection_push    #
+######################################<PARAMETER0>
++2us AOM_Detection =0.28			(22)#0.69 0.9
++2us DDS1 [10]						(2) #10 TO NOT SATURATE
+#+2us AOM_Det= ON					(52)
+#+2us Det_Shutter = ON					(45)
++3722us AOM_Det= OFF					(52) #11000 10609 total 10879 10673 total8206 8070 9770
++300us AOM_Det= ON					(52)#350 920
++1us redpitaya = OFF					(68)
++2us Det_shutter = OFF					(45)
++5ms AOM_Det= OFF					(52)
++2us AOM_Raman1 =0.950					(23) #repump. power set 30 0.293  45mw; 0.2435 15mw0.560
++2us AOM_Raman2 =0.950					(24) #thermalization       406 0.383 25mw; 0.3165 8.3mw
++2us AOM_Detection =0.4				(22)
+######################################<PARAMETER0>
+#   Raman_UP_State_selection    #
+######################################
++20us DDS1 [139]					(2) #113 95 zero 113 140 167 176 362
++7390us TTL_AOM_Raman1 = ON				(49)#42.4 6670 total 7020 6100 total 16773 7773 6770
++2us Raman_Up_Shutter=OFF				(41)
++9193us TTL_AOM_Raman1 = OFF				(49)#RAMAN PULSE MOMENT 10000#10333 9504 TOTAL 
++38us TTL_AOM_Raman1 = ON				(49) #Raman up pulse time 62 59 50 40 35
++2us Raman_Up_Shutter=OFF				(41)
++6021us TTL_AOM_Raman1 = OFF				(49)#5000 total 5059 ;5009 5019 5024 total5059
++2us AOM_Raman1 =0.250					(23)
+
+################################
+#       F1 Push			#<PARAMETER0>
+################################
++2us DDS1 [6]						(2)
++2us  TTL_AOM_Raman1 = ON				(49)#F1push 9333
++2us Repump_push_Shutter = OFF				(43)
++7611us TTL_AOM_Raman1 = OFF				(49)#F1push 9331 10334
++100us TTL_AOM_Raman1 = ON				(49)#900 400 200 
++2us Repump_push_Shutter = OFF				(43)
++5520us TTL_AOM_Raman1 = OFF				(49)#5000 total14333 total5720
++2us AOM_Raman1 =0.950					(23) #repump. power set 30 0.293  45mw; 0.2435 15mw 0.560
++2us AOM_Raman2 =0.950					(24) #thermalization       406 0.383 25mw; 0.3165 8.3mw
+
+
+
+######################################
+#   Bragg pulse                 #\
+######################################
+
++255566us Gaussian_pulse = 0		(32) #313034 315757 249207 249518
+
+#+30ms Gaussian_pulse = 0		(32)
++0.2us Gaussian_pulse = 0.010		(32)
++0.2us Gaussian_pulse = 0.011		(32)
++0.2us Gaussian_pulse = 0.012		(32)
++0.2us Gaussian_pulse = 0.012		(32)
++0.2us Gaussian_pulse = 0.013		(32)
++0.2us Gaussian_pulse = 0.013		(32)
++0.2us Gaussian_pulse = 0.014		(32)
++0.2us Gaussian_pulse = 0.015		(32)
++0.2us Gaussian_pulse = 0.015		(32)
++0.2us Gaussian_pulse = 0.016		(32)
++0.2us Gaussian_pulse = 0.017		(32)
++0.2us Gaussian_pulse = 0.018		(32)
++0.2us Gaussian_pulse = 0.018		(32)
++0.2us Gaussian_pulse = 0.019		(32)
++0.2us Gaussian_pulse = 0.020		(32)
++0.2us Gaussian_pulse = 0.021		(32)
++0.2us Gaussian_pulse = 0.022		(32)
++0.2us Gaussian_pulse = 0.023		(32)
++0.2us Gaussian_pulse = 0.024		(32)
++0.2us Gaussian_pulse = 0.025		(32)
++0.2us Gaussian_pulse = 0.027		(32)
++0.2us Gaussian_pulse = 0.028		(32)
++0.2us Gaussian_pulse = 0.029		(32)
++0.2us Gaussian_pulse = 0.030		(32)
++0.2us Gaussian_pulse = 0.032		(32)
++0.2us Gaussian_pulse = 0.033		(32)
++0.2us Gaussian_pulse = 0.035		(32)
++0.2us Gaussian_pulse = 0.036		(32)
++0.2us Gaussian_pulse = 0.038		(32)
++0.2us Gaussian_pulse = 0.039		(32)
++0.2us Gaussian_pulse = 0.041		(32)
++0.2us Gaussian_pulse = 0.043		(32)
++0.2us Gaussian_pulse = 0.045		(32)
++0.2us Gaussian_pulse = 0.047		(32)
++0.2us Gaussian_pulse = 0.049		(32)
++0.2us Gaussian_pulse = 0.051		(32)
++0.2us Gaussian_pulse = 0.053		(32)
++0.2us Gaussian_pulse = 0.055		(32)
++0.2us Gaussian_pulse = 0.058		(32)
++0.2us Gaussian_pulse = 0.060		(32)
++0.2us Gaussian_pulse = 0.063		(32)
++0.2us Gaussian_pulse = 0.065		(32)
++0.2us Gaussian_pulse = 0.068		(32)
++0.2us Gaussian_pulse = 0.071		(32)
++0.2us Gaussian_pulse = 0.074		(32)
++0.2us Gaussian_pulse = 0.077		(32)
++0.2us Gaussian_pulse = 0.080		(32)
++0.2us Gaussian_pulse = 0.083		(32)
++0.2us Gaussian_pulse = 0.087		(32)
++0.2us Gaussian_pulse = 0.090		(32)
++0.2us Gaussian_pulse = 0.094		(32)
++0.2us Gaussian_pulse = 0.097		(32)
++0.2us Gaussian_pulse = 0.101		(32)
++0.2us Gaussian_pulse = 0.105		(32)
++0.2us Gaussian_pulse = 0.109		(32)
++0.2us Gaussian_pulse = 0.114		(32)
++0.2us Gaussian_pulse = 0.118		(32)
++0.2us Gaussian_pulse = 0.123		(32)
++0.2us Gaussian_pulse = 0.128		(32)
++0.2us Gaussian_pulse = 0.132		(32)
++0.2us Gaussian_pulse = 0.138		(32)
++0.2us Gaussian_pulse = 0.143		(32)
++0.2us Gaussian_pulse = 0.148		(32)
++0.2us Gaussian_pulse = 0.154		(32)
++0.2us Gaussian_pulse = 0.160		(32)
++0.2us Gaussian_pulse = 0.166		(32)
++0.2us Gaussian_pulse = 0.172		(32)
++0.2us Gaussian_pulse = 0.178		(32)
++0.2us Gaussian_pulse = 0.185		(32)
++0.2us Gaussian_pulse = 0.191		(32)
++0.2us Gaussian_pulse = 0.198		(32)
++0.2us Gaussian_pulse = 0.206		(32)
++0.2us Gaussian_pulse = 0.213		(32)
++0.2us Gaussian_pulse = 0.221		(32)
++0.2us Gaussian_pulse = 0.229		(32)
++0.2us Gaussian_pulse = 0.237		(32)
++0.2us Gaussian_pulse = 0.245		(32)
++0.2us Gaussian_pulse = 0.254		(32)
++0.2us Gaussian_pulse = 0.263		(32)
++0.2us Gaussian_pulse = 0.272		(32)
++0.2us Gaussian_pulse = 0.281		(32)
++0.2us Gaussian_pulse = 0.291		(32)
++0.2us Gaussian_pulse = 0.301		(32)
++0.2us Gaussian_pulse = 0.311		(32)
++0.2us Gaussian_pulse = 0.321		(32)
++0.2us Gaussian_pulse = 0.332		(32)
++0.2us Gaussian_pulse = 0.343		(32)
++0.2us Gaussian_pulse = 0.355		(32)
++0.2us Gaussian_pulse = 0.367		(32)
++0.2us Gaussian_pulse = 0.379		(32)
++0.2us Gaussian_pulse = 0.391		(32)
++0.2us Gaussian_pulse = 0.404		(32)
++0.2us Gaussian_pulse = 0.417		(32)
++0.2us Gaussian_pulse = 0.430		(32)
++0.2us Gaussian_pulse = 0.444		(32)
++0.2us Gaussian_pulse = 0.458		(32)
++0.2us Gaussian_pulse = 0.473		(32)
++0.2us Gaussian_pulse = 0.488		(32)
++0.2us Gaussian_pulse = 0.503		(32)
++0.2us Gaussian_pulse = 0.519		(32)
++0.2us Gaussian_pulse = 0.535		(32)
++0.2us Gaussian_pulse = 0.551		(32)
++0.2us Gaussian_pulse = 0.568		(32)
++0.2us Gaussian_pulse = 0.585		(32)
++0.2us Gaussian_pulse = 0.603		(32)
++0.2us Gaussian_pulse = 0.621		(32)
++0.2us Gaussian_pulse = 0.639		(32)
++0.2us Gaussian_pulse = 0.658		(32)
++0.2us Gaussian_pulse = 0.678		(32)
++0.2us Gaussian_pulse = 0.697		(32)
++0.2us Gaussian_pulse = 0.718		(32)
++0.2us Gaussian_pulse = 0.738		(32)
++0.2us Gaussian_pulse = 0.760		(32)
++0.2us Gaussian_pulse = 0.781		(32)
++0.2us Gaussian_pulse = 0.803		(32)
++0.2us Gaussian_pulse = 0.826		(32)
++0.2us Gaussian_pulse = 0.849		(32)
++0.2us Gaussian_pulse = 0.873		(32)
++0.2us Gaussian_pulse = 0.897		(32)
++0.2us Gaussian_pulse = 0.921		(32)
++0.2us Gaussian_pulse = 0.946		(32)
++0.2us Gaussian_pulse = 0.972		(32)
++0.2us Gaussian_pulse = 0.998		(32)
++0.2us Gaussian_pulse = 1.025		(32)
++0.2us Gaussian_pulse = 1.052		(32)
++0.2us Gaussian_pulse = 1.079		(32)
++0.2us Gaussian_pulse = 1.108		(32)
++0.2us Gaussian_pulse = 1.136		(32)
++0.2us Gaussian_pulse = 1.166		(32)
++0.2us Gaussian_pulse = 1.195		(32)
++0.2us Gaussian_pulse = 1.226		(32)
++0.2us Gaussian_pulse = 1.257		(32)
++0.2us Gaussian_pulse = 1.288		(32)
++0.2us Gaussian_pulse = 1.320		(32)
++0.2us Gaussian_pulse = 1.353		(32)
++0.2us Gaussian_pulse = 1.386		(32)
++0.2us Gaussian_pulse = 1.419		(32)
++0.2us Gaussian_pulse = 1.454		(32)
++0.2us Gaussian_pulse = 1.488		(32)
++0.2us Gaussian_pulse = 1.524		(32)
++0.2us Gaussian_pulse = 1.560		(32)
++0.2us Gaussian_pulse = 1.596		(32)
++0.2us Gaussian_pulse = 1.633		(32)
++0.2us Gaussian_pulse = 1.671		(32)
++0.2us Gaussian_pulse = 1.709		(32)
++0.2us Gaussian_pulse = 1.747		(32)
++0.2us Gaussian_pulse = 1.787		(32)
++0.2us Gaussian_pulse = 1.826		(32)
++0.2us Gaussian_pulse = 1.867		(32)
++0.2us Gaussian_pulse = 1.908		(32)
++0.2us Gaussian_pulse = 1.949		(32)
++0.2us Gaussian_pulse = 1.991		(32)
++0.2us Gaussian_pulse = 2.034		(32)
++0.2us Gaussian_pulse = 2.077		(32)
++0.2us Gaussian_pulse = 2.120		(32)
++0.2us Gaussian_pulse = 2.164		(32)
++0.2us Gaussian_pulse = 2.209		(32)
++0.2us Gaussian_pulse = 2.254		(32)
++0.2us Gaussian_pulse = 2.300		(32)
++0.2us Gaussian_pulse = 2.346		(32)
++0.2us Gaussian_pulse = 2.393		(32)
++0.2us Gaussian_pulse = 2.440		(32)
++0.2us Gaussian_pulse = 2.487		(32)
++0.2us Gaussian_pulse = 2.536		(32)
++0.2us Gaussian_pulse = 2.584		(32)
++0.2us Gaussian_pulse = 2.633		(32)
++0.2us Gaussian_pulse = 2.683		(32)
++0.2us Gaussian_pulse = 2.733		(32)
++0.2us Gaussian_pulse = 2.783		(32)
++0.2us Gaussian_pulse = 2.834		(32)
++0.2us Gaussian_pulse = 2.885		(32)
++0.2us Gaussian_pulse = 2.937		(32)
++0.2us Gaussian_pulse = 2.989		(32)
++0.2us Gaussian_pulse = 3.041		(32)
++0.2us Gaussian_pulse = 3.094		(32)
++0.2us Gaussian_pulse = 3.147		(32)
++0.2us Gaussian_pulse = 3.200		(32)
++0.2us Gaussian_pulse = 3.254		(32)
++0.2us Gaussian_pulse = 3.308		(32)
++0.2us Gaussian_pulse = 3.362		(32)
++0.2us Gaussian_pulse = 3.417		(32)
++0.2us Gaussian_pulse = 3.472		(32)
++0.2us Gaussian_pulse = 3.527		(32)
++0.2us Gaussian_pulse = 3.582		(32)
++0.2us Gaussian_pulse = 3.638		(32)
++0.2us Gaussian_pulse = 3.694		(32)
++0.2us Gaussian_pulse = 3.750		(32)
++0.2us Gaussian_pulse = 3.806		(32)
++0.2us Gaussian_pulse = 3.862		(32)
++0.2us Gaussian_pulse = 3.919		(32)
++0.2us Gaussian_pulse = 3.975		(32)
++0.2us Gaussian_pulse = 4.032		(32)
++0.2us Gaussian_pulse = 4.088		(32)
++0.2us Gaussian_pulse = 4.145		(32)
++0.2us Gaussian_pulse = 4.202		(32)
++0.2us Gaussian_pulse = 4.259		(32)
++0.2us Gaussian_pulse = 4.316		(32)
++0.2us Gaussian_pulse = 4.372		(32)
++0.2us Gaussian_pulse = 4.429		(32)
++0.2us Gaussian_pulse = 4.486		(32)
++0.2us Gaussian_pulse = 4.542		(32)
++0.2us Gaussian_pulse = 4.599		(32)
++0.2us Gaussian_pulse = 4.655		(32)
++0.2us Gaussian_pulse = 4.711		(32)
++0.2us Gaussian_pulse = 4.767		(32)
++0.2us Gaussian_pulse = 4.823		(32)
++0.2us Gaussian_pulse = 4.879		(32)
++0.2us Gaussian_pulse = 4.934		(32)
++0.2us Gaussian_pulse = 4.989		(32)
++0.2us Gaussian_pulse = 5.044		(32)
++0.2us Gaussian_pulse = 5.098		(32)
++0.2us Gaussian_pulse = 5.153		(32)
++0.2us Gaussian_pulse = 5.206		(32)
++0.2us Gaussian_pulse = 5.260		(32)
++0.2us Gaussian_pulse = 5.313		(32)
++0.2us Gaussian_pulse = 5.365		(32)
++0.2us Gaussian_pulse = 5.418		(32)
++0.2us Gaussian_pulse = 5.469		(32)
++0.2us Gaussian_pulse = 5.520		(32)
++0.2us Gaussian_pulse = 5.571		(32)
++0.2us Gaussian_pulse = 5.621		(32)
++0.2us Gaussian_pulse = 5.671		(32)
++0.2us Gaussian_pulse = 5.720		(32)
++0.2us Gaussian_pulse = 5.768		(32)
++0.2us Gaussian_pulse = 5.816		(32)
++0.2us Gaussian_pulse = 5.863		(32)
++0.2us Gaussian_pulse = 5.909		(32)
++0.2us Gaussian_pulse = 5.955		(32)
++0.2us Gaussian_pulse = 6.000		(32)
++0.2us Gaussian_pulse = 6.044		(32)
++0.2us Gaussian_pulse = 6.087		(32)
++0.2us Gaussian_pulse = 6.130		(32)
++0.2us Gaussian_pulse = 6.172		(32)
++0.2us Gaussian_pulse = 6.213		(32)
++0.2us Gaussian_pulse = 6.253		(32)
++0.2us Gaussian_pulse = 6.292		(32)
++0.2us Gaussian_pulse = 6.331		(32)
++0.2us Gaussian_pulse = 6.368		(32)
++0.2us Gaussian_pulse = 6.405		(32)
++0.2us Gaussian_pulse = 6.441		(32)
++0.2us Gaussian_pulse = 6.475		(32)
++0.2us Gaussian_pulse = 6.509		(32)
++0.2us Gaussian_pulse = 6.542		(32)
++0.2us Gaussian_pulse = 6.573		(32)
++0.2us Gaussian_pulse = 6.604		(32)
++0.2us Gaussian_pulse = 6.634		(32)
++0.2us Gaussian_pulse = 6.662		(32)
++0.2us Gaussian_pulse = 6.690		(32)
++0.2us Gaussian_pulse = 6.716		(32)
++0.2us Gaussian_pulse = 6.742		(32)
++0.2us Gaussian_pulse = 6.766		(32)
++0.2us Gaussian_pulse = 6.789		(32)
++0.2us Gaussian_pulse = 6.811		(32)
++0.2us Gaussian_pulse = 6.831		(32)
++0.2us Gaussian_pulse = 6.851		(32)
++0.2us Gaussian_pulse = 6.869		(32)
++0.2us Gaussian_pulse = 6.887		(32)
++0.2us Gaussian_pulse = 6.903		(32)
++0.2us Gaussian_pulse = 6.918		(32)
++0.2us Gaussian_pulse = 6.931		(32)
++0.2us Gaussian_pulse = 6.944		(32)
++0.2us Gaussian_pulse = 6.955		(32)
++0.2us Gaussian_pulse = 6.965		(32)
++0.2us Gaussian_pulse = 6.974		(32)
++0.2us Gaussian_pulse = 6.981		(32)
++0.2us Gaussian_pulse = 6.987		(32)
++0.2us Gaussian_pulse = 6.992		(32)
++0.2us Gaussian_pulse = 6.996		(32)
++0.2us Gaussian_pulse = 6.999		(32)
++0.2us Gaussian_pulse = 7.000		(32)
++0.2us Gaussian_pulse = 7.000		(32)
++0.2us Gaussian_pulse = 6.999		(32)
++0.2us Gaussian_pulse = 6.996		(32)
++0.2us Gaussian_pulse = 6.992		(32)
++0.2us Gaussian_pulse = 6.987		(32)
++0.2us Gaussian_pulse = 6.981		(32)
++0.2us Gaussian_pulse = 6.974		(32)
++0.2us Gaussian_pulse = 6.965		(32)
++0.2us Gaussian_pulse = 6.955		(32)
++0.2us Gaussian_pulse = 6.944		(32)
++0.2us Gaussian_pulse = 6.931		(32)
++0.2us Gaussian_pulse = 6.918		(32)
++0.2us Gaussian_pulse = 6.903		(32)
++0.2us Gaussian_pulse = 6.887		(32)
++0.2us Gaussian_pulse = 6.869		(32)
++0.2us Gaussian_pulse = 6.851		(32)
++0.2us Gaussian_pulse = 6.831		(32)
++0.2us Gaussian_pulse = 6.811		(32)
++0.2us Gaussian_pulse = 6.789		(32)
++0.2us Gaussian_pulse = 6.766		(32)
++0.2us Gaussian_pulse = 6.742		(32)
++0.2us Gaussian_pulse = 6.716		(32)
++0.2us Gaussian_pulse = 6.690		(32)
++0.2us Gaussian_pulse = 6.662		(32)
++0.2us Gaussian_pulse = 6.634		(32)
++0.2us Gaussian_pulse = 6.604		(32)
++0.2us Gaussian_pulse = 6.573		(32)
++0.2us Gaussian_pulse = 6.542		(32)
++0.2us Gaussian_pulse = 6.509		(32)
++0.2us Gaussian_pulse = 6.475		(32)
++0.2us Gaussian_pulse = 6.441		(32)
++0.2us Gaussian_pulse = 6.405		(32)
++0.2us Gaussian_pulse = 6.368		(32)
++0.2us Gaussian_pulse = 6.331		(32)
++0.2us Gaussian_pulse = 6.292		(32)
++0.2us Gaussian_pulse = 6.253		(32)
++0.2us Gaussian_pulse = 6.213		(32)
++0.2us Gaussian_pulse = 6.172		(32)
++0.2us Gaussian_pulse = 6.130		(32)
++0.2us Gaussian_pulse = 6.087		(32)
++0.2us Gaussian_pulse = 6.044		(32)
++0.2us Gaussian_pulse = 6.000		(32)
++0.2us Gaussian_pulse = 5.955		(32)
++0.2us Gaussian_pulse = 5.909		(32)
++0.2us Gaussian_pulse = 5.863		(32)
++0.2us Gaussian_pulse = 5.816		(32)
++0.2us Gaussian_pulse = 5.768		(32)
++0.2us Gaussian_pulse = 5.720		(32)
++0.2us Gaussian_pulse = 5.671		(32)
++0.2us Gaussian_pulse = 5.621		(32)
++0.2us Gaussian_pulse = 5.571		(32)
++0.2us Gaussian_pulse = 5.520		(32)
++0.2us Gaussian_pulse = 5.469		(32)
++0.2us Gaussian_pulse = 5.418		(32)
++0.2us Gaussian_pulse = 5.365		(32)
++0.2us Gaussian_pulse = 5.313		(32)
++0.2us Gaussian_pulse = 5.260		(32)
++0.2us Gaussian_pulse = 5.206		(32)
++0.2us Gaussian_pulse = 5.153		(32)
++0.2us Gaussian_pulse = 5.098		(32)
++0.2us Gaussian_pulse = 5.044		(32)
++0.2us Gaussian_pulse = 4.989		(32)
++0.2us Gaussian_pulse = 4.934		(32)
++0.2us Gaussian_pulse = 4.879		(32)
++0.2us Gaussian_pulse = 4.823		(32)
++0.2us Gaussian_pulse = 4.767		(32)
++0.2us Gaussian_pulse = 4.711		(32)
++0.2us Gaussian_pulse = 4.655		(32)
++0.2us Gaussian_pulse = 4.599		(32)
++0.2us Gaussian_pulse = 4.542		(32)
++0.2us Gaussian_pulse = 4.486		(32)
++0.2us Gaussian_pulse = 4.429		(32)
++0.2us Gaussian_pulse = 4.372		(32)
++0.2us Gaussian_pulse = 4.316		(32)
++0.2us Gaussian_pulse = 4.259		(32)
++0.2us Gaussian_pulse = 4.202		(32)
++0.2us Gaussian_pulse = 4.145		(32)
++0.2us Gaussian_pulse = 4.088		(32)
++0.2us Gaussian_pulse = 4.032		(32)
++0.2us Gaussian_pulse = 3.975		(32)
++0.2us Gaussian_pulse = 3.919		(32)
++0.2us Gaussian_pulse = 3.862		(32)
++0.2us Gaussian_pulse = 3.806		(32)
++0.2us Gaussian_pulse = 3.750		(32)
++0.2us Gaussian_pulse = 3.694		(32)
++0.2us Gaussian_pulse = 3.638		(32)
++0.2us Gaussian_pulse = 3.582		(32)
++0.2us Gaussian_pulse = 3.527		(32)
++0.2us Gaussian_pulse = 3.472		(32)
++0.2us Gaussian_pulse = 3.417		(32)
++0.2us Gaussian_pulse = 3.362		(32)
++0.2us Gaussian_pulse = 3.308		(32)
++0.2us Gaussian_pulse = 3.254		(32)
++0.2us Gaussian_pulse = 3.200		(32)
++0.2us Gaussian_pulse = 3.147		(32)
++0.2us Gaussian_pulse = 3.094		(32)
++0.2us Gaussian_pulse = 3.041		(32)
++0.2us Gaussian_pulse = 2.989		(32)
++0.2us Gaussian_pulse = 2.937		(32)
++0.2us Gaussian_pulse = 2.885		(32)
++0.2us Gaussian_pulse = 2.834		(32)
++0.2us Gaussian_pulse = 2.783		(32)
++0.2us Gaussian_pulse = 2.733		(32)
++0.2us Gaussian_pulse = 2.683		(32)
++0.2us Gaussian_pulse = 2.633		(32)
++0.2us Gaussian_pulse = 2.584		(32)
++0.2us Gaussian_pulse = 2.536		(32)
++0.2us Gaussian_pulse = 2.487		(32)
++0.2us Gaussian_pulse = 2.440		(32)
++0.2us Gaussian_pulse = 2.393		(32)
++0.2us Gaussian_pulse = 2.346		(32)
++0.2us Gaussian_pulse = 2.300		(32)
++0.2us Gaussian_pulse = 2.254		(32)
++0.2us Gaussian_pulse = 2.209		(32)
++0.2us Gaussian_pulse = 2.164		(32)
++0.2us Gaussian_pulse = 2.120		(32)
++0.2us Gaussian_pulse = 2.077		(32)
++0.2us Gaussian_pulse = 2.034		(32)
++0.2us Gaussian_pulse = 1.991		(32)
++0.2us Gaussian_pulse = 1.949		(32)
++0.2us Gaussian_pulse = 1.908		(32)
++0.2us Gaussian_pulse = 1.867		(32)
++0.2us Gaussian_pulse = 1.826		(32)
++0.2us Gaussian_pulse = 1.787		(32)
++0.2us Gaussian_pulse = 1.747		(32)
++0.2us Gaussian_pulse = 1.709		(32)
++0.2us Gaussian_pulse = 1.671		(32)
++0.2us Gaussian_pulse = 1.633		(32)
++0.2us Gaussian_pulse = 1.596		(32)
++0.2us Gaussian_pulse = 1.560		(32)
++0.2us Gaussian_pulse = 1.524		(32)
++0.2us Gaussian_pulse = 1.488		(32)
++0.2us Gaussian_pulse = 1.454		(32)
++0.2us Gaussian_pulse = 1.419		(32)
++0.2us Gaussian_pulse = 1.386		(32)
++0.2us Gaussian_pulse = 1.353		(32)
++0.2us Gaussian_pulse = 1.320		(32)
++0.2us Gaussian_pulse = 1.288		(32)
++0.2us Gaussian_pulse = 1.257		(32)
++0.2us Gaussian_pulse = 1.226		(32)
++0.2us Gaussian_pulse = 1.195		(32)
++0.2us Gaussian_pulse = 1.166		(32)
++0.2us Gaussian_pulse = 1.136		(32)
++0.2us Gaussian_pulse = 1.108		(32)
++0.2us Gaussian_pulse = 1.079		(32)
++0.2us Gaussian_pulse = 1.052		(32)
++0.2us Gaussian_pulse = 1.025		(32)
++0.2us Gaussian_pulse = 0.998		(32)
++0.2us Gaussian_pulse = 0.972		(32)
++0.2us Gaussian_pulse = 0.946		(32)
++0.2us Gaussian_pulse = 0.921		(32)
++0.2us Gaussian_pulse = 0.897		(32)
++0.2us Gaussian_pulse = 0.873		(32)
++0.2us Gaussian_pulse = 0.849		(32)
++0.2us Gaussian_pulse = 0.826		(32)
++0.2us Gaussian_pulse = 0.803		(32)
++0.2us Gaussian_pulse = 0.781		(32)
++0.2us Gaussian_pulse = 0.760		(32)
++0.2us Gaussian_pulse = 0.738		(32)
++0.2us Gaussian_pulse = 0.718		(32)
++0.2us Gaussian_pulse = 0.697		(32)
++0.2us Gaussian_pulse = 0.678		(32)
++0.2us Gaussian_pulse = 0.658		(32)
++0.2us Gaussian_pulse = 0.639		(32)
++0.2us Gaussian_pulse = 0.621		(32)
++0.2us Gaussian_pulse = 0.603		(32)
++0.2us Gaussian_pulse = 0.585		(32)
++0.2us Gaussian_pulse = 0.568		(32)
++0.2us Gaussian_pulse = 0.551		(32)
++0.2us Gaussian_pulse = 0.535		(32)
++0.2us Gaussian_pulse = 0.519		(32)
++0.2us Gaussian_pulse = 0.503		(32)
++0.2us Gaussian_pulse = 0.488		(32)
++0.2us Gaussian_pulse = 0.473		(32)
++0.2us Gaussian_pulse = 0.458		(32)
++0.2us Gaussian_pulse = 0.444		(32)
++0.2us Gaussian_pulse = 0.430		(32)
++0.2us Gaussian_pulse = 0.417		(32)
++0.2us Gaussian_pulse = 0.404		(32)
++0.2us Gaussian_pulse = 0.391		(32)
++0.2us Gaussian_pulse = 0.379		(32)
++0.2us Gaussian_pulse = 0.367		(32)
++0.2us Gaussian_pulse = 0.355		(32)
++0.2us Gaussian_pulse = 0.343		(32)
++0.2us Gaussian_pulse = 0.332		(32)
++0.2us Gaussian_pulse = 0.321		(32)
++0.2us Gaussian_pulse = 0.311		(32)
++0.2us Gaussian_pulse = 0.301		(32)
++0.2us Gaussian_pulse = 0.291		(32)
++0.2us Gaussian_pulse = 0.281		(32)
++0.2us Gaussian_pulse = 0.272		(32)
++0.2us Gaussian_pulse = 0.263		(32)
++0.2us Gaussian_pulse = 0.254		(32)
++0.2us Gaussian_pulse = 0.245		(32)
++0.2us Gaussian_pulse = 0.237		(32)
++0.2us Gaussian_pulse = 0.229		(32)
++0.2us Gaussian_pulse = 0.221		(32)
++0.2us Gaussian_pulse = 0.213		(32)
++0.2us Gaussian_pulse = 0.206		(32)
++0.2us Gaussian_pulse = 0.198		(32)
++0.2us Gaussian_pulse = 0.191		(32)
++0.2us Gaussian_pulse = 0.185		(32)
++0.2us Gaussian_pulse = 0.178		(32)
++0.2us Gaussian_pulse = 0.172		(32)
++0.2us Gaussian_pulse = 0.166		(32)
++0.2us Gaussian_pulse = 0.160		(32)
++0.2us Gaussian_pulse = 0.154		(32)
++0.2us Gaussian_pulse = 0.148		(32)
++0.2us Gaussian_pulse = 0.143		(32)
++0.2us Gaussian_pulse = 0.138		(32)
++0.2us Gaussian_pulse = 0.132		(32)
++0.2us Gaussian_pulse = 0.128		(32)
++0.2us Gaussian_pulse = 0.123		(32)
++0.2us Gaussian_pulse = 0.118		(32)
++0.2us Gaussian_pulse = 0.114		(32)
++0.2us Gaussian_pulse = 0.109		(32)
++0.2us Gaussian_pulse = 0.105		(32)
++0.2us Gaussian_pulse = 0.101		(32)
++0.2us Gaussian_pulse = 0.097		(32)
++0.2us Gaussian_pulse = 0.094		(32)
++0.2us Gaussian_pulse = 0.090		(32)
++0.2us Gaussian_pulse = 0.087		(32)
++0.2us Gaussian_pulse = 0.083		(32)
++0.2us Gaussian_pulse = 0.080		(32)
++0.2us Gaussian_pulse = 0.077		(32)
++0.2us Gaussian_pulse = 0.074		(32)
++0.2us Gaussian_pulse = 0.071		(32)
++0.2us Gaussian_pulse = 0.068		(32)
++0.2us Gaussian_pulse = 0.065		(32)
++0.2us Gaussian_pulse = 0.063		(32)
++0.2us Gaussian_pulse = 0.060		(32)
++0.2us Gaussian_pulse = 0.058		(32)
++0.2us Gaussian_pulse = 0.055		(32)
++0.2us Gaussian_pulse = 0.053		(32)
++0.2us Gaussian_pulse = 0.051		(32)
++0.2us Gaussian_pulse = 0.049		(32)
++0.2us Gaussian_pulse = 0.047		(32)
++0.2us Gaussian_pulse = 0.045		(32)
++0.2us Gaussian_pulse = 0.043		(32)
++0.2us Gaussian_pulse = 0.041		(32)
++0.2us Gaussian_pulse = 0.039		(32)
++0.2us Gaussian_pulse = 0.038		(32)
++0.2us Gaussian_pulse = 0.036		(32)
++0.2us Gaussian_pulse = 0.035		(32)
++0.2us Gaussian_pulse = 0.033		(32)
++0.2us Gaussian_pulse = 0.032		(32)
++0.2us Gaussian_pulse = 0.030		(32)
++0.2us Gaussian_pulse = 0.029		(32)
++0.2us Gaussian_pulse = 0.028		(32)
++0.2us Gaussian_pulse = 0.027		(32)
++0.2us Gaussian_pulse = 0.025		(32)
++0.2us Gaussian_pulse = 0.024		(32)
++0.2us Gaussian_pulse = 0.023		(32)
++0.2us Gaussian_pulse = 0.022		(32)
++0.2us Gaussian_pulse = 0.021		(32)
++0.2us Gaussian_pulse = 0.020		(32)
++0.2us Gaussian_pulse = 0.019		(32)
++0.2us Gaussian_pulse = 0.018		(32)
++0.2us Gaussian_pulse = 0.018		(32)
++0.2us Gaussian_pulse = 0.017		(32)
++0.2us Gaussian_pulse = 0.016		(32)
++0.2us Gaussian_pulse = 0.015		(32)
++0.2us Gaussian_pulse = 0.015		(32)
++0.2us Gaussian_pulse = 0.014		(32)
++0.2us Gaussian_pulse = 0.013		(32)
++0.2us Gaussian_pulse = 0.013		(32)
++0.2us Gaussian_pulse = 0.012		(32)
++0.2us Gaussian_pulse = 0.012		(32)
++0.2us Gaussian_pulse = 0.011		(32)
++0.2us Gaussian_pulse = 0.010		(32)
++0.2us Gaussian_pulse = 0.010		(32)
+
+
+
+######################################<PARAMETER0>
+#   Raman_UP_state_labelling_spec    #
+######################################
++396168us DDS1 [360]					(2) #113 95 zero 640697 total 650028 640897 134 -2hk; 143 +2hk; 630797 171 304 331676.4 CENTER 352 396168  2hk 347 
++1100us TTL_AOM_Raman1 = ON				(49)#42.4 6670 total 7020
++2us Raman_Up_Shutter=OFF				(41)
++2us AOM_Det= ON					(52)
++2us Det_shutter = ON					(45)
++15000us TTL_AOM_Raman1 = OFF				(49)#RAMAN PULSE MOMENT 10000#10333 9504 4997 14997 15000
++42us TTL_AOM_Raman1 = ON				(49) #Raman up pulse time 62 59 50 36 48 
+
++2us Raman_Up_Shutter=OFF				(41)
+#+2us Det_shutter = ON					(45)
+#+4983us TTL_AOM_Raman1 =OFF				(49)#5000 total 5059
++2us DDS1 [10]						(2)  #Detection frequency, -0.3 GAMMA optimal value #400mV 720 664 659 629.9 15 RAMAN UP ; 10 RAMAN DOWN
++2us AOM_Raman1 =0.2					(23)
+
+
+
+################################
+#       Det			#
+################################
+
+
++2us TTL_AOM_Raman1 = ON				(49) #600 total 620819 611484
+
++2us TTL_Repump_det = ON				(44)
+
+
++4000us AOM_Det= OFF					(52) #11 Detection on 2000 2050 2010 TOTAL 2047 4000
++300us AOM_Det= ON					(52)
++2us TTL_AOM_Raman1 = ON				(49) # repumper on
+#+1ms redpitaya = ON					(68)
+#+1ms redpitaya = OFF					(68)
++99ms TTL_AOM_Raman1 = ON				(49) #20
++2us AOM_Det= ON					(52)#2MICROS
++2us Det_shutter = OFF					(45)
++5ms AOM_Det= OFF					(52)
++2us TTL_Repump_det = OFF				(44)
++5ms TTL_AOM_Raman1 = OFF				(49)
+
+
+################################
+#       	close		#
+################################
++2us AOM_Raman1 =0.950					(23)
+#+1us redpitaya = OFF					(68)
++2us TTL_bias_bar = OFF				(66)
++3us Exp_trig= OFF 					(60)
+#+1us TTL_AOM_Raman1 = ON				(49)
+#+1us TTL_AOM_Raman2 = ON				(50)
+
+
+
++5us DDS1 [0]						(2)
++5us DDS4 [0]						(8)
++5us DDS5 [0]						(14)
+
+
+
+ENDINNER
+
+ITERATIONS 1
+
+ENDLOOP

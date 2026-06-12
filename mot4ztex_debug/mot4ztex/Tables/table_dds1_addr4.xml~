@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<ad9958>
+
+# elem 0 is obsolete = resonance for the detection beam driven by an AOM at 119 MHz (while MOT AOMs operate at 110 MHz, see Excel table)
+
+
+  
+ 
+# elements 8 to 18 are used to the MOT in order to detune from 8 MHz, 12 MHz, 15 MHz, 18 MHz, etc. 
+  <elem>6
+  <ch0>
+    <mode>sf</mode>
+    <fr>73885000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>119000000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>7
+  <ch0>
+    <mode>sf</mode>
+    <fr>73948000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>118740000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>8
+  <ch0>
+    <mode>sf</mode>
+    <fr>74010000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>118500000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>9
+  <ch0>
+    <mode>sf</mode>
+    <fr>74073000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>118240000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>10
+  <ch0>
+    <mode>sf</mode>
+    <fr>74135000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>118000000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>11
+  <ch0>
+    <mode>sf</mode>
+    <fr>74198000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>117740000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+  
+  <elem>12
+  <ch0>
+    <mode>sf</mode>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+  
+   <elem>15
+  <ch0>
+    <mode>sf</mode>
+    <fr>74450000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>116740000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+  
+  <elem>18
+  <ch0>
+    <mode>sf</mode>
+    <fr>74635000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>116000000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>20
+  <ch0>
+    <mode>sf</mode>
+    <fr>74760000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>115490000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>24
+  <ch0>
+    <mode>sf</mode>
+    <fr>75010400.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>114490000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+
+  <elem>30
+  <ch0>
+    <mode>sf</mode>
+    <fr>75385400.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>113000000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+  <elem>36
+  <ch0>
+    <mode>sf</mode>
+    <fr>75760400.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>111492000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+# Raman detuning of 398MHz
+
+  <elem>50
+  <ch0>
+    <mode>sf</mode>
+    <fr>128010391.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>41329500.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+
+  
+ 
+# ramp from -12 MHz (-2Gamma) to -60 MHz (-10Gamma) @ 780 nm in 1 ms
+
+  <elem>60
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>300</dv>
+    <rr>10</rr>
+    <ev>77260000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>1200</dv>
+    <rr>10</rr>
+    <ev>105500000.0</ev>
+  </ch1>
+  </elem>
+
+# ramp from -12 MHz (-2Gamma) to -78 MHz (-13Gamma) @ 780 nm in 1 ms
+
+  <elem>78
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>412</dv>
+    <rr>10</rr>
+    <ev>78385000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>1650</dv>
+    <rr>10</rr>
+    <ev>101000000.0</ev>
+  </ch1>
+  </elem>
+
+
+# ramp from -12 MHz (-2Gamma) to -90 MHz (-15Gamma) @ 780 nm in 1 ms
+
+  <elem>90
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>488</dv>
+    <rr>10</rr>
+    <ev>79140000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>1950</dv>
+    <rr>10</rr>
+    <ev>98000000.0</ev>
+  </ch1>
+  </elem>
+
+# ramp from -12 MHz (-2Gamma) to -102 MHz (-17Gamma) @ 780 nm in 1 ms
+
+  <elem>102
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>562</dv>
+    <rr>10</rr>
+    <ev>79880000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>2250</dv>
+    <rr>10</rr>
+    <ev>94992000.0</ev>
+  </ch1>
+  </elem>
+
+
+# ramp from -12 MHz (-2Gamma) to -120 MHz (-20Gamma) @ 780 nm in 1 ms
+
+  <elem>120
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>675</dv>
+    <rr>10</rr>
+    <ev>81010000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>2700</dv>
+    <rr>10</rr>
+    <ev>90492000.0</ev>
+  </ch1>
+  </elem>
+
+#  ramp from -12 MHz (-2Gamma) to -120 MHz (-20Gamma) @ 780 nm in 0.5 ms
+
+  <elem>121
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>1350</dv>
+    <rr>10</rr>
+    <ev>81010000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>5400</dv>
+    <rr>10</rr>
+    <ev>90492000.0</ev>
+  </ch1>
+  </elem>
+
+# ramp from -12 MHz (-2Gamma) to -150 MHz (-25Gamma) @ 780 nm in 1 ms
+
+  <elem>150
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>863</dv>
+    <rr>10</rr>
+    <ev>82890000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>3451</dv>
+    <rr>10</rr>
+    <ev>82992000.0</ev>
+  </ch1>
+  </elem>
+
+# ramp from -12 MHz (-2Gamma) to -180 MHz (-30Gamma) @ 780 nm in 1 ms
+
+  <elem>180
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>1050</dv>
+    <rr>10</rr>
+    <ev>84760000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>4201</dv>
+    <rr>10</rr>
+    <ev>75490000.0</ev>
+  </ch1>
+  </elem>
+
+# ramp from -18 MHz (-2Gamma) to -180 MHz (-30Gamma) @ 780 nm in 1 ms
+
+  <elem>180
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74635000.0</fr>
+    <am>200</am>
+    <dv>1350</dv>
+    <rr>10</rr>
+    <ev>84760000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>116000000.0</fr>
+    <am>200</am>
+    <dv>5400</dv>
+    <rr>10</rr>
+    <ev>75490000.0</ev>
+  </ch1>
+  </elem>
+
+# slow ramp to test on the spectrum analyzer
+
+  <elem>362
+  <ch0>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>74260000.0</fr>
+    <am>200</am>
+    <dv>2</dv>
+    <rr>100</rr>
+    <ev>77260000.0</ev>
+  </ch0>
+  <ch1>
+    <mode>ramp</mode>
+    <var>fr</var>
+    <fr>117500000.0</fr>
+    <am>200</am>
+    <dv>12</dv>
+    <rr>100</rr>
+    <ev>105500000.0</ev>
+  </ch1>
+  </elem>
+
+#MOT 6MHZ detuning, repumper on resonance with F'=0 for pushing on f=1
+
+  <elem>66
+  <ch0>
+    <mode>sf</mode>
+    <fr>73885000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch0>
+  <ch1>
+    <mode>sf</mode>
+    <fr>176283000.0</fr>
+    <am>200</am>
+    <ph>0</ph>
+  </ch1>
+  </elem>
+
+
+</ad9958>
