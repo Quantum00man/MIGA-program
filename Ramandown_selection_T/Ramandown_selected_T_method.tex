@@ -1,0 +1,153 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+
+\title{Computation Method for Converting Raman FWHM to the 1D Temperature of Rb-87}
+\author{Project documentation generated from \texttt{Ramandown\_selected\_T.py}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+This document explains the calculation implemented in \texttt{Ramandown\_selected\_T.py}. The script converts the full width at half maximum (FWHM) of a Raman spectral line, measured in kilohertz on the Raman detuning axis, into the one-dimensional (1D) temperature of an $^{87}\mathrm{Rb}$ atomic ensemble.
+
+\section{Physical assumptions}
+The calculation is valid under the following assumptions:
+\begin{itemize}
+    \item The Raman transition uses a counter-propagating beam geometry.
+    \item The observed Raman line shape is Gaussian and dominated by Doppler broadening.
+    \item The input FWHM is the spectral width measured directly from the Raman line.
+    \item The output temperature is a 1D temperature along the Raman effective wave-vector axis.
+\end{itemize}
+If these assumptions are not satisfied, the computed temperature should be treated with caution.
+
+\section{Constants and parameters}
+The implementation uses the constants listed in Table~\ref{tab:params}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\hline
+Symbol & Code name & Value & Meaning \\
+\hline
+$k_B$ & \texttt{kB} & $1.380649 \times 10^{-23}\ \mathrm{J/K}$ & Boltzmann constant \\
+$\mathrm{amu}$ & \texttt{amu} & $1.66053906660 \times 10^{-27}\ \mathrm{kg}$ & Atomic mass unit \\
+$m$ & \texttt{MASS\_RB87} & $86.909\,\mathrm{amu}$ & Mass of $^{87}\mathrm{Rb}$ used in the code \\
+$m$ & \texttt{MASS\_RB87} & $1.443157897391 \times 10^{-25}\ \mathrm{kg}$ & Same mass in SI units \\
+$\lambda$ & \texttt{LAMBDA} & $780.24 \times 10^{-9}\ \mathrm{m}$ & Raman laser wavelength \\
+$k_{\mathrm{eff}}$ & \texttt{K\_EFF} & $4\pi/\lambda$ & Effective Raman wave vector \\
+$k_{\mathrm{eff}}$ & \texttt{K\_EFF} & $1.610577593351 \times 10^{7}\ \mathrm{m^{-1}}$ & Numerical value in SI units \\
+$\Delta \nu_{\mathrm{FWHM}}$ & \texttt{fwhm\_khz} & user input & Raman linewidth in kHz \\
+\hline
+\end{tabular}
+\caption{Constants and user input used by the script.}
+\label{tab:params}
+\end{table}
+
+\section{Step-by-step calculation}
+\subsection{Convert the input linewidth from kHz to Hz}
+The user enters the linewidth as
+\begin{equation}
+\Delta \nu_{\mathrm{FWHM,kHz}} = \texttt{fwhm\_khz}.
+\end{equation}
+The code converts it to hertz through
+\begin{equation}
+\Delta \nu_{\mathrm{FWHM,Hz}} = 10^3\,\Delta \nu_{\mathrm{FWHM,kHz}}.
+\end{equation}
+
+\subsection{Convert Gaussian FWHM to the standard deviation}
+For a Gaussian spectral line,
+\begin{equation}
+\Delta \nu_{\mathrm{FWHM,Hz}} = 2\sqrt{2\ln 2}\,\sigma_\nu,
+\end{equation}
+so the frequency-domain standard deviation is
+\begin{equation}
+\sigma_\nu = \frac{\Delta \nu_{\mathrm{FWHM,Hz}}}{2\sqrt{2\ln 2}}.
+\end{equation}
+This is implemented by the variable \texttt{sigma\_nu}.
+
+\subsection{Convert frequency width to velocity width}
+For counter-propagating Raman beams, the Doppler detuning is related to the atomic velocity component $v$ along the Raman axis by
+\begin{equation}
+\delta \nu = \frac{k_{\mathrm{eff}}}{2\pi}v.
+\end{equation}
+Therefore, the velocity standard deviation is
+\begin{equation}
+\sigma_v = \frac{2\pi}{k_{\mathrm{eff}}}\sigma_\nu.
+\end{equation}
+This is implemented by the variable \texttt{sigma\_v}.
+
+Because the code uses
+\begin{equation}
+ k_{\mathrm{eff}} = \frac{4\pi}{\lambda},
+\end{equation}
+one can also write
+\begin{equation}
+\sigma_v = \frac{\lambda}{2}\sigma_\nu.
+\end{equation}
+The script keeps the form with $k_{\mathrm{eff}}$ explicitly so that the physical meaning remains clear.
+
+\subsection{Convert velocity width to 1D temperature}
+For a 1D Maxwell-Boltzmann velocity distribution,
+\begin{equation}
+ k_B T = m\sigma_v^2.
+\end{equation}
+Hence the temperature is
+\begin{equation}
+T = \frac{m\sigma_v^2}{k_B}.
+\end{equation}
+This is the final value returned by the function \texttt{temperature\_from\_fwhm\_khz()}.
+
+\subsection{Direct combined formula}
+Combining the previous steps gives a direct expression for the temperature from the input FWHM in kHz:
+\begin{equation}
+T = \frac{m}{k_B}\left(\frac{2\pi}{k_{\mathrm{eff}}}\frac{10^3\,\Delta \nu_{\mathrm{FWHM,kHz}}}{2\sqrt{2\ln 2}}\right)^2.
+\end{equation}
+Using $k_{\mathrm{eff}} = 4\pi/\lambda$, this may also be written as
+\begin{equation}
+T = \frac{m}{k_B}\left(\frac{\lambda\,10^3\,\Delta \nu_{\mathrm{FWHM,kHz}}}{4\sqrt{2\ln 2}}\right)^2.
+\end{equation}
+These two expressions are algebraically equivalent under the assumptions listed above.
+
+\section{Parameter interpretation}
+\begin{itemize}
+    \item \texttt{fwhm\_khz}: experimental Raman linewidth input in kilohertz.
+    \item \texttt{fwhm\_hz}: the same linewidth converted to hertz.
+    \item \texttt{sigma\_nu}: Gaussian standard deviation of the Raman line in frequency units.
+    \item \texttt{sigma\_v}: Gaussian standard deviation of the atomic velocity distribution along the Raman axis.
+    \item \texttt{T}: 1D atomic temperature in kelvin.
+\end{itemize}
+The command-line interface prints both $T$ in kelvin and $T \times 10^6$ in microkelvin for convenience.
+
+\section{Input validation}
+The script requires
+\begin{equation}
+\texttt{fwhm\_khz} > 0.
+\end{equation}
+If the input is zero or negative, the function raises the exception
+\begin{equation}
+\texttt{ValueError("FWHM must be positive")}. 
+\end{equation}
+This prevents non-physical or undefined results.
+
+\section{Worked example}
+For an example input of
+\begin{equation}
+\Delta \nu_{\mathrm{FWHM,kHz}} = 100\ \mathrm{kHz},
+\end{equation}
+the intermediate quantities are
+\begin{align}
+\sigma_\nu &= 4.246609001440 \times 10^4\ \mathrm{Hz}, \\
+\sigma_v &= 1.656687103642 \times 10^{-2}\ \mathrm{m/s}.
+\end{align}
+The resulting temperature is
+\begin{equation}
+T = 2.868874502553 \times 10^{-6}\ \mathrm{K} \approx 2.869\ \mu\mathrm{K}.
+\end{equation}
+This example is numerically consistent with the current implementation.
+
+\section{Scope and limitations}
+This method estimates only the 1D temperature associated with the velocity projection along the Raman axis. It does not directly provide a full 3D thermodynamic temperature unless the ensemble is isotropic and additional assumptions are justified. The result can also be biased if the measured linewidth contains significant contributions from power broadening, magnetic broadening, unresolved structure, or fitting errors.
+
+\end{document}

@@ -1,0 +1,432 @@
+% Overleaf notes:
+% 1. This file can be uploaded by itself and compiled directly.
+% 2. Recommended compiler on Overleaf: pdfLaTeX.
+% 3. If scientific_report.sty is uploaded too, it will be used automatically.
+\documentclass[11pt,a4paper]{report}
+
+\IfFileExists{scientific_report.sty}{%
+    \usepackage{scientific_report}
+}{%
+    \usepackage[margin=1in, headheight=14pt]{geometry}
+    \usepackage{setspace}
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage{helvet}
+    \renewcommand{\familydefault}{\sfdefault}
+    \usepackage[table]{xcolor}
+    \usepackage{graphicx}
+    \usepackage{tikz}
+    \usepackage{longtable}
+    \usepackage{booktabs}
+    \usepackage{multirow}
+    \usepackage{array}
+    \usepackage{colortbl}
+    \usepackage{tabularx}
+    \usepackage{enumitem}
+    \usepackage{parskip}
+    \usepackage[most]{tcolorbox}
+    \usepackage{fancyhdr}
+    \usepackage{titlesec}
+    \usepackage{hyperref}
+    \usepackage[numbers,sort&compress]{natbib}
+    \usepackage{amsmath}
+    \usepackage{amssymb}
+    \usepackage{siunitx}
+    \usepackage{caption}
+    \usepackage{subcaption}
+
+    \definecolor{primaryblue}{RGB}{0, 51, 102}
+    \definecolor{secondaryblue}{RGB}{74, 144, 226}
+    \definecolor{lightblue}{RGB}{220, 235, 252}
+    \definecolor{accentblue}{RGB}{0, 120, 215}
+    \definecolor{sciencegreen}{RGB}{0, 168, 150}
+    \definecolor{lightgreen}{RGB}{220, 245, 240}
+    \definecolor{darkgreen}{RGB}{0, 128, 96}
+    \definecolor{cautionorange}{RGB}{255, 140, 66}
+    \definecolor{lightorange}{RGB}{255, 243, 224}
+    \definecolor{darkgray}{RGB}{66, 66, 66}
+    \definecolor{mediumgray}{RGB}{117, 117, 117}
+    \definecolor{lightgray}{RGB}{245, 245, 245}
+    \definecolor{tablealt}{RGB}{248, 250, 252}
+
+    \hypersetup{
+        colorlinks=true,
+        linkcolor=primaryblue,
+        filecolor=primaryblue,
+        urlcolor=accentblue,
+        citecolor=secondaryblue,
+    }
+
+    \titleformat{\chapter}[display]
+    {\normalfont\huge\bfseries\color{primaryblue}}
+    {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+    \titlespacing*{\chapter}{0pt}{-20pt}{40pt}
+
+    \titleformat{\section}
+    {\normalfont\Large\bfseries\color{primaryblue}}
+    {\thesection}{1em}{}
+    \titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+
+    \titleformat{\subsection}
+    {\normalfont\large\bfseries\color{secondaryblue}}
+    {\thesubsection}{1em}{}
+
+    \pagestyle{fancy}
+    \fancyhf{}
+    \fancyhead[L]{\small\textit{\leftmark}}
+    \fancyhead[R]{\small\textit{Scientific Report}}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0.4pt}
+    \renewcommand{\footrulewidth}{0.4pt}
+
+    \fancypagestyle{plain}{
+        \fancyhf{}
+        \fancyfoot[C]{\thepage}
+        \renewcommand{\headrulewidth}{0pt}
+        \renewcommand{\footrulewidth}{0.4pt}
+    }
+
+    \newtcolorbox{executivesummary}[1][Executive Summary]{
+        enhanced,
+        colback=white,
+        colframe=primaryblue,
+        fonttitle=\Large\bfseries\color{white},
+        title=#1,
+        coltitle=white,
+        colbacktitle=primaryblue,
+        boxrule=2pt,
+        arc=5pt,
+        left=15pt,
+        right=15pt,
+        top=12pt,
+        bottom=12pt,
+        before skip=15pt,
+        after skip=15pt,
+    }
+
+    \newtcolorbox{methodology}[1][Methodology]{
+        colback=lightgreen,
+        colframe=sciencegreen,
+        fonttitle=\bfseries\color{white},
+        title=#1,
+        coltitle=white,
+        colbacktitle=sciencegreen,
+        boxrule=1pt,
+        arc=3pt,
+        left=10pt,
+        right=10pt,
+        top=8pt,
+        bottom=8pt,
+        before skip=12pt,
+        after skip=12pt,
+    }
+
+    \newtcolorbox{limitations}[1][Limitations]{
+        colback=lightorange,
+        colframe=cautionorange,
+        fonttitle=\bfseries\color{white},
+        title=#1,
+        coltitle=white,
+        colbacktitle=cautionorange,
+        boxrule=1pt,
+        arc=3pt,
+        left=10pt,
+        right=10pt,
+        top=8pt,
+        bottom=8pt,
+        before skip=12pt,
+        after skip=12pt,
+    }
+
+    \newcommand{\tableheader}[1]{\textbf{\color{white}#1}}
+
+    \newcommand{\makereporttitle}[5]{%
+        \begin{titlepage}
+        \centering
+        \vspace*{2cm}
+        {\Huge\bfseries\color{primaryblue} #1\\[0.5cm]}
+        {\LARGE #2\\[2cm]}
+        \vspace{2cm}
+        {\Large\bfseries #3\\[0.5cm]}
+        {\large #4\\[2cm]}
+        {\large\bfseries Date: #5\\[0.3cm]}
+        \vfill
+        \begin{tikzpicture}
+            \fill[primaryblue] (0,0) rectangle (\textwidth,0.5);
+        \end{tikzpicture}
+        \end{titlepage}
+    }
+
+    \captionsetup{
+        font=small,
+        labelfont={bf,color=primaryblue},
+        textfont={color=darkgray},
+        justification=centering,
+        margin=20pt,
+    }
+
+    \setlist[itemize]{
+        leftmargin=*,
+        label=\textcolor{primaryblue}{\textbullet},
+        topsep=5pt,
+        itemsep=3pt,
+    }
+
+    \setlist[enumerate]{
+        leftmargin=*,
+        label=\textcolor{primaryblue}{\arabic*.},
+        topsep=5pt,
+        itemsep=3pt,
+    }
+
+    \setstretch{1.15}
+    \setlength{\parskip}{0.5em}
+}
+
+\usepackage{float}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+
+\hypersetup{
+    pdftitle={Seismic Atom Phase Noise Calculation Report},
+    pdfauthor={OpenAI Codex},
+    pdfsubject={Computation method used in app_desktop.py},
+    pdfkeywords={atom interferometer, vibration noise, phase noise, ASD, PSD}
+}
+
+\begin{document}
+
+\makereporttitle
+    {Seismic-Induced Atom Interferometer Phase Noise}
+    {Technical Report for the Desktop Calculator Implementation}
+    {Prepared from the local \texttt{app\_desktop.py} model}
+    {MIGA Program Workspace}
+    {July 7, 2026}
+
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+\pagenumbering{arabic}
+
+\chapter*{Executive Summary}
+\addcontentsline{toc}{chapter}{Executive Summary}
+
+\begin{executivesummary}[Purpose and Scope]
+This report documents the computation implemented in the desktop application that estimates how measured ground acceleration noise contributes to atom interferometer phase noise. The program accepts a frequency column and one acceleration amplitude spectral density (ASD) column from an Excel worksheet, converts the acceleration ASD into displacement ASD, transforms displacement into laser phase ASD, filters that phase noise with the atom interferometer sensitivity function and an additional cycle-time response term, and finally integrates the resulting atom phase power spectral density (PSD) to produce an RMS phase fluctuation in radians.
+\end{executivesummary}
+
+The emphasis of this report is implementation fidelity rather than a broad theoretical review. Every equation and parameter described below is matched to the current code path in \texttt{app\_desktop.py}, including the preprocessing rules, the numerical trapezoidal integration, the default parameter values, and the meaning of the exported result columns.
+
+\chapter{Computation Overview}
+
+\section{Processing chain}
+
+\begin{methodology}[Implemented workflow]
+The application starts from a measured acceleration ASD as a function of frequency. The code interprets the selected acceleration column as a one-sided ASD with units of acceleration per square-root bandwidth. Each frequency sample is converted into angular frequency, the acceleration ASD is divided by $\omega^2$ to obtain displacement ASD, and the displacement ASD is multiplied by an optical phase conversion factor to obtain laser phase ASD. The laser phase ASD is then squared and weighted by the atom interferometer sensitivity function and by a cycle-time response term. The final PSD is integrated over frequency to obtain the variance, and the square root of that variance is reported as the RMS atom phase noise.
+\end{methodology}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.4cm and 0.9cm,
+    block/.style={draw, rounded corners=3pt, align=center, minimum width=3cm, minimum height=1cm, fill=lightblue},
+    op/.style={draw, rounded corners=3pt, align=center, minimum width=3.2cm, minimum height=1cm, fill=lightgreen},
+    arrow/.style={-{Latex[length=3mm]}, thick, color=primaryblue}
+]
+\node[block] (a) {Input acceleration ASD\\$a_{\mathrm{ASD}}(f)$};
+\node[op, below=of a] (x) {Displacement ASD\\$x_{\mathrm{ASD}}(f)=a_{\mathrm{ASD}}(f)/(2\pi f)^2$};
+\node[op, below=of x] (laser) {Laser phase ASD\\$\phi_{\mathrm{laser,ASD}}(f)$};
+\node[op, below left=of laser] (hai) {Sensitivity function\\$H_{\mathrm{AI}}(\omega)$};
+\node[op, below right=of laser] (hdiff) {Differential response\\$|H_{\mathrm{diff}}(\omega)|^2$};
+\node[block, below=2.0cm of laser] (psd) {Atom phase PSD\\$S_{\phi,\mathrm{atom}}(f)$};
+\node[block, below=of psd] (rms) {Band-limited variance and RMS\\$\phi_{\mathrm{RMS}}$};
+\draw[arrow] (a) -- (x);
+\draw[arrow] (x) -- (laser);
+\draw[arrow] (laser) -- (psd);
+\draw[arrow] (hai) -- (psd);
+\draw[arrow] (hdiff) -- (psd);
+\draw[arrow] (psd) -- (rms);
+\end{tikzpicture}
+\caption{Computation chain implemented in the desktop application.}
+\label{fig:workflow}
+\end{figure}
+
+\section{Input data and preprocessing}
+
+The reader should note that the program is designed to be permissive about spreadsheet formatting. The helper function \texttt{parse\_numeric\_series()} accepts ordinary floating-point values, scientific notation with either \texttt{E} or \texttt{D}, decimal commas used in French-format spreadsheets, embedded spaces, non-breaking spaces, and strings that carry additional unit text. After parsing, the application drops missing and non-finite values, removes all samples with non-positive frequency or negative ASD, sorts the data in ascending frequency, and removes duplicate frequency values. This preprocessing is important because the later spectral integration assumes a strictly ordered frequency axis with at least two valid samples.
+
+If the user leaves the integration bounds blank, the application uses the minimum and maximum frequency present in the cleaned data. If the user supplies explicit bounds, the code verifies that $f_{\min} < f_{\max}$ and that at least two cleaned samples fall inside the requested band before performing the final integration.
+
+\chapter{Model Equations}
+
+\section{From acceleration ASD to displacement ASD}
+
+The first physical step is the frequency-domain double integration of acceleration into displacement. With $f$ in hertz and $\omega = 2\pi f$ in radians per second, the code computes
+\begin{equation}
+\omega = 2\pi f,
+\end{equation}
+followed by
+\begin{equation}
+x_{\mathrm{ASD}}(f) = \frac{a_{\mathrm{ASD}}(f)}{\omega^2} = \frac{a_{\mathrm{ASD}}(f)}{(2\pi f)^2}.
+\label{eq:displacement_asd}
+\end{equation}
+This relation is consistent with rigid-body kinematics in the frequency domain. If the acceleration ASD is expressed in $\mathrm{m\,s^{-2}\,Hz^{-1/2}}$, the resulting displacement ASD is expressed in $\mathrm{m\,Hz^{-1/2}}$.
+
+\section{From displacement ASD to laser phase ASD}
+
+The next step converts the mirror or platform displacement ASD into laser phase ASD through a linear scale factor,
+\begin{equation}
+\phi_{\mathrm{laser,ASD}}(f) = \left(\frac{R\pi}{\lambda}\right) x_{\mathrm{ASD}}(f),
+\label{eq:laser_phase_asd}
+\end{equation}
+where $\lambda$ is the laser wavelength and $R$ is a dimensionless phase coefficient. In the default configuration of the application, $\lambda = 780~\mathrm{nm}$ and $R = 4.0$. The code keeps $R$ user-adjustable because the appropriate scale factor depends on the optical geometry used in the interferometer model.
+
+\section{Atom interferometer sensitivity function}
+
+The desktop application implements the following sensitivity function for the interferometer,
+\begin{equation}
+H_{\mathrm{AI}}(\omega) = 8\sin\left(\frac{\omega T}{2}\right)\sin^2\left(\frac{\omega T}{4}\right),
+\label{eq:hai}
+\end{equation}
+where $T$ is the interrogation time. In the code, the default value is $T = 0.4~\mathrm{s}$. The squared magnitude $H_{\mathrm{AI}}^2$ is used later when constructing the phase PSD.
+
+\section{Cycle-time response term}
+
+To describe the additional response associated with the experimental cycling time, the code multiplies by
+\begin{equation}
+|H_{\mathrm{diff}}(\omega)|^2 = C\sin^2\left(\frac{\omega T_c}{2}\right),
+\label{eq:hdiff}
+\end{equation}
+where $T_c$ is the cycling time between consecutive experimental cycles and $C$ is a dimensionless prefactor. The default values used by the application are $T_c = 1.0~\mathrm{s}$ and $C = 2.0$. Because $C$ and $T_c$ are exposed as user inputs, the program can be adapted to different experimental repetition rates without changing the source code.
+
+\section{Atom phase PSD and ASD}
+
+The final atom phase PSD is built by multiplying the laser phase ASD squared by the two response factors,
+\begin{equation}
+S_{\phi,\mathrm{atom}}(f) = |H_{\mathrm{diff}}(\omega)|^2\,H_{\mathrm{AI}}^2(\omega)\,\phi_{\mathrm{laser,ASD}}^2(f).
+\label{eq:atom_psd}
+\end{equation}
+The code then forms an atom phase ASD for plotting purposes through
+\begin{equation}
+\phi_{\mathrm{atom,ASD}}(f) = \sqrt{\max\left(S_{\phi,\mathrm{atom}}(f), 0\right)}.
+\end{equation}
+The \texttt{max(.,0)} safeguard is a numerical protection against tiny negative values that may appear through floating-point roundoff; it does not change the model itself.
+
+\chapter{Numerical Integration and RMS Estimation}
+
+\section{Cumulative RMS curve}
+
+The cumulative RMS shown in the last plot tab is built incrementally with a trapezoidal sum over the discrete frequency grid. For consecutive samples $(f_i, S_i)$ and $(f_{i+1}, S_{i+1})$, the code computes the segment variance contribution
+\begin{equation}
+\Delta \sigma_{\phi,i}^2 = \frac{1}{2}\left(S_{i+1}+S_i\right)\left(f_{i+1}-f_i\right),
+\end{equation}
+and then accumulates
+\begin{equation}
+\sigma_{\phi,\mathrm{cum}}^2(f_n) = \sum_{i=1}^{n-1} \Delta \sigma_{\phi,i}^2,
+\end{equation}
+so that the displayed cumulative RMS is
+\begin{equation}
+\phi_{\mathrm{RMS,cum}}(f_n) = \sqrt{\max\left(\sigma_{\phi,\mathrm{cum}}^2(f_n), 0\right)}.
+\end{equation}
+This output is useful when one wants to identify which frequency bands dominate the total phase noise budget.
+
+\section{Band-limited RMS reported to the user}
+
+The scalar RMS displayed in the control panel corresponds to a trapezoidal integration over the selected frequency band,
+\begin{equation}
+\sigma_\phi^2[f_{\min}, f_{\max}] = \int_{f_{\min}}^{f_{\max}} S_{\phi,\mathrm{atom}}(f)\,df,
+\end{equation}
+implemented numerically as
+\begin{equation}
+\sigma_\phi^2[f_{\min}, f_{\max}] \approx \mathrm{trapz}\left(S_{\phi,\mathrm{atom}}(f), f\right),
+\end{equation}
+with the final RMS reported as
+\begin{equation}
+\phi_{\mathrm{RMS}} = \sqrt{\max\left(\sigma_\phi^2, 0\right)}.
+\label{eq:rms}
+\end{equation}
+The application displays the RMS in radians, the corresponding variance in radians squared, and the frequency band used for the integration.
+
+\chapter{Parameter Definitions}
+
+Table~\ref{tab:parameters} summarizes the user-adjustable model parameters. The key practical point is that $\lambda$, $T$, $T_c$, $R$, and $C$ are model parameters, whereas $f_{\min}$ and $f_{\max}$ only affect the integration band used to summarize the already computed PSD.
+
+\begin{table}[H]
+\centering
+\caption{User-adjustable parameters in the desktop application}
+\label{tab:parameters}
+\begin{tabularx}{\textwidth}{@{}l l l X@{}}
+\toprule
+\rowcolor{primaryblue}
+\tableheader{Parameter} & \tableheader{Default} & \tableheader{Units} & \tableheader{Meaning in the code} \\
+\midrule
+$\lambda$ & 780 & nm & Laser wavelength used in the displacement-to-phase conversion of Eq.~\eqref{eq:laser_phase_asd}. \\
+\rowcolor{tablealt}
+$T$ & 0.4 & s & Interrogation time appearing in the atom interferometer sensitivity function of Eq.~\eqref{eq:hai}. \\
+$T_c$ & 1.0 & s & Cycling time between consecutive experimental cycles appearing in the response factor of Eq.~\eqref{eq:hdiff}. \\
+\rowcolor{tablealt}
+$R$ & 4.0 & dimensionless & Phase conversion coefficient that scales displacement ASD into laser phase ASD. \\
+$C$ & 2.0 & dimensionless & Prefactor that scales the cycle-time response term $|H_{\mathrm{diff}}|^2$. \\
+\rowcolor{tablealt}
+$f_{\min}$ & data minimum & Hz & Lower frequency bound used only in the final variance integration. \\
+$f_{\max}$ & data maximum & Hz & Upper frequency bound used only in the final variance integration. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The parameters $R$ and $C$ deserve special care because they are effective coefficients rather than fundamental constants. Their physically correct values depend on the optical path, the phase readout convention, and the exact way in which two interferometer channels are differenced. The defaults in the application are reasonable starting values, but they should be verified against the user's instrument model before quantitative conclusions are drawn.
+
+\chapter{Exported Results}
+
+The CSV export is not limited to the final RMS value. Instead, the application writes the intermediate quantities needed to audit the calculation. Table~\ref{tab:outputs} lists the main exported columns and their interpretation.
+
+\begin{longtable}{@{}p{0.28\textwidth}p{0.18\textwidth}p{0.46\textwidth}@{}}
+\caption{Meaning of exported result columns}\label{tab:outputs}\\
+\toprule
+\rowcolor{primaryblue}
+\tableheader{Column name} & \tableheader{Units} & \tableheader{Interpretation} \\
+\midrule
+\endfirsthead
+\toprule
+\rowcolor{primaryblue}
+\tableheader{Column name} & \tableheader{Units} & \tableheader{Interpretation} \\
+\midrule
+\endhead
+frequency\_hz & Hz & Cleaned frequency grid used for all subsequent operations. \\
+\rowcolor{tablealt}
+acceleration\_asd & $\mathrm{m\,s^{-2}\,Hz^{-1/2}}$ & Parsed acceleration ASD taken from the selected worksheet column. \\
+omega\_rad\_s & rad/s & Angular frequency $\omega = 2\pi f$. \\
+\rowcolor{tablealt}
+displacement\_asd\_m\_sqrtHz & $\mathrm{m\,Hz^{-1/2}}$ & Displacement ASD obtained from Eq.~\eqref{eq:displacement_asd}. \\
+laser\_phase\_asd\_rad\_sqrtHz & $\mathrm{rad\,Hz^{-1/2}}$ & Laser phase ASD obtained from Eq.~\eqref{eq:laser_phase_asd}. \\
+\rowcolor{tablealt}
+H\_AI & dimensionless & Atom interferometer sensitivity function evaluated on the frequency grid. \\
+H\_diff\_squared & dimensionless & Cycle-time response term of Eq.~\eqref{eq:hdiff}. The legacy column name is retained for compatibility. \\
+\rowcolor{tablealt}
+atom\_phase\_psd\_rad2\_Hz & $\mathrm{rad^2\,Hz^{-1}}$ & Final atom phase PSD obtained from Eq.~\eqref{eq:atom_psd}. \\
+atom\_phase\_asd\_rad\_sqrtHz & $\mathrm{rad\,Hz^{-1/2}}$ & Square root of the PSD after clipping tiny negative roundoff. \\
+\rowcolor{tablealt}
+cumulative\_rms\_rad & rad & Running RMS obtained by cumulative trapezoidal integration. \\
+\bottomrule
+\end{longtable}
+
+\chapter{Implementation Notes and Limitations}
+
+\begin{limitations}[Current model scope]
+The application is intentionally compact and deterministic. It assumes that the selected spreadsheet column already represents a valid acceleration ASD as a function of frequency and that the displacement-to-phase coupling is fully captured by a single coefficient $R$. It also assumes that the full interferometer response can be represented by the specific sensitivity function in Eq.~\eqref{eq:hai} and by the sinusoidal cycle-time response term in Eq.~\eqref{eq:hdiff}. No cross-axis coupling, resonant mechanical transfer function, aliasing model, or additional readout noise term is introduced in the present implementation.
+\end{limitations}
+
+In practice, these assumptions are often adequate for a first-order vibration-noise estimate or for comparing several measured vibration spectra under a common instrument model. They should not, however, be mistaken for a full end-to-end simulation of the instrument. If the user later needs a more realistic model, the natural extensions are to insert a measured mechanical transfer function before Eq.~\eqref{eq:laser_phase_asd}, replace $R$ by a geometry-specific wave-vector model, and add other independent phase-noise PSD contributions before the final integration.
+
+\chapter*{Appendix: Relation to the Source Code}
+\addcontentsline{toc}{chapter}{Appendix: Relation to the Source Code}
+
+The equations in this report map directly onto the following helper functions and variables in the desktop application: \texttt{sensitivity\_function()} implements Eq.~\eqref{eq:hai}; \texttt{cycle\_response\_squared()} implements Eq.~\eqref{eq:hdiff}; \texttt{integrate\_trapezoid()} performs the band-limited spectral integration; the \texttt{calculate()} method constructs the intermediate arrays and result columns; and \texttt{clean\_data()} enforces the data-quality checks described earlier. This direct mapping should make it straightforward to maintain the report alongside future code updates.
+
+\end{document}

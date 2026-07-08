@@ -1,0 +1,154 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black
+}
+
+\title{Allan Variance Analyzer\\User Manual}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+The Allan Variance Analyzer is a desktop application written in Python for stability analysis of time-series data stored in CSV files. It is designed for the common case where the input CSV file contains a single numeric column. The program computes Allan statistics with the \texttt{allantools} library and displays the result in an interactive plot.
+
+\section{Main Features}
+\begin{itemize}[leftmargin=1.5em]
+    \item Load a CSV file and analyze a selected numeric column.
+    \item Set the sampling interval \(t\) before the calculation.
+    \item Choose between overlapping and non-overlapping Allan computation.
+    \item Choose between absolute and relative normalization.
+    \item Display either Allan deviation or Allan variance.
+    \item Default plot quantity: Allan deviation.
+    \item Switch both the X and Y axes between linear and logarithmic scales.
+    \item Export the analysis result to a CSV file.
+\end{itemize}
+
+\section{Software Requirements}
+\begin{itemize}[leftmargin=1.5em]
+    \item Python 3.10 or newer is recommended.
+    \item Required Python packages:
+    \begin{itemize}[leftmargin=1.5em]
+        \item \texttt{allantools}
+        \item \texttt{numpy}
+        \item \texttt{matplotlib}
+    \end{itemize}
+    \item Tkinter support must be available in the Python installation.
+\end{itemize}
+
+\section{Installation}
+From the project directory, install the dependencies with:
+\begin{verbatim}
+python3 -m pip install -r requirements.txt
+\end{verbatim}
+
+If your system uses a managed Python installation, create a virtual environment first:
+\begin{verbatim}
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+\end{verbatim}
+
+\section{Launching the Application}
+Run the GUI with:
+\begin{verbatim}
+python3 allan_ui.py
+\end{verbatim}
+
+If you installed the dependencies into a local virtual environment, use:
+\begin{verbatim}
+.venv/bin/python allan_ui.py
+\end{verbatim}
+
+\section{GUI Layout}
+The application window is split into two areas:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Left panel:} input file selection, calculation parameters, displayed quantity selection, plot axis options, export button, summary, and status.
+    \item \textbf{Right panel:} Allan plot and Matplotlib navigation toolbar.
+\end{itemize}
+
+\section{Analysis Workflow}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Click \textbf{Browse...} and select a CSV file.
+    \item Confirm the data column index. The default is \texttt{1}, which means the first column.
+    \item Enter the sampling interval \(t\) in seconds.
+    \item Select the computation mode:
+    \begin{itemize}[leftmargin=1.5em]
+        \item \textbf{Overlapping}: default option, usually preferred for more points.
+        \item \textbf{Non-overlapping}: standard non-overlapping Allan computation.
+    \end{itemize}
+    \item Select the normalization mode:
+    \begin{itemize}[leftmargin=1.5em]
+        \item \textbf{Absolute}: uses the raw input values.
+        \item \textbf{Relative}: normalizes the data by its mean before calculation.
+    \end{itemize}
+    \item Select the displayed quantity:
+    \begin{itemize}[leftmargin=1.5em]
+        \item \textbf{Allan deviation}: default display mode.
+        \item \textbf{Allan variance}: optional display mode.
+    \end{itemize}
+    \item Choose the X and Y axis scales (\textbf{Linear} or \textbf{Log}).
+    \item Click \textbf{Analyze}.
+\end{enumerate}
+
+\section{Input Data Rules}
+\begin{itemize}[leftmargin=1.5em]
+    \item The selected column must contain numeric values.
+    \item Blank rows and non-numeric rows are skipped automatically.
+    \item At least three valid numeric samples are required.
+    \item Relative mode should only be used when the mean of the selected data column is not close to zero.
+\end{itemize}
+
+\section{Plot Interpretation}
+By default, the plot shows Allan deviation as a function of \(\tau\) in seconds. The displayed quantity can be switched to Allan variance from the control panel.
+\begin{itemize}[leftmargin=1.5em]
+    \item The X axis is \(\tau\).
+    \item The Y axis is the selected displayed quantity, using either Allan deviation or Allan variance.
+    \item The summary panel reports the number of samples, the sample rate, the mean value, the computation method, the normalization mode, and the number of skipped rows.
+\end{itemize}
+
+If the current axis configuration hides all points, the application keeps the computed result and reports that the plot settings should be adjusted. This most commonly happens when the data are nearly constant and the Y axis is set to logarithmic scale.
+
+\section{Exported CSV Format}
+After a successful analysis, click \textbf{Export Results CSV}. The exported file contains one row per \(\tau\) value. It always includes both Allan deviation and Allan variance, regardless of which quantity is currently shown in the plot. The columns are:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{tau\_s}
+    \item \texttt{allan\_variance}
+    \item \texttt{allan\_deviation}
+    \item \texttt{sampling\_interval\_s}
+    \item \texttt{sample\_rate\_hz}
+    \item \texttt{overlap\_mode}
+    \item \texttt{variance\_mode}
+    \item \texttt{mean\_value}
+    \item \texttt{input\_column}
+    \item \texttt{input\_samples}
+    \item \texttt{skipped\_rows}
+    \item \texttt{source\_file}
+\end{itemize}
+
+\section{Troubleshooting}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{``The allantools package was not detected''}: install the dependencies from \texttt{requirements.txt}.
+    \item \textbf{``No numeric values were found''}: verify the selected column and check whether the CSV file contains headers or text in that column.
+    \item \textbf{``Relative mode requires a mean value that is not close to zero''}: use absolute mode or choose a dataset with a non-zero mean.
+    \item \textbf{No visible plot points}: switch the Y axis from \textbf{Log} to \textbf{Linear}.
+\end{itemize}
+
+\section{Files in This Project}
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{allan\_ui.py}: main GUI application.
+    \item \texttt{requirements.txt}: Python dependencies.
+    \item \texttt{allan\_variance\_user\_manual.tex}: this manual.
+\end{itemize}
+
+\end{document}
