@@ -86,16 +86,39 @@ class FrameDisplayPacket:
 
 
 class LiveImageCanvas(FigureCanvasQTAgg):
-    """Matplotlib canvas for live camera preview and ROI overlays."""
+    """Matplotlib canvas for live camera preview with X/Y intensity profiles."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        self.figure = Figure(figsize=(7.0, 5.0), constrained_layout=True)
+        self.figure = Figure(figsize=(7.8, 6.0), constrained_layout=True)
         super().__init__(self.figure)
         self.setParent(parent)
-        self.ax = self.figure.add_subplot(111)
+
+        grid = self.figure.add_gridspec(
+            2,
+            2,
+            height_ratios=(4.0, 1.25),
+            width_ratios=(4.0, 1.25),
+        )
+        self.ax = self.figure.add_subplot(grid[0, 0])
+        self.ax_x = self.figure.add_subplot(grid[1, 0], sharex=self.ax)
+        self.ax_y = self.figure.add_subplot(grid[0, 1], sharey=self.ax)
+        self.ax_corner = self.figure.add_subplot(grid[1, 1])
+        self.ax_corner.axis("off")
+
         self.ax.set_title("Live Camera Preview")
-        self.ax.set_xlabel("Pixels")
         self.ax.set_ylabel("Pixels")
+        self.ax.tick_params(axis="x", labelbottom=False)
+
+        self.ax_x.set_title("X Intensity Profile", fontsize=10)
+        self.ax_x.set_xlabel("Pixels")
+        self.ax_x.set_ylabel("Mean Intensity")
+        self.ax_x.grid(True, alpha=0.25)
+
+        self.ax_y.set_title("Y Intensity Profile", fontsize=10)
+        self.ax_y.set_xlabel("Mean Intensity")
+        self.ax_y.tick_params(axis="y", labelleft=False)
+        self.ax_y.grid(True, alpha=0.25)
+
         self.image_artist = self.ax.imshow(
             np.zeros((8, 8), dtype=np.float64),
             cmap="viridis",
@@ -124,6 +147,13 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         )
         self.ax.add_patch(self.roi_rect)
 
+        self.x_profile_line, = self.ax_x.plot([], [], color="#1f77b4", linewidth=1.5)
+        self.y_profile_line, = self.ax_y.plot([], [], color="#ff7f0e", linewidth=1.5)
+        self.x_center_line = self.ax_x.axvline(0.0, color="#ff6f61", linewidth=1.0, alpha=0.9)
+        self.y_center_line = self.ax_y.axhline(0.0, color="#ff6f61", linewidth=1.0, alpha=0.9)
+        self.x_center_line.set_visible(False)
+        self.y_center_line.set_visible(False)
+
     def update_view(
         self,
         frame_image: np.ndarray,
@@ -150,6 +180,22 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         self.roi_rect.set_height(max(roi_height, 1.0))
         self.roi_rect.set_visible(True)
 
+        roi_view = display_image[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
+        if roi_view.size > 0:
+            x_coords = np.arange(roi_x, roi_x + roi_width, dtype=np.float64)
+            y_coords = np.arange(roi_y, roi_y + roi_height, dtype=np.float64)
+            x_profile = np.mean(roi_view, axis=0)
+            y_profile = np.mean(roi_view, axis=1)
+            self.x_profile_line.set_data(x_coords, x_profile)
+            self.y_profile_line.set_data(y_profile, y_coords)
+            self.ax_x.set_ylim(0.0, max(float(np.max(x_profile)) * 1.05, 1.0))
+            self.ax_y.set_xlim(0.0, max(float(np.max(y_profile)) * 1.05, 1.0))
+        else:
+            self.x_profile_line.set_data([], [])
+            self.y_profile_line.set_data([], [])
+            self.ax_x.set_ylim(0.0, 1.0)
+            self.ax_y.set_xlim(0.0, 1.0)
+
         if analysis_enabled and result is not None:
             self.center_artist.set_offsets(
                 np.array([[result.center_x_px, result.center_y_px]], dtype=np.float64)
@@ -159,9 +205,15 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             self.fwhm_ellipse.height = max(result.fwhm_minor_px, 1.0)
             self.fwhm_ellipse.angle = result.theta_deg
             self.fwhm_ellipse.set_visible(True)
+            self.x_center_line.set_xdata([result.center_x_px, result.center_x_px])
+            self.y_center_line.set_ydata([result.center_y_px, result.center_y_px])
+            self.x_center_line.set_visible(True)
+            self.y_center_line.set_visible(True)
         else:
             self.center_artist.set_offsets(np.empty((0, 2)))
             self.fwhm_ellipse.set_visible(False)
+            self.x_center_line.set_visible(False)
+            self.y_center_line.set_visible(False)
 
         mode_text = "Analysis running" if analysis_enabled else "Preview only"
         title = (
@@ -171,8 +223,10 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         if subtract_background and analysis_enabled:
             title += " | Background-subtracted analysis"
         self.ax.set_title(title)
-        self.ax.set_xlim(0.0, max(display_image.shape[1] - 1, 1))
-        self.ax.set_ylim(0.0, max(display_image.shape[0] - 1, 1))
+        self.ax.set_xlim(0.0, max(frame_width - 1, 1))
+        self.ax.set_ylim(0.0, max(frame_height - 1, 1))
+        self.ax_x.set_xlim(0.0, max(frame_width - 1, 1))
+        self.ax_y.set_ylim(0.0, max(frame_height - 1, 1))
         self.draw_idle()
 
 
