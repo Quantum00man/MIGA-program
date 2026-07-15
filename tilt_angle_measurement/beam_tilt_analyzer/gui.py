@@ -88,10 +88,13 @@ class FrameDisplayPacket:
 class LiveImageCanvas(FigureCanvasQTAgg):
     """Matplotlib canvas for live camera preview with X/Y intensity profiles."""
 
+    roi_selected = pyqtSignal(int, int, int, int)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         self.figure = Figure(figsize=(7.8, 6.0), constrained_layout=True)
         super().__init__(self.figure)
         self.setParent(parent)
+        self.setFocusPolicy(Qt.ClickFocus)
 
         grid = self.figure.add_gridspec(
             2,
@@ -146,6 +149,17 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             edgecolor="#ff6f61",
         )
         self.ax.add_patch(self.roi_rect)
+        self.drag_rect = Rectangle(
+            (0.0, 0.0),
+            width=1.0,
+            height=1.0,
+            fill=False,
+            linewidth=1.2,
+            linestyle="--",
+            edgecolor="#ffd166",
+        )
+        self.drag_rect.set_visible(False)
+        self.ax.add_patch(self.drag_rect)
 
         self.x_profile_line, = self.ax_x.plot([], [], color="#1f77b4", linewidth=1.5)
         self.y_profile_line, = self.ax_y.plot([], [], color="#ff7f0e", linewidth=1.5)
@@ -153,6 +167,89 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         self.y_center_line = self.ax_y.axhline(0.0, color="#ff6f61", linewidth=1.0, alpha=0.9)
         self.x_center_line.set_visible(False)
         self.y_center_line.set_visible(False)
+
+        self._frame_shape = (8, 8)
+        self._drag_origin_px: tuple[float, float] | None = None
+        self._drag_current_px: tuple[float, float] | None = None
+
+        self.mpl_connect("button_press_event", self._on_mouse_press)
+        self.mpl_connect("motion_notify_event", self._on_mouse_move)
+        self.mpl_connect("button_release_event", self._on_mouse_release)
+
+    def _clip_point_to_frame(self, x: float, y: float) -> tuple[float, float]:
+        frame_height, frame_width = self._frame_shape
+        clipped_x = min(max(float(x), 0.0), max(frame_width - 1, 0))
+        clipped_y = min(max(float(y), 0.0), max(frame_height - 1, 0))
+        return clipped_x, clipped_y
+
+    def _update_drag_rect(self) -> None:
+        if self._drag_origin_px is None or self._drag_current_px is None:
+            self.drag_rect.set_visible(False)
+            return
+
+        x0, y0 = self._drag_origin_px
+        x1, y1 = self._drag_current_px
+        x_min = min(x0, x1)
+        y_min = min(y0, y1)
+        width = max(abs(x1 - x0), 1.0)
+        height = max(abs(y1 - y0), 1.0)
+        self.drag_rect.set_xy((x_min, y_min))
+        self.drag_rect.set_width(width)
+        self.drag_rect.set_height(height)
+        self.drag_rect.set_visible(True)
+
+    def _clear_drag_rect(self) -> None:
+        self._drag_origin_px = None
+        self._drag_current_px = None
+        self.drag_rect.set_visible(False)
+
+    def _selection_from_drag(self) -> tuple[int, int, int, int] | None:
+        if self._drag_origin_px is None or self._drag_current_px is None:
+            return None
+
+        x0, y0 = self._drag_origin_px
+        x1, y1 = self._drag_current_px
+        x_min = int(np.floor(min(x0, x1)))
+        y_min = int(np.floor(min(y0, y1)))
+        x_max = int(np.ceil(max(x0, x1))) + 1
+        y_max = int(np.ceil(max(y0, y1))) + 1
+
+        frame_height, frame_width = self._frame_shape
+        x_min = min(max(x_min, 0), max(frame_width - 1, 0))
+        y_min = min(max(y_min, 0), max(frame_height - 1, 0))
+        x_max = min(max(x_max, x_min + 1), frame_width)
+        y_max = min(max(y_max, y_min + 1), frame_height)
+        return x_min, y_min, x_max - x_min, y_max - y_min
+
+    def _on_mouse_press(self, event) -> None:
+        if event.button != 1 or event.inaxes != self.ax or event.xdata is None or event.ydata is None:
+            return
+        self._drag_origin_px = self._clip_point_to_frame(event.xdata, event.ydata)
+        self._drag_current_px = self._drag_origin_px
+        self._update_drag_rect()
+        self.draw_idle()
+
+    def _on_mouse_move(self, event) -> None:
+        if self._drag_origin_px is None or event.xdata is None or event.ydata is None:
+            return
+        self._drag_current_px = self._clip_point_to_frame(event.xdata, event.ydata)
+        self._update_drag_rect()
+        self.draw_idle()
+
+    def _on_mouse_release(self, event) -> None:
+        if self._drag_origin_px is None:
+            return
+        if event.xdata is not None and event.ydata is not None:
+            self._drag_current_px = self._clip_point_to_frame(event.xdata, event.ydata)
+        selection = self._selection_from_drag()
+        self._clear_drag_rect()
+        self.draw_idle()
+        if selection is None:
+            return
+        roi_x, roi_y, roi_width, roi_height = selection
+        if roi_width < 2 or roi_height < 2:
+            return
+        self.roi_selected.emit(roi_x, roi_y, roi_width, roi_height)
 
     def update_view(
         self,
@@ -164,6 +261,7 @@ class LiveImageCanvas(FigureCanvasQTAgg):
     ) -> None:
         display_image = frame_image.astype(np.float64, copy=False)
         frame_height, frame_width = display_image.shape
+        self._frame_shape = (frame_height, frame_width)
         self.image_artist.set_data(display_image)
         self.image_artist.set_extent((-0.5, frame_width - 0.5, -0.5, frame_height - 0.5))
 
@@ -685,6 +783,7 @@ class MainWindow(QMainWindow):
 
         self.live_canvas = LiveImageCanvas()
         self.time_series_canvas = TimeSeriesCanvas()
+        self.live_canvas.roi_selected.connect(self.on_canvas_roi_selected)
 
         self._build_ui()
         self._refresh_scale_hint()
@@ -874,9 +973,11 @@ class MainWindow(QMainWindow):
 
         self.auto_roi_button = QPushButton("Auto ROI from Brightest Spot")
         self.apply_analysis_button = QPushButton("Apply Analysis Settings")
+        self.roi_hint_label = QLabel("Tip: drag directly in the preview image to define the ROI.")
+        self.roi_hint_label.setWordWrap(True)
 
         self.auto_roi_button.clicked.connect(self.auto_center_roi)
-        self.apply_analysis_button.clicked.connect(self.apply_live_settings)
+        self.apply_analysis_button.clicked.connect(self.apply_analysis_settings_live)
 
         layout.addWidget(QLabel("Primary axis"), 0, 0)
         layout.addWidget(self.axis_combo, 0, 1)
@@ -898,6 +999,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.gaussian_refinement_check, 9, 0, 1, 2)
         layout.addWidget(self.auto_roi_button, 10, 0, 1, 2)
         layout.addWidget(self.apply_analysis_button, 11, 0, 1, 2)
+        layout.addWidget(self.roi_hint_label, 12, 0, 1, 2)
         return group
 
     def _build_session_group(self) -> QGroupBox:
@@ -1145,6 +1247,19 @@ class MainWindow(QMainWindow):
         self.worker.update_analysis_settings(self.current_analysis_settings())
         self.statusBar().showMessage("Live settings update requested.")
 
+    def apply_analysis_settings_live(self) -> None:
+        if not self.validate_settings():
+            return
+        self._refresh_scale_hint()
+        if self.worker is None or not self.worker.isRunning():
+            self.statusBar().showMessage(
+                "Analysis settings updated locally. Click Connect Preview to apply them to live acquisition."
+            )
+            return
+        self.worker.update_geometry_settings(self.current_geometry_settings())
+        self.worker.update_analysis_settings(self.current_analysis_settings())
+        self.statusBar().showMessage("Analysis settings update requested.")
+
     def reset_reference(self) -> None:
         if self.worker is not None and self.worker.isRunning():
             self.worker.request_reference_reset()
@@ -1192,8 +1307,27 @@ class MainWindow(QMainWindow):
         y0 = max(0, min(full_frame.shape[0] - roi_height, peak_y - roi_height // 2))
         self.roi_x_spin.setValue(int(x0))
         self.roi_y_spin.setValue(int(y0))
-        self.apply_live_settings()
+        self.apply_analysis_settings_live()
         self.statusBar().showMessage("ROI centered on the brightest region.")
+
+    def on_canvas_roi_selected(self, roi_x: int, roi_y: int, roi_width: int, roi_height: int) -> None:
+        if self.last_display_packet is None:
+            return
+
+        frame_height, frame_width = self.last_display_packet.full_frame.shape
+        roi_width = min(max(int(roi_width), self.roi_width_spin.minimum()), frame_width)
+        roi_height = min(max(int(roi_height), self.roi_height_spin.minimum()), frame_height)
+        roi_x = max(0, min(frame_width - roi_width, int(roi_x)))
+        roi_y = max(0, min(frame_height - roi_height, int(roi_y)))
+
+        self._set_spin_value(self.roi_x_spin, roi_x)
+        self._set_spin_value(self.roi_y_spin, roi_y)
+        self._set_spin_value(self.roi_width_spin, roi_width)
+        self._set_spin_value(self.roi_height_spin, roi_height)
+        self.apply_analysis_settings_live()
+        self.statusBar().showMessage(
+            f"ROI selected from preview: x={roi_x}, y={roi_y}, width={roi_width}, height={roi_height}"
+        )
 
     def open_ruler_calibration(self) -> None:
         if self.last_display_packet is None:
@@ -1215,7 +1349,7 @@ class MainWindow(QMainWindow):
         self.scale_mode_combo.setCurrentIndex(1)
         self.manual_scale_spin.setValue(scale_mm_per_px)
         self._refresh_scale_hint()
-        self.apply_live_settings()
+        self.apply_analysis_settings_live()
         self.statusBar().showMessage(
             f"Manual ruler calibration applied: {scale_mm_per_px:.6f} mm/px"
         )
