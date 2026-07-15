@@ -7,6 +7,7 @@ from datetime import datetime
 import csv
 import json
 import os
+import threading
 import traceback
 from typing import Any
 
@@ -86,41 +87,20 @@ class FrameDisplayPacket:
 
 
 class LiveImageCanvas(FigureCanvasQTAgg):
-    """Matplotlib canvas for live camera preview with X/Y intensity profiles."""
+    """Matplotlib canvas for live camera preview with in-image X/Y profile overlays."""
 
     roi_selected = pyqtSignal(int, int, int, int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        self.figure = Figure(figsize=(7.8, 6.0), constrained_layout=True)
+        self.figure = Figure(figsize=(7.8, 6.0))
         super().__init__(self.figure)
         self.setParent(parent)
         self.setFocusPolicy(Qt.ClickFocus)
 
-        grid = self.figure.add_gridspec(
-            2,
-            2,
-            height_ratios=(4.0, 1.25),
-            width_ratios=(4.0, 1.25),
-        )
-        self.ax = self.figure.add_subplot(grid[0, 0])
-        self.ax_x = self.figure.add_subplot(grid[1, 0], sharex=self.ax)
-        self.ax_y = self.figure.add_subplot(grid[0, 1], sharey=self.ax)
-        self.ax_corner = self.figure.add_subplot(grid[1, 1])
-        self.ax_corner.axis("off")
-
+        self.ax = self.figure.add_subplot(111)
         self.ax.set_title("Live Camera Preview")
+        self.ax.set_xlabel("Pixels")
         self.ax.set_ylabel("Pixels")
-        self.ax.tick_params(axis="x", labelbottom=False)
-
-        self.ax_x.set_title("X Intensity Profile", fontsize=10)
-        self.ax_x.set_xlabel("Pixels")
-        self.ax_x.set_ylabel("Mean Intensity")
-        self.ax_x.grid(True, alpha=0.25)
-
-        self.ax_y.set_title("Y Intensity Profile", fontsize=10)
-        self.ax_y.set_xlabel("Mean Intensity")
-        self.ax_y.tick_params(axis="y", labelleft=False)
-        self.ax_y.grid(True, alpha=0.25)
 
         self.image_artist = self.ax.imshow(
             np.zeros((8, 8), dtype=np.float64),
@@ -128,7 +108,14 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             origin="lower",
             interpolation="nearest",
         )
-        self.center_artist = self.ax.scatter([], [], marker="+", s=90, c="white")
+        self.center_artist = self.ax.scatter(
+            [],
+            [],
+            marker="+",
+            s=90,
+            c="white",
+            zorder=8,
+        )
         self.fwhm_ellipse = Ellipse(
             (0.0, 0.0),
             width=1.0,
@@ -137,6 +124,7 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             fill=False,
             linewidth=1.4,
             edgecolor="white",
+            zorder=7,
         )
         self.fwhm_ellipse.set_visible(False)
         self.ax.add_patch(self.fwhm_ellipse)
@@ -147,6 +135,7 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             fill=False,
             linewidth=1.3,
             edgecolor="#ff6f61",
+            zorder=9,
         )
         self.ax.add_patch(self.roi_rect)
         self.drag_rect = Rectangle(
@@ -157,24 +146,88 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             linewidth=1.2,
             linestyle="--",
             edgecolor="#ffd166",
+            zorder=10,
         )
         self.drag_rect.set_visible(False)
         self.ax.add_patch(self.drag_rect)
 
-        self.x_profile_line, = self.ax_x.plot([], [], color="#1f77b4", linewidth=1.5)
-        self.y_profile_line, = self.ax_y.plot([], [], color="#ff7f0e", linewidth=1.5)
-        self.x_center_line = self.ax_x.axvline(0.0, color="#ff6f61", linewidth=1.0, alpha=0.9)
-        self.y_center_line = self.ax_y.axhline(0.0, color="#ff6f61", linewidth=1.0, alpha=0.9)
-        self.x_center_line.set_visible(False)
-        self.y_center_line.set_visible(False)
+        self.profile_x_band = Rectangle(
+            (0.0, 0.0),
+            width=1.0,
+            height=1.0,
+            fill=True,
+            facecolor="white",
+            edgecolor="#1f77b4",
+            linewidth=0.8,
+            alpha=0.10,
+            zorder=4,
+        )
+        self.profile_y_band = Rectangle(
+            (0.0, 0.0),
+            width=1.0,
+            height=1.0,
+            fill=True,
+            facecolor="white",
+            edgecolor="#ff7f0e",
+            linewidth=0.8,
+            alpha=0.10,
+            zorder=4,
+        )
+        self.profile_x_band.set_visible(False)
+        self.profile_y_band.set_visible(False)
+        self.ax.add_patch(self.profile_x_band)
+        self.ax.add_patch(self.profile_y_band)
+
+        self.profile_x_line, = self.ax.plot([], [], color="#1f77b4", linewidth=1.4, zorder=5)
+        self.profile_y_line, = self.ax.plot([], [], color="#ff7f0e", linewidth=1.4, zorder=5)
+        self.profile_x_center_line, = self.ax.plot([], [], color="#ff6f61", linewidth=1.0, zorder=6)
+        self.profile_y_center_line, = self.ax.plot([], [], color="#ff6f61", linewidth=1.0, zorder=6)
+        self.profile_x_line.set_visible(False)
+        self.profile_y_line.set_visible(False)
+        self.profile_x_center_line.set_visible(False)
+        self.profile_y_center_line.set_visible(False)
 
         self._frame_shape = (8, 8)
+        self._display_counter = 0
+        self._cached_clim = (0.0, 1.0)
+        self._force_contrast_refresh = True
+        self._contrast_mode = "Auto"
+        self._contrast_refresh_frames = 10
+        self._show_profiles = True
+        self._profile_refresh_hz = 2.0
+        self._profile_max_points = 256
+        self._last_profile_update_s: float | None = None
+        self._last_profile_roi_tuple: tuple[int, int, int, int] | None = None
+        self._last_title: str | None = None
         self._drag_origin_px: tuple[float, float] | None = None
         self._drag_current_px: tuple[float, float] | None = None
 
         self.mpl_connect("button_press_event", self._on_mouse_press)
         self.mpl_connect("motion_notify_event", self._on_mouse_move)
         self.mpl_connect("button_release_event", self._on_mouse_release)
+
+    def configure_display(
+        self,
+        *,
+        show_profiles: bool,
+        profile_refresh_hz: float,
+        profile_max_points: int,
+        contrast_mode: str,
+        contrast_refresh_frames: int,
+    ) -> None:
+        self._show_profiles = bool(show_profiles)
+        self._profile_refresh_hz = max(float(profile_refresh_hz), 0.1)
+        self._profile_max_points = max(32, int(profile_max_points))
+        self._contrast_mode = contrast_mode
+        self._contrast_refresh_frames = max(1, int(contrast_refresh_frames))
+        self._force_contrast_refresh = True
+        self._last_profile_update_s = None
+        self._last_profile_roi_tuple = None
+        if not self._show_profiles:
+            self._hide_profile_overlay()
+
+    def request_contrast_refresh(self) -> None:
+        self._force_contrast_refresh = True
 
     def _clip_point_to_frame(self, x: float, y: float) -> tuple[float, float]:
         frame_height, frame_width = self._frame_shape
@@ -251,6 +304,158 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             return
         self.roi_selected.emit(roi_x, roi_y, roi_width, roi_height)
 
+    @staticmethod
+    def _downsample_profile(
+        coords: np.ndarray,
+        profile: np.ndarray,
+        max_points: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        if profile.size <= max_points:
+            return coords, profile
+
+        edges = np.linspace(0, profile.size, max_points + 1, dtype=int)
+        downsampled_coords = np.empty(max_points, dtype=np.float64)
+        downsampled_profile = np.empty(max_points, dtype=np.float64)
+        for idx in range(max_points):
+            start = edges[idx]
+            stop = edges[idx + 1]
+            if stop <= start:
+                stop = min(start + 1, profile.size)
+            downsampled_coords[idx] = float(np.mean(coords[start:stop]))
+            downsampled_profile[idx] = float(np.mean(profile[start:stop]))
+        return downsampled_coords, downsampled_profile
+
+    @staticmethod
+    def _normalize_profile(profile: np.ndarray) -> np.ndarray:
+        profile_min = float(np.min(profile))
+        profile_max = float(np.max(profile))
+        span = profile_max - profile_min
+        if not np.isfinite(span) or span <= 1.0e-12:
+            return np.full_like(profile, 0.5, dtype=np.float64)
+        return (profile - profile_min) / span
+
+    @staticmethod
+    def _profile_band_sizes(frame_width: int, frame_height: int) -> tuple[float, float]:
+        band_height = min(max(frame_height * 0.14, 36.0), 110.0)
+        band_width = min(max(frame_width * 0.14, 36.0), 140.0)
+        return float(band_height), float(band_width)
+
+    def _hide_profile_overlay(self) -> None:
+        self.profile_x_band.set_visible(False)
+        self.profile_y_band.set_visible(False)
+        self.profile_x_line.set_visible(False)
+        self.profile_y_line.set_visible(False)
+        self.profile_x_center_line.set_visible(False)
+        self.profile_y_center_line.set_visible(False)
+        self.profile_x_line.set_data([], [])
+        self.profile_y_line.set_data([], [])
+
+    def _update_contrast_limits(self, display_image: np.ndarray) -> None:
+        should_refresh = self._force_contrast_refresh
+        if not should_refresh and self._contrast_mode == "Auto":
+            should_refresh = self._display_counter % self._contrast_refresh_frames == 0
+
+        if should_refresh:
+            frame_height, frame_width = display_image.shape
+            sample_stride = 1
+            longest_edge = max(frame_height, frame_width)
+            if longest_edge > 1500:
+                sample_stride = 4
+            elif longest_edge > 900:
+                sample_stride = 2
+            sample = display_image[::sample_stride, ::sample_stride]
+            low = float(np.percentile(sample, 2.0))
+            high = float(np.percentile(sample, 99.8))
+            if not np.isfinite(low) or not np.isfinite(high) or low == high:
+                low = float(np.min(sample))
+                high = float(np.max(sample) + 1.0)
+            self._cached_clim = (low, high)
+            self._force_contrast_refresh = False
+
+        self.image_artist.set_clim(*self._cached_clim)
+
+    def _update_profile_overlay(
+        self,
+        roi_view: np.ndarray,
+        roi_tuple: tuple[int, int, int, int],
+        result: FrameAnalysisResult | None,
+        analysis_enabled: bool,
+        timestamp_s: float,
+    ) -> None:
+        frame_height, frame_width = self._frame_shape
+        x_band_height, y_band_width = self._profile_band_sizes(frame_width, frame_height)
+        x_band_height = min(x_band_height, max(frame_height - 1, 1.0))
+        y_band_width = min(y_band_width, max(frame_width - 1, 1.0))
+        y_band_x0 = max(frame_width - y_band_width, 0.0)
+
+        if not self._show_profiles or roi_view.size == 0:
+            self._hide_profile_overlay()
+            return
+
+        self.profile_x_band.set_xy((0.0, 0.0))
+        self.profile_x_band.set_width(max(frame_width - 1, 1.0))
+        self.profile_x_band.set_height(x_band_height)
+        self.profile_x_band.set_visible(True)
+
+        self.profile_y_band.set_xy((y_band_x0, 0.0))
+        self.profile_y_band.set_width(y_band_width)
+        self.profile_y_band.set_height(max(frame_height - 1, 1.0))
+        self.profile_y_band.set_visible(True)
+
+        refresh_interval_s = 1.0 / max(self._profile_refresh_hz, 0.1)
+        should_refresh_profiles = (
+            self._last_profile_update_s is None
+            or timestamp_s - self._last_profile_update_s >= refresh_interval_s
+            or self._last_profile_roi_tuple != roi_tuple
+        )
+
+        if should_refresh_profiles:
+            roi_x, roi_y, roi_width, roi_height = roi_tuple
+            x_coords = np.arange(roi_x, roi_x + roi_width, dtype=np.float64)
+            y_coords = np.arange(roi_y, roi_y + roi_height, dtype=np.float64)
+            x_profile = np.mean(roi_view, axis=0)
+            y_profile = np.mean(roi_view, axis=1)
+
+            x_coords, x_profile = self._downsample_profile(
+                x_coords,
+                x_profile,
+                self._profile_max_points,
+            )
+            y_coords, y_profile = self._downsample_profile(
+                y_coords,
+                y_profile,
+                self._profile_max_points,
+            )
+
+            x_norm = self._normalize_profile(x_profile)
+            y_norm = self._normalize_profile(y_profile)
+            x_padding = min(6.0, max(x_band_height * 0.15, 3.0))
+            y_padding = min(6.0, max(y_band_width * 0.15, 3.0))
+            x_plot_y = x_padding + x_norm * max(x_band_height - 2.0 * x_padding, 1.0)
+            y_plot_x = y_band_x0 + y_padding + y_norm * max(y_band_width - 2.0 * y_padding, 1.0)
+
+            self.profile_x_line.set_data(x_coords, x_plot_y)
+            self.profile_y_line.set_data(y_plot_x, y_coords)
+            self.profile_x_line.set_visible(True)
+            self.profile_y_line.set_visible(True)
+            self._last_profile_update_s = timestamp_s
+            self._last_profile_roi_tuple = roi_tuple
+
+        if analysis_enabled and result is not None and self.profile_x_line.get_visible():
+            self.profile_x_center_line.set_data(
+                [result.center_x_px, result.center_x_px],
+                [0.0, x_band_height],
+            )
+            self.profile_y_center_line.set_data(
+                [y_band_x0, y_band_x0 + y_band_width],
+                [result.center_y_px, result.center_y_px],
+            )
+            self.profile_x_center_line.set_visible(True)
+            self.profile_y_center_line.set_visible(True)
+        else:
+            self.profile_x_center_line.set_visible(False)
+            self.profile_y_center_line.set_visible(False)
+
     def update_view(
         self,
         frame_image: np.ndarray,
@@ -258,19 +463,24 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         result: FrameAnalysisResult | None,
         analysis_enabled: bool,
         subtract_background: bool,
+        timestamp_s: float,
     ) -> None:
         display_image = frame_image.astype(np.float64, copy=False)
         frame_height, frame_width = display_image.shape
+        self._display_counter += 1
+
+        shape_changed = (frame_height, frame_width) != self._frame_shape
         self._frame_shape = (frame_height, frame_width)
         self.image_artist.set_data(display_image)
-        self.image_artist.set_extent((-0.5, frame_width - 0.5, -0.5, frame_height - 0.5))
+        if shape_changed:
+            self.image_artist.set_extent((-0.5, frame_width - 0.5, -0.5, frame_height - 0.5))
+            self.ax.set_xlim(0.0, max(frame_width - 1, 1))
+            self.ax.set_ylim(0.0, max(frame_height - 1, 1))
+            self._force_contrast_refresh = True
+            self._last_profile_update_s = None
+            self._last_profile_roi_tuple = None
 
-        low = float(np.percentile(display_image, 2.0))
-        high = float(np.percentile(display_image, 99.8))
-        if not np.isfinite(low) or not np.isfinite(high) or low == high:
-            low = float(np.min(display_image))
-            high = float(np.max(display_image) + 1.0)
-        self.image_artist.set_clim(low, high)
+        self._update_contrast_limits(display_image)
 
         roi_x, roi_y, roi_width, roi_height = roi_tuple
         self.roi_rect.set_xy((roi_x, roi_y))
@@ -279,20 +489,13 @@ class LiveImageCanvas(FigureCanvasQTAgg):
         self.roi_rect.set_visible(True)
 
         roi_view = display_image[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
-        if roi_view.size > 0:
-            x_coords = np.arange(roi_x, roi_x + roi_width, dtype=np.float64)
-            y_coords = np.arange(roi_y, roi_y + roi_height, dtype=np.float64)
-            x_profile = np.mean(roi_view, axis=0)
-            y_profile = np.mean(roi_view, axis=1)
-            self.x_profile_line.set_data(x_coords, x_profile)
-            self.y_profile_line.set_data(y_profile, y_coords)
-            self.ax_x.set_ylim(0.0, max(float(np.max(x_profile)) * 1.05, 1.0))
-            self.ax_y.set_xlim(0.0, max(float(np.max(y_profile)) * 1.05, 1.0))
-        else:
-            self.x_profile_line.set_data([], [])
-            self.y_profile_line.set_data([], [])
-            self.ax_x.set_ylim(0.0, 1.0)
-            self.ax_y.set_xlim(0.0, 1.0)
+        self._update_profile_overlay(
+            roi_view,
+            roi_tuple,
+            result,
+            analysis_enabled,
+            timestamp_s,
+        )
 
         if analysis_enabled and result is not None:
             self.center_artist.set_offsets(
@@ -303,28 +506,25 @@ class LiveImageCanvas(FigureCanvasQTAgg):
             self.fwhm_ellipse.height = max(result.fwhm_minor_px, 1.0)
             self.fwhm_ellipse.angle = result.theta_deg
             self.fwhm_ellipse.set_visible(True)
-            self.x_center_line.set_xdata([result.center_x_px, result.center_x_px])
-            self.y_center_line.set_ydata([result.center_y_px, result.center_y_px])
-            self.x_center_line.set_visible(True)
-            self.y_center_line.set_visible(True)
         else:
             self.center_artist.set_offsets(np.empty((0, 2)))
             self.fwhm_ellipse.set_visible(False)
-            self.x_center_line.set_visible(False)
-            self.y_center_line.set_visible(False)
 
         mode_text = "Analysis running" if analysis_enabled else "Preview only"
         title = (
             f"Live Camera Preview | {mode_text} | "
             f"ROI [{roi_x}:{roi_x + roi_width}, {roi_y}:{roi_y + roi_height}]"
         )
+        if self._show_profiles:
+            title += (
+                f" | XY overlay {self._profile_refresh_hz:.1f} Hz"
+                f" | {self._profile_max_points} pts"
+            )
         if subtract_background and analysis_enabled:
             title += " | Background-subtracted analysis"
-        self.ax.set_title(title)
-        self.ax.set_xlim(0.0, max(frame_width - 1, 1))
-        self.ax.set_ylim(0.0, max(frame_height - 1, 1))
-        self.ax_x.set_xlim(0.0, max(frame_width - 1, 1))
-        self.ax_y.set_ylim(0.0, max(frame_height - 1, 1))
+        if title != self._last_title:
+            self.ax.set_title(title)
+            self._last_title = title
         self.draw_idle()
 
 
@@ -516,7 +716,7 @@ class RulerCalibrationDialog(QDialog):
 class AcquisitionWorker(QThread):
     """Worker thread that owns the camera backend and live analysis loop."""
 
-    frame_packet = pyqtSignal(object)
+    frame_available = pyqtSignal()
     analysis_result = pyqtSignal(object)
     status_message = pyqtSignal(str)
     error_message = pyqtSignal(str)
@@ -550,6 +750,9 @@ class AcquisitionWorker(QThread):
         self._analysis_enabled = False
         self._large_roi_warning_emitted = False
         self._consecutive_timeouts = 0
+        self._display_packet_lock = threading.Lock()
+        self._latest_display_packet: FrameDisplayPacket | None = None
+        self._frame_notification_pending = False
 
     def stop(self) -> None:
         self._stop_requested = True
@@ -598,6 +801,23 @@ class AcquisitionWorker(QThread):
     def clear_background(self) -> None:
         self._background_frame = None
         self.status_message.emit("Background frame cleared.")
+
+    def take_latest_display_packet(self) -> FrameDisplayPacket | None:
+        with self._display_packet_lock:
+            packet = self._latest_display_packet
+            self._latest_display_packet = None
+            self._frame_notification_pending = False
+        return packet
+
+    def _publish_display_packet(self, packet: FrameDisplayPacket) -> None:
+        should_emit = False
+        with self._display_packet_lock:
+            self._latest_display_packet = packet
+            if not self._frame_notification_pending:
+                self._frame_notification_pending = True
+                should_emit = True
+        if should_emit:
+            self.frame_available.emit()
 
     def _frame_timeout_ms(self) -> int:
         frame_rate_fps = max(self._camera_settings.frame_rate_fps, 0.1)
@@ -744,7 +964,7 @@ class AcquisitionWorker(QThread):
                         acquisition_fps=acquisition_fps,
                         analysis_enabled=self._analysis_enabled,
                     )
-                    self.frame_packet.emit(display_packet)
+                    self._publish_display_packet(display_packet)
                     last_display_emit_s = packet.timestamp_s
 
             self.status_message.emit("Preview stopped.")
@@ -786,6 +1006,7 @@ class MainWindow(QMainWindow):
         self.live_canvas.roi_selected.connect(self.on_canvas_roi_selected)
 
         self._build_ui()
+        self.apply_display_preferences()
         self._refresh_scale_hint()
         self._update_summary_text()
         self._set_analysis_metrics_placeholder("Preview not started")
@@ -967,6 +1188,13 @@ class MainWindow(QMainWindow):
         self.threshold_spin = self._make_float_spin(0.0, 95.0, 10.0, decimals=1)
         self.analysis_stride_spin = self._make_int_spin(1, 100, 1)
         self.background_average_spin = self._make_int_spin(1, 512, 16)
+        self.profile_overlay_check = QCheckBox("Overlay X/Y profiles on preview")
+        self.profile_overlay_check.setChecked(True)
+        self.profile_refresh_spin = self._make_float_spin(0.2, 10.0, 2.0, decimals=1)
+        self.profile_points_spin = self._make_int_spin(64, 2048, 256)
+        self.contrast_mode_combo = QComboBox()
+        self.contrast_mode_combo.addItems(["Auto", "Fixed"])
+        self.contrast_interval_spin = self._make_int_spin(1, 200, 10)
         self.subtract_background_check = QCheckBox("Subtract captured background")
         self.gaussian_refinement_check = QCheckBox("Enable 2D Gaussian refinement")
         self.gaussian_refinement_check.setChecked(True)
@@ -978,6 +1206,12 @@ class MainWindow(QMainWindow):
 
         self.auto_roi_button.clicked.connect(self.auto_center_roi)
         self.apply_analysis_button.clicked.connect(self.apply_analysis_settings_live)
+
+        self.profile_overlay_check.stateChanged.connect(self.apply_display_preferences)
+        self.profile_refresh_spin.valueChanged.connect(self.apply_display_preferences)
+        self.profile_points_spin.valueChanged.connect(self.apply_display_preferences)
+        self.contrast_mode_combo.currentIndexChanged.connect(self.apply_display_preferences)
+        self.contrast_interval_spin.valueChanged.connect(self.apply_display_preferences)
 
         layout.addWidget(QLabel("Primary axis"), 0, 0)
         layout.addWidget(self.axis_combo, 0, 1)
@@ -995,11 +1229,20 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.analysis_stride_spin, 6, 1)
         layout.addWidget(QLabel("Background averaging"), 7, 0)
         layout.addWidget(self.background_average_spin, 7, 1)
-        layout.addWidget(self.subtract_background_check, 8, 0, 1, 2)
-        layout.addWidget(self.gaussian_refinement_check, 9, 0, 1, 2)
-        layout.addWidget(self.auto_roi_button, 10, 0, 1, 2)
-        layout.addWidget(self.apply_analysis_button, 11, 0, 1, 2)
-        layout.addWidget(self.roi_hint_label, 12, 0, 1, 2)
+        layout.addWidget(self.profile_overlay_check, 8, 0, 1, 2)
+        layout.addWidget(QLabel("Profile refresh (Hz)"), 9, 0)
+        layout.addWidget(self.profile_refresh_spin, 9, 1)
+        layout.addWidget(QLabel("Profile max points"), 10, 0)
+        layout.addWidget(self.profile_points_spin, 10, 1)
+        layout.addWidget(QLabel("Contrast mode"), 11, 0)
+        layout.addWidget(self.contrast_mode_combo, 11, 1)
+        layout.addWidget(QLabel("Contrast every N frames"), 12, 0)
+        layout.addWidget(self.contrast_interval_spin, 12, 1)
+        layout.addWidget(self.subtract_background_check, 13, 0, 1, 2)
+        layout.addWidget(self.gaussian_refinement_check, 14, 0, 1, 2)
+        layout.addWidget(self.auto_roi_button, 15, 0, 1, 2)
+        layout.addWidget(self.apply_analysis_button, 16, 0, 1, 2)
+        layout.addWidget(self.roi_hint_label, 17, 0, 1, 2)
         return group
 
     def _build_session_group(self) -> QGroupBox:
@@ -1188,7 +1431,7 @@ class MainWindow(QMainWindow):
             self.current_geometry_settings(),
             self.current_analysis_settings(),
         )
-        self.worker.frame_packet.connect(self.on_frame_packet)
+        self.worker.frame_available.connect(self.on_frame_available)
         self.worker.analysis_result.connect(self.on_analysis_result)
         self.worker.status_message.connect(self.on_status_message)
         self.worker.error_message.connect(self.on_error_message)
@@ -1259,6 +1502,20 @@ class MainWindow(QMainWindow):
         self.worker.update_geometry_settings(self.current_geometry_settings())
         self.worker.update_analysis_settings(self.current_analysis_settings())
         self.statusBar().showMessage("Analysis settings update requested.")
+
+    def apply_display_preferences(self, *_args) -> None:
+        if hasattr(self, "contrast_interval_spin"):
+            auto_mode = self.contrast_mode_combo.currentText() == "Auto"
+            self.contrast_interval_spin.setEnabled(auto_mode)
+        self.live_canvas.configure_display(
+            show_profiles=self.profile_overlay_check.isChecked(),
+            profile_refresh_hz=self.profile_refresh_spin.value(),
+            profile_max_points=self.profile_points_spin.value(),
+            contrast_mode=self.contrast_mode_combo.currentText(),
+            contrast_refresh_frames=self.contrast_interval_spin.value(),
+        )
+        if self.last_display_packet is not None:
+            self._render_frame_packet(self.last_display_packet)
 
     def reset_reference(self) -> None:
         if self.worker is not None and self.worker.isRunning():
@@ -1419,7 +1676,7 @@ class MainWindow(QMainWindow):
             f"Session exported: {os.path.basename(csv_path)}, {os.path.basename(json_path)}"
         )
 
-    def on_frame_packet(self, packet: FrameDisplayPacket) -> None:
+    def _render_frame_packet(self, packet: FrameDisplayPacket) -> None:
         self.last_display_packet = packet
         self.live_canvas.update_view(
             packet.full_frame,
@@ -1427,10 +1684,22 @@ class MainWindow(QMainWindow):
             packet.result,
             packet.analysis_enabled,
             self.subtract_background_check.isChecked(),
+            packet.timestamp_s,
         )
         self.metric_fps_label.setText(f"{packet.acquisition_fps:.2f}")
         if not packet.analysis_enabled and not self.analysis_running:
             self._set_analysis_metrics_placeholder("Preview only")
+
+    def on_frame_available(self) -> None:
+        if self.worker is None:
+            return
+        packet = self.worker.take_latest_display_packet()
+        if packet is None:
+            return
+        self._render_frame_packet(packet)
+
+    def on_frame_packet(self, packet: FrameDisplayPacket) -> None:
+        self._render_frame_packet(packet)
 
     def on_analysis_result(self, result: FrameAnalysisResult) -> None:
         self.last_result = result
