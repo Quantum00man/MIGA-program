@@ -1,0 +1,6 @@
+PyQt5
+numpy
+scipy
+matplotlib
+# Optional for Basler cameras:
+# pypylon

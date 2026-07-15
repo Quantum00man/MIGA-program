@@ -1,0 +1,15 @@
+tau_s,allan_variance,allan_deviation,sampling_interval_s,sample_rate_hz,overlap_mode,variance_mode,mean_value,input_column,input_samples,skipped_rows,source_file
+0.1,8.21493781555e-08,0.000286617128161,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+0.2,9.16774281632e-09,9.5748330619e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+0.4,4.5806918449e-09,6.7680808542e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+0.8,1.7790277335e-09,4.21785221825e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+1.6,9.68079710788e-10,3.11139793467e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+3.2,4.22056135477e-10,2.05440048549e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+6.4,2.71272842553e-10,1.64703625508e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+12.8,1.95908168018e-10,1.39967199021e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+25.6,1.22771712778e-10,1.10802397437e-05,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+51.2,9.32732579575e-11,9.65780813422e-06,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+102.4,4.69774734032e-11,6.85401148257e-06,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+204.8,2.48573650563e-11,4.98571610266e-06,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+409.6,3.57918743086e-11,5.98263105236e-06,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
+819.2,3.07608657996e-11,5.54624790283e-06,0.1,10,overlapping,absolute,0.0258094626359,1,20448,0,Allan-analysis.csv
