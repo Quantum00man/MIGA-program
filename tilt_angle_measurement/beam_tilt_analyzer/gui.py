@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, replace
+from collections import deque
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 import csv
 import json
@@ -48,9 +49,9 @@ from .analysis import (
     AnalysisSettings,
     FrameAnalysisResult,
     GeometrySettings,
+    OnlineSessionSummary,
     analyze_frame,
     clipped_roi,
-    compute_session_summary,
     scale_mm_per_px,
 )
 from .camera import (
@@ -63,6 +64,10 @@ from .camera import (
 
 
 MAX_GAUSSIAN_REFINEMENT_PIXELS = 250_000
+TIME_SERIES_WINDOW_S = 60.0
+MAX_TIME_SERIES_POINTS = 4000
+DEFAULT_OUTPUT_CSV_NAME = "beam_tilt_session.csv"
+SESSION_CSV_FLUSH_INTERVAL = 1
 
 
 class FrameDisplayPacket:
@@ -84,6 +89,15 @@ class FrameDisplayPacket:
         self.result = result
         self.acquisition_fps = acquisition_fps
         self.analysis_enabled = analysis_enabled
+
+
+@dataclass(slots=True)
+class RecordingPlan:
+    sample_interval_s: float
+    stop_mode: str
+    target_points: int | None
+    target_duration_s: float | None
+    output_csv_path: str
 
 
 class LiveImageCanvas(FigureCanvasQTAgg):
@@ -544,7 +558,22 @@ class TimeSeriesCanvas(FigureCanvasQTAgg):
         self.line_r, = self.ax.plot([], [], label="Radial", linewidth=1.3)
         self.ax.legend(loc="upper right")
 
-    def update_view(self, records: list[FrameAnalysisResult], window_s: float = 60.0) -> None:
+    @staticmethod
+    def _downsample_indices(point_count: int, max_points: int) -> np.ndarray:
+        if point_count <= max_points:
+            return np.arange(point_count, dtype=int)
+        step = int(np.ceil(point_count / max_points))
+        indices = np.arange(0, point_count, step, dtype=int)
+        if indices[-1] != point_count - 1:
+            indices = np.append(indices, point_count - 1)
+        return indices
+
+    def update_view(
+        self,
+        records: list[FrameAnalysisResult],
+        window_s: float = TIME_SERIES_WINDOW_S,
+        max_points: int = MAX_TIME_SERIES_POINTS,
+    ) -> None:
         if not records:
             for line in (self.line_x, self.line_y, self.line_r):
                 line.set_data([], [])
@@ -553,16 +582,25 @@ class TimeSeriesCanvas(FigureCanvasQTAgg):
             self.draw_idle()
             return
 
-        time_axis = np.array([record.timestamp_s for record in records], dtype=np.float64)
+        time_axis = np.fromiter((record.timestamp_s for record in records), dtype=np.float64, count=len(records))
         time_axis = time_axis - time_axis[0]
         if time_axis[-1] > window_s:
-            keep = time_axis >= (time_axis[-1] - window_s)
-            time_axis = time_axis[keep]
-            records = [record for record, include in zip(records, keep) if include]
+            cutoff = time_axis[-1] - window_s
+            start_idx = int(np.searchsorted(time_axis, cutoff, side="left"))
+            records = records[start_idx:]
+            time_axis = time_axis[start_idx:]
+            time_axis = time_axis - time_axis[0]
 
-        x = np.array([record.tilt_x_urad for record in records], dtype=np.float64)
-        y = np.array([record.tilt_y_urad for record in records], dtype=np.float64)
-        radial = np.array([record.radial_tilt_urad for record in records], dtype=np.float64)
+        x = np.fromiter((record.tilt_x_urad for record in records), dtype=np.float64, count=len(records))
+        y = np.fromiter((record.tilt_y_urad for record in records), dtype=np.float64, count=len(records))
+        radial = np.fromiter((record.radial_tilt_urad for record in records), dtype=np.float64, count=len(records))
+
+        indices = self._downsample_indices(time_axis.size, max_points)
+        if indices.size != time_axis.size:
+            time_axis = time_axis[indices]
+            x = x[indices]
+            y = y[indices]
+            radial = radial[indices]
 
         self.line_x.set_data(time_axis, x)
         self.line_y.set_data(time_axis, y)
@@ -753,6 +791,7 @@ class AcquisitionWorker(QThread):
         self._display_packet_lock = threading.Lock()
         self._latest_display_packet: FrameDisplayPacket | None = None
         self._frame_notification_pending = False
+        self._last_analysis_emit_s: float | None = None
 
     def stop(self) -> None:
         self._stop_requested = True
@@ -761,6 +800,7 @@ class AcquisitionWorker(QThread):
         self._analysis_enabled = True
         self._reset_reference_requested = True
         self._last_result = None
+        self._last_analysis_emit_s = None
         self.analysis_state_changed.emit(True)
         self.status_message.emit(
             "Analysis started. The next valid fitted frame will define the reference center."
@@ -771,6 +811,7 @@ class AcquisitionWorker(QThread):
             return
         self._analysis_enabled = False
         self._last_result = None
+        self._last_analysis_emit_s = None
         self.analysis_state_changed.emit(False)
         self.status_message.emit("Analysis stopped. Live preview remains active.")
 
@@ -778,6 +819,7 @@ class AcquisitionWorker(QThread):
         self._camera_settings = settings
         self._pending_camera_apply = True
         self._consecutive_timeouts = 0
+        self._last_analysis_emit_s = None
 
     def update_geometry_settings(self, settings: GeometrySettings) -> None:
         self._geometry_settings = settings
@@ -852,6 +894,7 @@ class AcquisitionWorker(QThread):
             self.applied_camera_settings.emit(applied)
             self._camera_settings = applied
             self._background_frame = None
+            self._last_analysis_emit_s = None
             self._backend.start_grabbing()
             self.analysis_state_changed.emit(False)
             self.status_message.emit("Preview started. Adjust the camera, then click Start Analysis.")
@@ -871,6 +914,7 @@ class AcquisitionWorker(QThread):
                     self._background_accumulator = None
                     self._background_remaining = 0
                     self._last_result = None
+                    self._last_analysis_emit_s = None
                     self._backend.start_grabbing()
                     self._pending_camera_apply = False
                     self._consecutive_timeouts = 0
@@ -928,7 +972,13 @@ class AcquisitionWorker(QThread):
                 result = None
 
                 stride = max(1, int(self._analysis_settings.analysis_stride))
-                if self._analysis_enabled and packet.frame_index % stride == 0:
+                sample_interval_s = max(float(self._analysis_settings.sample_interval_s), 1.0e-6)
+                stride_ok = packet.frame_index % stride == 0
+                interval_ok = (
+                    self._last_analysis_emit_s is None
+                    or packet.timestamp_s - self._last_analysis_emit_s >= sample_interval_s - 1.0e-9
+                )
+                if self._analysis_enabled and stride_ok and interval_ok:
                     current_reference = (
                         None if self._reset_reference_requested else self._reference_center_px
                     )
@@ -951,6 +1001,7 @@ class AcquisitionWorker(QThread):
                             self._reset_reference_requested = False
                             self.status_message.emit("Reference center updated.")
                         self._last_result = result
+                        self._last_analysis_emit_s = result.timestamp_s
                         self.analysis_result.emit(result)
 
                 display_interval_s = 1.0 / max(self._analysis_settings.display_fps, 1.0)
@@ -994,12 +1045,22 @@ class MainWindow(QMainWindow):
         self.resize(1600, 980)
 
         self.worker: AcquisitionWorker | None = None
-        self.records: list[FrameAnalysisResult] = []
+        self.records: deque[FrameAnalysisResult] = deque()
+        self.record_count = 0
+        self.session_summary = OnlineSessionSummary()
         self.last_display_packet: FrameDisplayPacket | None = None
         self.last_result: FrameAnalysisResult | None = None
         self.last_plot_refresh_s = 0.0
         self.preview_running = False
         self.analysis_running = False
+        self._session_csv_handle = None
+        self._session_csv_writer = None
+        self._session_csv_temp_path: str | None = None
+        self._session_zero_time_s: float | None = None
+        self._session_csv_pending_rows = 0
+        self._active_stop_mode = "Manual Stop"
+        self._active_target_points: int | None = None
+        self._active_target_duration_s: float | None = None
 
         self.live_canvas = LiveImageCanvas()
         self.time_series_canvas = TimeSeriesCanvas()
@@ -1047,6 +1108,7 @@ class MainWindow(QMainWindow):
         scroll_layout.addWidget(self._build_acquisition_group())
         scroll_layout.addWidget(self._build_geometry_group())
         scroll_layout.addWidget(self._build_analysis_group())
+        scroll_layout.addWidget(self._build_recording_group())
         scroll_layout.addWidget(self._build_session_group())
         scroll_layout.addWidget(self._build_metrics_group())
 
@@ -1245,6 +1307,56 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.roi_hint_label, 17, 0, 1, 2)
         return group
 
+    def _build_recording_group(self) -> QGroupBox:
+        group = QGroupBox("Recording")
+        layout = QGridLayout(group)
+
+        self.sample_interval_spin = self._make_float_spin(0.001, 3600.0, 0.100, decimals=3)
+        self.stop_mode_combo = QComboBox()
+        self.stop_mode_combo.addItems(["Manual Stop", "N Points", "Duration"])
+        self.target_points_spin = self._make_int_spin(1, 100_000_000, 1200)
+        self.duration_value_spin = self._make_float_spin(0.001, 100_000.0, 120.0, decimals=3)
+        self.duration_unit_combo = QComboBox()
+        self.duration_unit_combo.addItems(["s", "min", "h"])
+        self.output_csv_edit = QLineEdit(os.path.abspath(DEFAULT_OUTPUT_CSV_NAME))
+        self.browse_output_csv_button = QPushButton("Browse...")
+        self.recording_hint_label = QLabel()
+        self.recording_hint_label.setWordWrap(True)
+
+        self.browse_output_csv_button.clicked.connect(self.browse_output_csv_path)
+        self.sample_interval_spin.valueChanged.connect(self._refresh_recording_controls)
+        self.stop_mode_combo.currentIndexChanged.connect(self._refresh_recording_controls)
+        self.target_points_spin.valueChanged.connect(self._refresh_recording_controls)
+        self.duration_value_spin.valueChanged.connect(self._refresh_recording_controls)
+        self.duration_unit_combo.currentIndexChanged.connect(self._refresh_recording_controls)
+        self.output_csv_edit.textChanged.connect(self._refresh_recording_plan_hint)
+        self.frame_rate_spin.valueChanged.connect(self._refresh_recording_plan_hint)
+
+        output_row = QHBoxLayout()
+        output_row.setContentsMargins(0, 0, 0, 0)
+        output_row.addWidget(self.output_csv_edit, stretch=1)
+        output_row.addWidget(self.browse_output_csv_button)
+
+        duration_row = QHBoxLayout()
+        duration_row.setContentsMargins(0, 0, 0, 0)
+        duration_row.addWidget(self.duration_value_spin, stretch=1)
+        duration_row.addWidget(self.duration_unit_combo)
+
+        layout.addWidget(QLabel("Sample interval (s)"), 0, 0)
+        layout.addWidget(self.sample_interval_spin, 0, 1)
+        layout.addWidget(QLabel("Stop condition"), 1, 0)
+        layout.addWidget(self.stop_mode_combo, 1, 1)
+        layout.addWidget(QLabel("Target points"), 2, 0)
+        layout.addWidget(self.target_points_spin, 2, 1)
+        layout.addWidget(QLabel("Target duration"), 3, 0)
+        layout.addLayout(duration_row, 3, 1)
+        layout.addWidget(QLabel("Output CSV"), 4, 0)
+        layout.addLayout(output_row, 4, 1)
+        layout.addWidget(self.recording_hint_label, 5, 0, 1, 2)
+
+        self._refresh_recording_controls()
+        return group
+
     def _build_session_group(self) -> QGroupBox:
         group = QGroupBox("Session")
         layout = QGridLayout(group)
@@ -1339,6 +1451,9 @@ class MainWindow(QMainWindow):
         self.start_analysis_button.setEnabled(preview_running and not analysis_running)
         self.stop_analysis_button.setEnabled(preview_running and analysis_running)
         self.apply_camera_button.setEnabled(True)
+        self.clear_data_button.setEnabled(not analysis_running)
+        self.export_button.setEnabled(self.record_count > 0 and not analysis_running)
+        self._refresh_recording_controls()
 
     def _set_analysis_metrics_placeholder(self, text: str) -> None:
         self.metric_center_label.setText(text)
@@ -1382,6 +1497,7 @@ class MainWindow(QMainWindow):
             subtract_background=self.subtract_background_check.isChecked(),
             gaussian_refinement=self.gaussian_refinement_check.isChecked(),
             analysis_stride=self.analysis_stride_spin.value(),
+            sample_interval_s=self.sample_interval_spin.value(),
             background_average_count=self.background_average_spin.value(),
         )
 
@@ -1464,16 +1580,29 @@ class MainWindow(QMainWindow):
         if not self.validate_settings():
             return
 
+        plan = self._validate_recording_plan()
+        if plan is None:
+            return
+
         self.clear_data()
+        try:
+            self._open_session_csv(plan.output_csv_path)
+        except OSError as exc:
+            QMessageBox.critical(self, "Cannot Open Output CSV", str(exc))
+            self._close_session_csv(clear_path=True)
+            return
+
+        self._activate_recording_plan(plan)
         self.worker.update_camera_settings(self.current_camera_settings())
         self.worker.update_geometry_settings(self.current_geometry_settings())
         self.worker.update_analysis_settings(self.current_analysis_settings())
         self.worker.start_analysis()
-        self.statusBar().showMessage("Analysis start requested.")
+        self.statusBar().showMessage(f"Analysis start requested. Recording to {plan.output_csv_path}")
 
     def stop_analysis(self) -> None:
         if self.worker is None or not self.worker.isRunning():
             return
+        self._flush_session_csv()
         self.worker.stop_analysis()
 
     def apply_live_settings(self) -> None:
@@ -1517,6 +1646,208 @@ class MainWindow(QMainWindow):
         if self.last_display_packet is not None:
             self._render_frame_packet(self.last_display_packet)
 
+    def _stop_mode_uses_points(self) -> bool:
+        return self.stop_mode_combo.currentText() == "N Points"
+
+    def _stop_mode_uses_duration(self) -> bool:
+        return self.stop_mode_combo.currentText() == "Duration"
+
+    def _duration_unit_scale(self) -> float:
+        unit = self.duration_unit_combo.currentText()
+        if unit == "min":
+            return 60.0
+        if unit == "h":
+            return 3600.0
+        return 1.0
+
+    def _current_target_duration_s(self) -> float:
+        return self.duration_value_spin.value() * self._duration_unit_scale()
+
+    def _normalized_output_csv_path(self) -> str:
+        raw_path = self.output_csv_edit.text().strip()
+        if not raw_path:
+            return ""
+        normalized = os.path.abspath(os.path.expanduser(raw_path))
+        if not normalized.lower().endswith(".csv"):
+            normalized += ".csv"
+        return normalized
+
+    def browse_output_csv_path(self) -> None:
+        default_path = self._normalized_output_csv_path() or os.path.abspath(DEFAULT_OUTPUT_CSV_NAME)
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Select Output CSV",
+            default_path,
+            "CSV Files (*.csv)",
+        )
+        if not filename:
+            return
+        if not filename.lower().endswith(".csv"):
+            filename += ".csv"
+        self.output_csv_edit.setText(filename)
+
+    def _refresh_recording_controls(self, *_args) -> None:
+        uses_points = self._stop_mode_uses_points()
+        uses_duration = self._stop_mode_uses_duration()
+        controls_enabled = not self.analysis_running
+        self.sample_interval_spin.setEnabled(controls_enabled)
+        self.stop_mode_combo.setEnabled(controls_enabled)
+        self.target_points_spin.setEnabled(controls_enabled and uses_points)
+        self.duration_value_spin.setEnabled(controls_enabled and uses_duration)
+        self.duration_unit_combo.setEnabled(controls_enabled and uses_duration)
+        self.output_csv_edit.setEnabled(controls_enabled)
+        self.browse_output_csv_button.setEnabled(controls_enabled)
+        self._refresh_recording_plan_hint()
+
+    def _refresh_recording_plan_hint(self, *_args) -> None:
+        interval_s = self.sample_interval_spin.value()
+        stride = max(int(self.analysis_stride_spin.value()), 1)
+        configured_fps = max(self.frame_rate_spin.value(), 1.0e-9)
+
+        live_fps = 0.0
+        if self.last_display_packet is not None and self.last_display_packet.acquisition_fps > 0.0:
+            live_fps = float(self.last_display_packet.acquisition_fps)
+        effective_fps = live_fps if live_fps > 0.0 else configured_fps
+        frame_period_s = 1.0 / max(effective_fps, 1.0e-9)
+        min_interval_s = stride * frame_period_s
+        interval_ok = interval_s + 1.0e-9 >= min_interval_s
+
+        if live_fps > 0.0:
+            fps_text = f"Live FPS {live_fps:.2f} (configured {configured_fps:.2f})"
+        else:
+            fps_text = f"Configured FPS {configured_fps:.2f}"
+
+        plan_text = "Manual stop"
+        if self.analysis_running:
+            if self._active_stop_mode == "N Points" and self._active_target_points is not None:
+                plan_text = f"Running: {self.record_count} / {self._active_target_points} points"
+            elif self._active_stop_mode == "Duration" and self._active_target_duration_s is not None:
+                elapsed_s = 0.0
+                if self._session_zero_time_s is not None and self.last_result is not None:
+                    elapsed_s = max(self.last_result.timestamp_s - self._session_zero_time_s, 0.0)
+                plan_text = (
+                    f"Running: {elapsed_s:.1f} / {self._active_target_duration_s:.1f} s"
+                )
+            else:
+                plan_text = "Running: manual stop"
+        else:
+            if self._stop_mode_uses_points():
+                target_points = self.target_points_spin.value()
+                estimated_duration_s = target_points * interval_s
+                plan_text = f"Stop after {target_points} points (~{estimated_duration_s:.1f} s)"
+            elif self._stop_mode_uses_duration():
+                duration_s = self._current_target_duration_s()
+                estimated_points = max(int(duration_s / max(interval_s, 1.0e-9)), 1)
+                plan_text = f"Stop after {duration_s:.1f} s (~{estimated_points} points)"
+
+        status_text = "OK" if interval_ok else "Too fast for the available frame rate"
+        output_path = self._normalized_output_csv_path() or "<not set>"
+        self.recording_hint_label.setText(
+            " | ".join(
+                [
+                    f"{fps_text} -> frame period {frame_period_s * 1000.0:.1f} ms",
+                    f"Stride {stride} -> min interval {min_interval_s * 1000.0:.1f} ms",
+                    f"Requested interval {interval_s * 1000.0:.1f} ms ({status_text})",
+                    plan_text,
+                    output_path,
+                ]
+            )
+        )
+
+    def _validate_recording_plan(self) -> RecordingPlan | None:
+        output_csv_path = self._normalized_output_csv_path()
+        if not output_csv_path:
+            QMessageBox.warning(self, "Output CSV Required", "Set the CSV file path before starting analysis.")
+            return None
+        if os.path.isdir(output_csv_path):
+            QMessageBox.warning(self, "Invalid Output Path", "The output CSV path points to a directory.")
+            return None
+
+        interval_s = self.sample_interval_spin.value()
+        stride = max(int(self.analysis_stride_spin.value()), 1)
+        configured_fps = max(self.frame_rate_spin.value(), 1.0e-9)
+        live_fps = 0.0
+        if self.last_display_packet is not None and self.last_display_packet.acquisition_fps > 0.0:
+            live_fps = float(self.last_display_packet.acquisition_fps)
+        effective_fps = live_fps if live_fps > 0.0 else configured_fps
+        min_interval_s = stride / max(effective_fps, 1.0e-9)
+        fps_source = "live preview FPS" if live_fps > 0.0 else "configured camera FPS"
+        if interval_s + 1.0e-9 < min_interval_s:
+            QMessageBox.warning(
+                self,
+                "Sampling Interval Too Short",
+                (
+                    f"Requested sample interval {interval_s:.6f} s is shorter than the minimum achievable "
+                    f"interval {min_interval_s:.6f} s implied by {fps_source} ({effective_fps:.2f} fps) "
+                    f"and analysis stride {stride}. Increase the interval or raise the camera frame rate."
+                ),
+            )
+            return None
+
+        if os.path.exists(output_csv_path):
+            response = QMessageBox.question(
+                self,
+                "Overwrite Existing CSV?",
+                f"{output_csv_path} already exists. Overwrite it?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if response != QMessageBox.Yes:
+                return None
+
+        stop_mode = self.stop_mode_combo.currentText()
+        target_points = None
+        target_duration_s = None
+        if stop_mode == "N Points":
+            target_points = int(self.target_points_spin.value())
+        elif stop_mode == "Duration":
+            target_duration_s = float(self._current_target_duration_s())
+
+        return RecordingPlan(
+            sample_interval_s=float(interval_s),
+            stop_mode=stop_mode,
+            target_points=target_points,
+            target_duration_s=target_duration_s,
+            output_csv_path=output_csv_path,
+        )
+
+    def _open_session_csv(self, output_csv_path: str) -> None:
+        directory = os.path.dirname(output_csv_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        handle = open(output_csv_path, "w", newline="", encoding="utf-8", buffering=1)
+        fieldnames = list(FrameAnalysisResult.__dataclass_fields__.keys()) + ["relative_time_s"]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        handle.flush()
+        self._session_csv_handle = handle
+        self._session_csv_writer = writer
+        self._session_csv_temp_path = output_csv_path
+        self._session_zero_time_s = None
+        self._session_csv_pending_rows = 0
+
+    def _activate_recording_plan(self, plan: RecordingPlan) -> None:
+        self._active_stop_mode = plan.stop_mode
+        self._active_target_points = plan.target_points
+        self._active_target_duration_s = plan.target_duration_s
+        self._refresh_recording_plan_hint()
+
+    def _finalize_recording_if_complete(self, result: FrameAnalysisResult) -> None:
+        if self.worker is None or not self.analysis_running:
+            return
+        if self._active_stop_mode == "N Points" and self._active_target_points is not None:
+            if self.record_count >= self._active_target_points:
+                self.statusBar().showMessage("Target point count reached. Stopping analysis.")
+                self.worker.stop_analysis()
+                return
+        if self._active_stop_mode == "Duration" and self._active_target_duration_s is not None:
+            if self._session_zero_time_s is None:
+                return
+            elapsed_s = result.timestamp_s - self._session_zero_time_s
+            if elapsed_s + 1.0e-9 >= self._active_target_duration_s:
+                self.statusBar().showMessage("Target duration reached. Stopping analysis.")
+                self.worker.stop_analysis()
+
     def reset_reference(self) -> None:
         if self.worker is not None and self.worker.isRunning():
             self.worker.request_reference_reset()
@@ -1533,13 +1864,53 @@ class MainWindow(QMainWindow):
             self.worker.clear_background()
         self.statusBar().showMessage("Background cleared.")
 
+    def _flush_session_csv(self) -> None:
+        if self._session_csv_handle is not None:
+            self._session_csv_handle.flush()
+        self._session_csv_pending_rows = 0
+
+    def _close_session_csv(self, *, clear_path: bool) -> None:
+        if self._session_csv_handle is not None:
+            self._session_csv_handle.flush()
+            self._session_csv_handle.close()
+        self._session_csv_handle = None
+        self._session_csv_writer = None
+        self._session_csv_pending_rows = 0
+        if clear_path:
+            self._session_csv_temp_path = None
+
+    def _append_result_to_session_csv(self, result: FrameAnalysisResult) -> None:
+        if self._session_csv_writer is None or self._session_csv_handle is None:
+            return
+        if self._session_zero_time_s is None:
+            self._session_zero_time_s = result.timestamp_s
+        row = result.to_dict()
+        row["relative_time_s"] = result.timestamp_s - self._session_zero_time_s
+        self._session_csv_writer.writerow(row)
+        self._session_csv_pending_rows += 1
+        if self._session_csv_pending_rows >= SESSION_CSV_FLUSH_INTERVAL:
+            self._flush_session_csv()
+
+    def _trim_plot_records(self, current_time_s: float) -> None:
+        while self.records and current_time_s - self.records[0].timestamp_s > TIME_SERIES_WINDOW_S:
+            self.records.popleft()
+
     def clear_data(self) -> None:
-        self.records = []
+        self._close_session_csv(clear_path=True)
+        self.records = deque()
+        self.record_count = 0
+        self.session_summary = OnlineSessionSummary()
+        self._session_zero_time_s = None
         self.last_result = None
         self.last_plot_refresh_s = 0.0
+        self._active_stop_mode = "Manual Stop"
+        self._active_target_points = None
+        self._active_target_duration_s = None
         self.metric_samples_label.setText("0")
         self.time_series_canvas.update_view([])
         self._update_summary_text()
+        self._refresh_recording_plan_hint()
+        self._sync_control_states()
         if not self.analysis_running:
             self._set_analysis_metrics_placeholder("Preview only")
         self.statusBar().showMessage("Recorded metrics cleared.")
@@ -1627,34 +1998,22 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Snapshot saved to {filename}")
 
     def export_session(self) -> None:
-        if not self.records:
+        if self.analysis_running:
+            QMessageBox.information(self, "Analysis Running", "Stop analysis before exporting the summary files.")
+            return
+        if self.record_count == 0 or self._session_csv_temp_path is None:
             QMessageBox.information(self, "No Data", "There are no analysis records to export.")
             return
-        directory = QFileDialog.getExistingDirectory(self, "Select Export Directory")
-        if not directory:
-            return
 
-        timestamp_tag = datetime.now().strftime("%Y%m%d_%H%M%S")
-        prefix = os.path.join(directory, f"beam_tilt_session_{timestamp_tag}")
-        csv_path = f"{prefix}.csv"
+        csv_path = self._session_csv_temp_path
+        prefix, _ = os.path.splitext(csv_path)
         json_path = f"{prefix}_summary.json"
         time_plot_path = f"{prefix}_timeseries.png"
         live_plot_path = f"{prefix}_preview.png"
 
-        relative_zero = self.records[0].timestamp_s
-        rows: list[dict[str, Any]] = []
-        for record in self.records:
-            row = record.to_dict()
-            row["relative_time_s"] = record.timestamp_s - relative_zero
-            rows.append(row)
+        self._flush_session_csv()
 
-        with open(csv_path, "w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
-            writer.writeheader()
-            writer.writerows(rows)
-
-        summary = compute_session_summary(
-            self.records,
+        summary = self.session_summary.to_summary(
             self.axis_combo.currentText(),
             self.static_tilt_spin.value(),
         )
@@ -1665,6 +2024,7 @@ class MainWindow(QMainWindow):
             "geometry_settings": asdict(self.current_geometry_settings()),
             "analysis_settings": asdict(self.current_analysis_settings()),
             "session_summary": summary,
+            "csv_path": csv_path,
         }
         with open(json_path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2)
@@ -1673,7 +2033,7 @@ class MainWindow(QMainWindow):
         self.live_canvas.figure.savefig(live_plot_path, dpi=160)
 
         self.statusBar().showMessage(
-            f"Session exported: {os.path.basename(csv_path)}, {os.path.basename(json_path)}"
+            f"Summary exported next to CSV: {os.path.basename(json_path)}"
         )
 
     def _render_frame_packet(self, packet: FrameDisplayPacket) -> None:
@@ -1687,6 +2047,7 @@ class MainWindow(QMainWindow):
             packet.timestamp_s,
         )
         self.metric_fps_label.setText(f"{packet.acquisition_fps:.2f}")
+        self._refresh_recording_plan_hint()
         if not packet.analysis_enabled and not self.analysis_running:
             self._set_analysis_metrics_placeholder("Preview only")
 
@@ -1703,8 +2064,12 @@ class MainWindow(QMainWindow):
 
     def on_analysis_result(self, result: FrameAnalysisResult) -> None:
         self.last_result = result
+        self.record_count += 1
+        self.session_summary.update(result)
+        self._append_result_to_session_csv(result)
         self.records.append(result)
-        self.metric_samples_label.setText(str(len(self.records)))
+        self._trim_plot_records(result.timestamp_s)
+        self.metric_samples_label.setText(str(self.record_count))
         self.metric_center_label.setText(
             f"({result.center_x_px:.2f}, {result.center_y_px:.2f})"
         )
@@ -1728,9 +2093,16 @@ class MainWindow(QMainWindow):
         if not self.last_plot_refresh_s or (
             result.timestamp_s - self.last_plot_refresh_s >= refresh_interval_s
         ):
-            self.time_series_canvas.update_view(self.records)
+            self.time_series_canvas.update_view(
+                list(self.records),
+                window_s=TIME_SERIES_WINDOW_S,
+                max_points=MAX_TIME_SERIES_POINTS,
+            )
             self._update_summary_text()
             self.last_plot_refresh_s = result.timestamp_s
+
+        self._refresh_recording_plan_hint()
+        self._finalize_recording_if_complete(result)
 
     def on_status_message(self, message: str) -> None:
         self.metric_status_label.setText(message)
@@ -1756,16 +2128,22 @@ class MainWindow(QMainWindow):
         self._set_spin_value(self.height_spin, settings.height)
         self._set_spin_value(self.offset_x_spin, settings.offset_x)
         self._set_spin_value(self.offset_y_spin, settings.offset_y)
+        self._refresh_recording_plan_hint()
 
     def on_analysis_state_changed(self, enabled: bool) -> None:
         self.analysis_running = enabled
-        self._sync_control_states()
         if not enabled:
+            self._flush_session_csv()
+            self._close_session_csv(clear_path=False)
             self._set_analysis_metrics_placeholder("Preview only")
         else:
             self.metric_status_label.setText("Analysis running")
+        self._sync_control_states()
+        self._refresh_recording_plan_hint()
 
     def on_worker_finished(self) -> None:
+        self._flush_session_csv()
+        self._close_session_csv(clear_path=False)
         self.preview_running = False
         self.analysis_running = False
         self.metric_status_label.setText("Disconnected")
@@ -1773,6 +2151,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Acquisition finished.")
         self.worker = None
         self._sync_control_states()
+        self._refresh_recording_plan_hint()
 
     @staticmethod
     def _set_spin_value(spin_box, value: float | int) -> None:
@@ -1789,8 +2168,7 @@ class MainWindow(QMainWindow):
         combo_box.blockSignals(blocked)
 
     def _update_summary_text(self) -> None:
-        summary = compute_session_summary(
-            self.records,
+        summary = self.session_summary.to_summary(
             self.axis_combo.currentText(),
             self.static_tilt_spin.value(),
         )
@@ -1814,8 +2192,9 @@ class MainWindow(QMainWindow):
             "1. Click Connect Preview and confirm that the camera image is visible.",
             "2. Adjust exposure, gain, ROI, or offsets until the beam is framed correctly.",
             "3. If a ruler is visible on the screen, use Calibrate from Ruler to set mm/px.",
-            "4. Click Start Analysis when the preview and ROI are ready.",
-            "5. Export the session after enough data have been recorded.",
+            "4. In Recording, set the sample interval, stop condition, and output CSV path.",
+            "5. Click Start Analysis. Data are appended to the CSV during acquisition.",
+            "6. Export the summary plots after enough data have been recorded.",
             "",
             "Methodology",
             "1. Background-correct the ROI if a dark frame has been captured.",
@@ -1829,6 +2208,7 @@ class MainWindow(QMainWindow):
         if self.worker is not None and self.worker.isRunning():
             self.worker.stop()
             self.worker.wait(3000)
+        self._close_session_csv(clear_path=False)
         super().closeEvent(event)
 
 

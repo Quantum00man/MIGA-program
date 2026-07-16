@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 import math
 from typing import Any
 
@@ -36,6 +36,7 @@ class AnalysisSettings:
     subtract_background: bool = False
     gaussian_refinement: bool = True
     analysis_stride: int = 1
+    sample_interval_s: float = 0.100
     display_fps: float = 10.0
     background_average_count: int = 16
 
@@ -62,7 +63,7 @@ class FitDiagnostics:
     r_squared: float
 
 
-@dataclass
+@dataclass(slots=True)
 class FrameAnalysisResult:
     timestamp_s: float
     frame_index: int
@@ -102,6 +103,132 @@ class FrameAnalysisResult:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(slots=True)
+class _AxisRunningSummary:
+    count: int = 0
+    sum_value: float = 0.0
+    sum_squares: float = 0.0
+    min_value: float = math.inf
+    max_value: float = -math.inf
+    sum_time: float = 0.0
+    sum_time_squares: float = 0.0
+    sum_time_value: float = 0.0
+
+    def update(self, rel_time_s: float, value: float) -> None:
+        value = float(value)
+        rel_time_s = float(rel_time_s)
+        self.count += 1
+        self.sum_value += value
+        self.sum_squares += value * value
+        self.min_value = min(self.min_value, value)
+        self.max_value = max(self.max_value, value)
+        self.sum_time += rel_time_s
+        self.sum_time_squares += rel_time_s * rel_time_s
+        self.sum_time_value += rel_time_s * value
+
+    def mean(self) -> float:
+        if self.count == 0:
+            return 0.0
+        return self.sum_value / self.count
+
+    def std(self) -> float:
+        if self.count < 2:
+            return 0.0
+        numerator = self.sum_squares - (self.sum_value * self.sum_value / self.count)
+        variance = max(numerator / (self.count - 1), 0.0)
+        return float(math.sqrt(variance))
+
+    def rms(self) -> float:
+        if self.count == 0:
+            return 0.0
+        return float(math.sqrt(self.sum_squares / self.count))
+
+    def peak_to_peak(self) -> float:
+        if self.count == 0:
+            return 0.0
+        return float(self.max_value - self.min_value)
+
+    def slope(self) -> float:
+        if self.count < 2:
+            return 0.0
+        denominator = self.count * self.sum_time_squares - self.sum_time * self.sum_time
+        if abs(denominator) <= 1.0e-18:
+            return 0.0
+        numerator = self.count * self.sum_time_value - self.sum_time * self.sum_value
+        return float(numerator / denominator)
+
+
+@dataclass(slots=True)
+class OnlineSessionSummary:
+    start_time_s: float | None = None
+    last_time_s: float | None = None
+    samples: int = 0
+    x_stats: _AxisRunningSummary = field(default_factory=_AxisRunningSummary)
+    y_stats: _AxisRunningSummary = field(default_factory=_AxisRunningSummary)
+    radial_stats: _AxisRunningSummary = field(default_factory=_AxisRunningSummary)
+    absolute_tilt_sum: float = 0.0
+    fwhm_major_sum: float = 0.0
+    fwhm_minor_sum: float = 0.0
+
+    def update(self, record: FrameAnalysisResult) -> None:
+        if self.start_time_s is None:
+            self.start_time_s = float(record.timestamp_s)
+        rel_time_s = float(record.timestamp_s) - self.start_time_s
+        self.last_time_s = float(record.timestamp_s)
+        self.samples += 1
+        self.x_stats.update(rel_time_s, record.tilt_x_urad)
+        self.y_stats.update(rel_time_s, record.tilt_y_urad)
+        self.radial_stats.update(rel_time_s, record.radial_tilt_urad)
+        self.absolute_tilt_sum += float(record.absolute_tilt_mrad)
+        self.fwhm_major_sum += float(record.fwhm_major_px)
+        self.fwhm_minor_sum += float(record.fwhm_minor_px)
+
+    def to_summary(self, axis: str, static_tilt_mrad: float) -> dict[str, float | int | str]:
+        if self.samples == 0:
+            return {
+                "selected_axis": axis,
+                "samples": 0,
+                "duration_s": 0.0,
+                "sampling_rate_hz": 0.0,
+                "mean_tilt_urad": 0.0,
+                "std_tilt_urad": 0.0,
+                "rms_tilt_urad": 0.0,
+                "peak_to_peak_urad": 0.0,
+                "drift_slope_urad_per_s": 0.0,
+                "mean_absolute_tilt_mrad": static_tilt_mrad,
+                "mean_fwhm_major_px": 0.0,
+                "mean_fwhm_minor_px": 0.0,
+            }
+
+        axis_stats = self.y_stats
+        if axis == "X":
+            axis_stats = self.x_stats
+        elif axis == "Radial":
+            axis_stats = self.radial_stats
+
+        duration_s = 0.0
+        if self.start_time_s is not None and self.last_time_s is not None and self.samples > 1:
+            duration_s = max(self.last_time_s - self.start_time_s, 0.0)
+        sampling_rate_hz = 0.0
+        if duration_s > 0.0 and self.samples > 1:
+            sampling_rate_hz = float((self.samples - 1) / duration_s)
+
+        return {
+            "selected_axis": axis,
+            "samples": int(self.samples),
+            "duration_s": float(duration_s),
+            "sampling_rate_hz": sampling_rate_hz,
+            "mean_tilt_urad": axis_stats.mean(),
+            "std_tilt_urad": axis_stats.std(),
+            "rms_tilt_urad": axis_stats.rms(),
+            "peak_to_peak_urad": axis_stats.peak_to_peak(),
+            "drift_slope_urad_per_s": axis_stats.slope(),
+            "mean_absolute_tilt_mrad": float(self.absolute_tilt_sum / self.samples),
+            "mean_fwhm_major_px": float(self.fwhm_major_sum / self.samples),
+            "mean_fwhm_minor_px": float(self.fwhm_minor_sum / self.samples),
+        }
 
 
 def clipped_roi(
