@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 PORT = 9221
+WEEKDAY_LABELS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
 
 
 # =============================
@@ -111,7 +112,7 @@ class App(tk.Tk):
         super().__init__()
 
         self.title('Industrial PSU Scheduler (CH1/CH2) - Apply Required')
-        self.geometry('780x430')
+        self.geometry('980x500')
         self.resizable(False, False)
 
         # connection / psu object
@@ -126,17 +127,19 @@ class App(tk.Tk):
         self.ch1_off_in = tk.StringVar(value='')
         self.ch2_on_in = tk.StringVar(value='')
         self.ch2_off_in = tk.StringVar(value='')
+        self.schedule_days_vars = [tk.BooleanVar(value=True) for _ in WEEKDAY_LABELS]
 
         # applied schedule (scheduler uses ONLY these)
         self.ch1_on_applied = ''
         self.ch1_off_applied = ''
         self.ch2_on_applied = ''
         self.ch2_off_applied = ''
+        self.schedule_days_applied = set(range(len(WEEKDAY_LABELS)))
 
         self.conn_status = tk.StringVar(value='Not connected')
         self.ch1_state = tk.StringVar(value='-')
         self.ch2_state = tk.StringVar(value='-')
-        self.last_action = tk.StringVar(value="Edit times -> click 'Apply Schedule'")
+        self.last_action = tk.StringVar(value="Edit times/days -> click 'Apply Schedule'")
 
         # once-per-day guard
         self.last_run = {}  # key: (ch, 'ON'/'OFF') -> date tuple
@@ -190,6 +193,33 @@ class App(tk.Tk):
 
         return h, m, f'{h:02d}:{m:02d}'
 
+    def _set_weekdays(self, day_vars, enabled: bool):
+        for day_var in day_vars:
+            day_var.set(enabled)
+
+    def _selected_weekdays(self, day_vars) -> set[int]:
+        return {idx for idx, day_var in enumerate(day_vars) if day_var.get()}
+
+    def _validate_weekdays(self, any_schedule_enabled: bool, day_vars) -> set[int]:
+        selected = self._selected_weekdays(day_vars)
+        if any_schedule_enabled and not selected:
+            raise ValueError('Select at least one weekday or clear all schedule time fields.')
+        return selected
+
+    def _weekdays_text(self, selected_days: set[int]) -> str:
+        if len(selected_days) == len(WEEKDAY_LABELS):
+            return 'Mon-Sun'
+        if not selected_days:
+            return 'none'
+        return ','.join(WEEKDAY_LABELS[idx] for idx in range(len(WEEKDAY_LABELS)) if idx in selected_days)
+
+    def _channel_schedule_text(self, channel_name: str, on_time: str, off_time: str) -> str:
+        if not on_time and not off_time:
+            return f'{channel_name} disabled'
+        on_text = on_time or '--:--'
+        off_text = off_time or '--:--'
+        return f'{channel_name} ON {on_text} OFF {off_text}'
+
     # ---------- UI ----------
     def _build_ui(self):
         root = ttk.Frame(self, padding=12)
@@ -214,7 +244,7 @@ class App(tk.Tk):
         ttk.Label(row, textvariable=self.conn_status).pack(side='left')
 
         # Schedule
-        sch = ttk.LabelFrame(root, text='Daily Schedule (Apply Required)')
+        sch = ttk.LabelFrame(root, text='Weekly Schedule (Apply Required)')
         sch.pack(fill='x', pady=(10, 0))
 
         top = ttk.Frame(sch)
@@ -224,7 +254,7 @@ class App(tk.Tk):
         ttk.Button(top, text='Apply Schedule', command=self.apply_schedule).pack(side='left', padx=10)
         ttk.Label(
             top,
-            text='Format HH:MM (blank = disabled). Examples: 8, 800, 0830, 8:0, 8：00, 08:00'
+            text='Format HH:MM (blank = disabled). CH1 and CH2 share the same run days.'
         ).pack(side='left', padx=10)
 
         grid = ttk.Frame(sch)
@@ -241,6 +271,9 @@ class App(tk.Tk):
         ttk.Label(grid, text='CH2').grid(row=2, column=0, sticky='w')
         ttk.Entry(grid, textvariable=self.ch2_on_in, width=10).grid(row=2, column=1, sticky='w')
         ttk.Entry(grid, textvariable=self.ch2_off_in, width=10).grid(row=2, column=2, sticky='w')
+
+        ttk.Label(grid, text='Shared Days').grid(row=3, column=0, sticky='w', pady=(8, 0))
+        self._build_weekday_selector(grid, row=3, column=1, columnspan=3, day_vars=self.schedule_days_vars)
 
         # Manual control
         ctl = ttk.LabelFrame(root, text='Manual Control')
@@ -268,6 +301,26 @@ class App(tk.Tk):
         ttk.Label(row3, textvariable=self.ch2_state, width=10).pack(side='left', padx=6)
         ttk.Label(row3, text='Last Action:').pack(side='left', padx=(12, 6))
         ttk.Label(row3, textvariable=self.last_action).pack(side='left')
+
+    def _build_weekday_selector(self, parent, row: int, column: int, columnspan: int, day_vars):
+        days_frame = ttk.Frame(parent)
+        days_frame.grid(row=row, column=column, columnspan=columnspan, sticky='w', padx=(8, 0), pady=(8, 0))
+
+        for idx, label in enumerate(WEEKDAY_LABELS):
+            ttk.Checkbutton(days_frame, text=label, variable=day_vars[idx]).grid(row=0, column=idx, sticky='w')
+
+        ttk.Button(
+            days_frame,
+            text='All',
+            command=lambda vars_=day_vars: self._set_weekdays(vars_, True),
+            width=5,
+        ).grid(row=0, column=len(WEEKDAY_LABELS), padx=(8, 2))
+        ttk.Button(
+            days_frame,
+            text='None',
+            command=lambda vars_=day_vars: self._set_weekdays(vars_, False),
+            width=5,
+        ).grid(row=0, column=len(WEEKDAY_LABELS) + 1)
 
     # ---------- connection ----------
     def _set_connected_status(self):
@@ -373,6 +426,8 @@ class App(tk.Tk):
             t1off = self.normalize_time_hhmm(self.ch1_off_in.get())
             t2on = self.normalize_time_hhmm(self.ch2_on_in.get())
             t2off = self.normalize_time_hhmm(self.ch2_off_in.get())
+            any_schedule_enabled = any((t1on, t1off, t2on, t2off))
+            schedule_days = self._validate_weekdays(any_schedule_enabled, self.schedule_days_vars)
 
             # write normalized back to inputs (nice UX)
             if t1on:
@@ -389,12 +444,16 @@ class App(tk.Tk):
             self.ch1_off_applied = t1off[2] if t1off else ''
             self.ch2_on_applied = t2on[2] if t2on else ''
             self.ch2_off_applied = t2off[2] if t2off else ''
+            self.schedule_days_applied = schedule_days
 
             # reset daily guards
             self.last_run.clear()
 
             if not silent:
-                self.last_action.set('Schedule applied successfully')
+                days_text = self._weekdays_text(self.schedule_days_applied)
+                ch1_text = self._channel_schedule_text('CH1', self.ch1_on_applied, self.ch1_off_applied)
+                ch2_text = self._channel_schedule_text('CH2', self.ch2_on_applied, self.ch2_off_applied)
+                self.last_action.set(f'Schedule applied: {days_text} | {ch1_text} | {ch2_text}')
         except Exception as e:
             if not silent:
                 messagebox.showerror('Invalid Time', str(e))
@@ -408,15 +467,15 @@ class App(tk.Tk):
             now = time.localtime()
             today = (now.tm_year, now.tm_mon, now.tm_mday)
 
-            self._check_schedule(1, True, self.ch1_on_applied, now, today)
-            self._check_schedule(1, False, self.ch1_off_applied, now, today)
-            self._check_schedule(2, True, self.ch2_on_applied, now, today)
-            self._check_schedule(2, False, self.ch2_off_applied, now, today)
+            self._check_schedule(1, True, self.ch1_on_applied, self.schedule_days_applied, now, today)
+            self._check_schedule(1, False, self.ch1_off_applied, self.schedule_days_applied, now, today)
+            self._check_schedule(2, True, self.ch2_on_applied, self.schedule_days_applied, now, today)
+            self._check_schedule(2, False, self.ch2_off_applied, self.schedule_days_applied, now, today)
 
         self.after(1000, self._tick)
 
-    def _check_schedule(self, ch: int, turn_on: bool, timestr: str, now, today):
-        if not timestr:
+    def _check_schedule(self, ch: int, turn_on: bool, timestr: str, active_days: set[int], now, today):
+        if not timestr or now.tm_wday not in active_days:
             return
 
         try:
