@@ -1,0 +1,479 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{siunitx}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\sisetup{
+  per-mode=symbol,
+  detect-all=true
+}
+
+\title{A Reduced Model for Bragg-Interferometer Phase Noise Induced by Raman Velocity-Selection Noise}
+\author{Project note for the local Python analysis tool}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We document a reduced calculation model for estimating how shot-to-shot fluctuations of the Raman-selected velocity class propagate into the phase of a first-order Bragg Mach--Zehnder atom interferometer. The implementation targets the current ${}^{87}\mathrm{Rb}$ configuration with a $\pi/2$--$\pi$--$\pi/2$ pulse sequence, Gaussian Bragg pulses, and a Gaussian velocity-selected ensemble. Two observables are emphasized: the total interferometer fringe phase and an operational pulse-only Bragg diffraction phase obtained by suppressing dark-time phase accumulation while keeping the same finite-duration pulses. The document also defines the exact quantities shown in the four panels of the desktop interface: selected velocity distributions, phase-versus-center curves, phase-noise-versus-Raman-noise curves, and contrast-versus-center curves.
+\end{abstract}
+
+\section{Introduction and Scope}
+The physical question is the following: after Raman velocity selection, each experimental shot prepares a narrow but fluctuating velocity class. Even if the microscopic origin of the fluctuation is not modeled, the resulting shot-to-shot variation of the selected mean velocity changes the effective Doppler detuning seen by the Bragg pulses. Because finite-duration Bragg pulses have detuning-dependent transfer amplitudes and phases, the mean velocity fluctuation is converted into a fluctuation of the interferometer output phase.
+
+The present implementation is intentionally restricted to a controlled first model:
+\begin{itemize}[leftmargin=1.5em]
+  \item atomic species: ${}^{87}\mathrm{Rb}$,
+  \item interferometer sequence: $\pi/2$--$\pi$--$\pi/2$,
+  \item Bragg order: first order,
+  \item Bragg pulses: Gaussian envelopes in an effective two-level model,
+  \item selected atoms: one-dimensional Gaussian detuning distribution,
+  \item shot-to-shot Raman noise: Gaussian noise on the center detuning of that selected distribution,
+  \item cloud size, spatial inhomogeneity, and position--velocity correlations: neglected.
+\end{itemize}
+
+This scope is sufficient to quantify, within a simplified but internally consistent model, how a Raman center-noise RMS maps to a Bragg-induced phase-noise RMS.
+
+\section{Default Experimental Configuration}
+The default user-interface values correspond to the current experimental discussion:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Quantity & Default value \\
+\midrule
+Atomic species & ${}^{87}\mathrm{Rb}$ \\
+Bragg order & $n=1$ \\
+Pulse sequence & $\pi/2$--$\pi$--$\pi/2$ \\
+Beam-splitter duration & \SI{25}{\micro\second} \\
+Mirror duration & \SI{50}{\micro\second} \\
+Bragg pulse shape & Gaussian \\
+Dark time & \SI{8}{\milli\second} \\
+Selected-distribution FWHM & \SI{12}{\kilo\hertz} \\
+Reference Raman center-noise RMS & \SI{4}{\kilo\hertz} \\
+Nominal center detuning & \SI{0}{\kilo\hertz} relative to Bragg resonance \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The statement that the Raman-selected $+\hbar k$ class corresponds to approximately \SI{15}{\kilo\hertz} in the Raman configuration is treated here as calibration context. In the current Bragg solver, the dynamical variable is the detuning relative to the nominal Bragg resonance of the selected class.
+
+\section{Effective Bragg Pulse Model}
+\subsection{Two-level Hamiltonian}
+For a given Doppler-equivalent two-photon detuning $\delta$ and pulse phase $\varphi$, the first-order Bragg pulse is modeled in the basis
+\[
+\bigl\{\, |0\rangle,\; |2\hbar k\rangle \,\bigr\}
+\]
+by the effective Hamiltonian
+\begin{equation}
+\frac{H(t;\delta,\varphi)}{\hbar}
+=
+\frac{1}{2}
+\begin{pmatrix}
+-\delta & \Omega(t)e^{-i\varphi} \\
+\Omega(t)e^{+i\varphi} & \delta
+\end{pmatrix}.
+\label{eq:effective_hamiltonian}
+\end{equation}
+For the first two pulses the code uses $\varphi=0$, while the final pulse phase is the scanned interferometer phase.
+
+\subsection{Gaussian pulse envelope and area calibration}
+The Bragg envelope is written as
+\begin{equation}
+\Omega(t)=\Omega_0\exp\!\left(-\frac{t^2}{2\tau^2}\right),
+\label{eq:gaussian_envelope}
+\end{equation}
+where $\tau$ is the RMS temporal width used internally by the solver. Since the UI may specify the pulse duration under different conventions, the code first converts the user entry to $\tau$.
+
+The pulse is truncated numerically at $|t|\le N_\sigma\tau$. The peak Rabi frequency $\Omega_0$ is set by the target pulse area,
+\begin{equation}
+\theta
+=
+\int_{-N_\sigma \tau}^{+N_\sigma \tau}\Omega(t)\,dt
+=
+\Omega_0\tau\sqrt{2\pi}\,\mathrm{erf}\!\left(\frac{N_\sigma}{\sqrt{2}}\right),
+\label{eq:pulse_area}
+\end{equation}
+with $\theta=\pi/2$ for the beam splitter and $\theta=\pi$ for the mirror.
+
+\subsection{Time-discretized exact propagator}
+For each short time step $\Delta t$ the Hamiltonian is approximated as constant, and the corresponding propagator is evaluated analytically. Writing
+\begin{equation}
+M(\delta,\Omega)=
+\begin{pmatrix}
+-\delta & \Omega \\
+\Omega & \delta
+\end{pmatrix},
+\end{equation}
+with phase absorbed into the chosen basis for the relevant step, the step propagator is
+\begin{equation}
+U_{\mathrm{step}}(\delta,\Omega,\Delta t)
+=
+\cos\!\left(\frac{\Omega_{\mathrm{eff}}\Delta t}{2}\right)I
+-
+i\,\frac{\sin\!\left(\frac{\Omega_{\mathrm{eff}}\Delta t}{2}\right)}{\Omega_{\mathrm{eff}}}
+M(\delta,\Omega),
+\label{eq:step_propagator}
+\end{equation}
+where
+\begin{equation}
+\Omega_{\mathrm{eff}}=\sqrt{\delta^2+\Omega^2}.
+\end{equation}
+The unitary of a finite Gaussian pulse is obtained by ordered multiplication of Eq.~\eqref{eq:step_propagator} along the pulse.
+
+\section{Free Evolution and Pulse Sequence}
+In the same rotating-frame description, dark-time evolution is represented by
+\begin{equation}
+U_{\mathrm{free}}(T)
+=
+\begin{pmatrix}
+e^{+i\delta T/2} & 0 \\
+0 & e^{-i\delta T/2}
+\end{pmatrix}.
+\label{eq:free_evolution}
+\end{equation}
+For a fixed detuning class $\Delta$, the full three-pulse sequence is therefore
+\begin{equation}
+U_{\mathrm{MZ}}(\Delta,\phi)
+=
+U_{\mathrm{BS}}(\Delta,\phi)
+U_{\mathrm{free}}(T)
+U_{\mathrm{M}}(\Delta)
+U_{\mathrm{free}}(T)
+U_{\mathrm{BS}}(\Delta),
+\label{eq:full_sequence}
+\end{equation}
+where $\phi$ is the phase of the final beam splitter.
+
+\section{Raman-Selected Ensemble and Shot-to-Shot Noise}
+The Raman-selected atoms are represented by a Gaussian detuning distribution
+\begin{equation}
+g(\Delta;\mu,\sigma)
+=
+\frac{1}{\sqrt{2\pi}\sigma}
+\exp\!\left[-\frac{(\Delta-\mu)^2}{2\sigma^2}\right],
+\label{eq:gaussian_distribution}
+\end{equation}
+where $\mu$ is the shot-dependent center detuning. The selected-distribution width is parameterized by the experimental FWHM,
+\begin{equation}
+\sigma = \frac{\mathrm{FWHM}}{2\sqrt{2\ln 2}}.
+\label{eq:fwhm_to_sigma}
+\end{equation}
+
+The Raman center noise is then modeled as
+\begin{equation}
+\mu_{\mathrm{shot}}\sim\mathcal{N}\!\left(\mu_0,\sigma_{\mathrm{noise}}^2\right),
+\label{eq:center_noise}
+\end{equation}
+with nominal center $\mu_0$ and shot-to-shot RMS $\sigma_{\mathrm{noise}}$.
+
+For ensemble observables, averages over Eq.~\eqref{eq:gaussian_distribution} are evaluated numerically by Gauss--Hermite quadrature.
+
+\section{Fringe Coefficient, Phase, and Contrast}
+\subsection{Single-detuning fringe coefficient}
+Let the input state be $|\psi_{\mathrm{in}}\rangle=|0\rangle$. For a fixed detuning class $\Delta$, the first beam splitter, the mirror, and the two dark-time propagators produce a state immediately before the final beam splitter,
+\begin{equation}
+|\psi_{\mathrm{pre}}(\Delta)\rangle
+=
+a(\Delta)|0\rangle+b(\Delta)|2\hbar k\rangle.
+\label{eq:pre_final_state}
+\end{equation}
+The last beam splitter is then the element that converts the two incoming amplitudes $a(\Delta)$ and $b(\Delta)$ into a measurable interference fringe.
+
+Under the phase convention used in the implementation, the $|0\rangle$ output amplitude after the final beam splitter can be written as
+\begin{equation}
+\mathcal{A}_0(\phi\mid\Delta)
+=
+\alpha(\Delta)+\beta(\Delta)e^{-i\phi},
+\label{eq:output_amplitude_decomposition}
+\end{equation}
+where
+\begin{equation}
+\alpha(\Delta)=U_{\mathrm{BS},00}(\Delta)\,a(\Delta),
+\qquad
+\beta(\Delta)=U_{\mathrm{BS},01}(\Delta)\,b(\Delta).
+\label{eq:alpha_beta_def}
+\end{equation}
+Equation~\eqref{eq:output_amplitude_decomposition} is precisely the statement that the final beam splitter mixes the two interferometer arms into the detected output port.
+
+The output probability is therefore
+\begin{align}
+P_0(\phi\mid\Delta)
+&=
+\left|\mathcal{A}_0(\phi\mid\Delta)\right|^2 \\
+&=
+\left|\alpha(\Delta)\right|^2
++
+\left|\beta(\Delta)\right|^2
++
+\alpha(\Delta)\beta^*(\Delta)e^{i\phi}
++
+\alpha^*(\Delta)\beta(\Delta)e^{-i\phi}.
+\label{eq:expanded_output_probability}
+\end{align}
+This expression can always be recast as
+\begin{equation}
+P_0(\phi\mid\Delta)=A(\Delta)+2\,\mathrm{Re}\!\left[c(\Delta)e^{i\phi}\right],
+\label{eq:single_detuning_fringe}
+\end{equation}
+with
+\begin{equation}
+A(\Delta)=\left|\alpha(\Delta)\right|^2+\left|\beta(\Delta)\right|^2,
+\qquad
+c(\Delta)=\alpha(\Delta)\beta^*(\Delta).
+\label{eq:single_c_definition}
+\end{equation}
+Hence $c(\Delta)$ is not an additional phenomenological parameter; it is the complex cross term generated when the two pre-final amplitudes interfere at the last beam splitter. Its argument determines the fringe shift for that single detuning class,
+\begin{equation}
+\phi_{\mathrm{tot}}(\Delta)=-\arg\!\left[c(\Delta)\right].
+\label{eq:single_class_phase}
+\end{equation}
+
+In the implementation, this construction appears explicitly. The code first computes $|\psi_{\mathrm{pre}}(\Delta)\rangle$, then forms the two partial output amplitudes of Eq.~\eqref{eq:alpha_beta_def}, and finally evaluates $c(\Delta)=\alpha(\Delta)\beta^*(\Delta)$.
+
+\subsection{Ensemble-averaged total phase}
+The observed interferometer output is not the single-class quantity $c(\Delta)$, but its average over the selected ensemble. The ensemble-averaged fringe coefficient is
+\begin{equation}
+\bar{c}_{\mathrm{tot}}(\mu)
+=
+\int g(\Delta;\mu,\sigma)\,c_{\mathrm{tot}}(\Delta)\,d\Delta,
+\label{eq:ensemble_total_c}
+\end{equation}
+and the corresponding total interferometer phase is
+\begin{equation}
+\Phi_{\mathrm{tot}}(\mu)
+=
+-\arg\!\left[\bar{c}_{\mathrm{tot}}(\mu)\right].
+\label{eq:ensemble_total_phase}
+\end{equation}
+The associated ensemble contrast is defined by
+\begin{equation}
+C_{\mathrm{tot}}(\mu)
+=
+\frac{2\left|\bar{c}_{\mathrm{tot}}(\mu)\right|}{\bar{A}_{\mathrm{tot}}(\mu)},
+\qquad
+\bar{A}_{\mathrm{tot}}(\mu)=\int g(\Delta;\mu,\sigma)A_{\mathrm{tot}}(\Delta)\,d\Delta.
+\label{eq:total_contrast}
+\end{equation}
+The key point is that the measured phase comes from the argument of the \emph{ensemble-averaged} complex fringe coefficient $\bar c_{\mathrm{tot}}(\mu)$, not from averaging the phases $\phi_{\mathrm{tot}}(\Delta)$ directly.
+
+\subsection{Operational pulse-only diffraction phase}
+To isolate the phase generated by the finite-duration Bragg pulses themselves, the tool also defines a pulse-only sequence obtained by setting the free-evolution operator to the identity while keeping the same pulse unitaries. The pulse-only pre-final state is
+\begin{equation}
+|\psi_{\mathrm{pre}}^{(\mathrm{diff})}\rangle
+=
+U_{\mathrm{M}}(\Delta)
+U_{\mathrm{BS}}(\Delta)
+|0\rangle.
+\label{eq:pulse_only_state}
+\end{equation}
+Repeating the same fringe-coefficient extraction gives
+\begin{equation}
+\bar{c}_{\mathrm{diff}}(\mu)
+=
+\int g(\Delta;\mu,\sigma)\,c_{\mathrm{diff}}(\Delta)\,d\Delta,
+\label{eq:ensemble_diff_c}
+\end{equation}
+\begin{equation}
+\Phi_{\mathrm{diff}}(\mu)
+=
+-\arg\!\left[\bar{c}_{\mathrm{diff}}(\mu)\right],
+\label{eq:ensemble_diff_phase}
+\end{equation}
+\begin{equation}
+C_{\mathrm{diff}}(\mu)
+=
+\frac{2\left|\bar{c}_{\mathrm{diff}}(\mu)\right|}{\bar{A}_{\mathrm{diff}}(\mu)}.
+\label{eq:diff_contrast}
+\end{equation}
+This quantity is model dependent, but it is well-defined within the present solver and directly measures the detuning-dependent phase shift produced by the Bragg pulses in the absence of dark-time phase accumulation.
+
+\section{Propagation of Raman Center Noise into Phase Noise}
+The tool reports two mappings from Raman center-noise RMS to phase-noise RMS.
+
+\subsection{Linearized propagation}
+At the nominal center $\mu_0$, the small-noise estimate is
+\begin{equation}
+\sigma_{\phi,\mathrm{tot}}^{(\mathrm{lin})}
+\approx
+\left|\frac{d\Phi_{\mathrm{tot}}}{d\mu}\right|_{\mu=\mu_0}
+\sigma_{\mathrm{noise}},
+\label{eq:linear_total_noise}
+\end{equation}
+\begin{equation}
+\sigma_{\phi,\mathrm{diff}}^{(\mathrm{lin})}
+\approx
+\left|\frac{d\Phi_{\mathrm{diff}}}{d\mu}\right|_{\mu=\mu_0}
+\sigma_{\mathrm{noise}}.
+\label{eq:linear_diff_noise}
+\end{equation}
+In the code, these slopes are computed numerically by a centered finite difference in $\mu$.
+
+\subsection{Monte Carlo propagation}
+The non-linear estimate is obtained by sampling
+\begin{equation}
+\mu_j\sim\mathcal{N}(\mu_0,\sigma_{\mathrm{noise}}^2),
+\qquad j=1,\dots,N_{\mathrm{MC}},
+\end{equation}
+and evaluating the wrapped phase excursions relative to the nominal shot,
+\begin{equation}
+\delta\Phi_{\mathrm{tot},j}
+=
+\arg\!\left\{\exp\!\left[i\left(\Phi_{\mathrm{tot}}(\mu_j)-\Phi_{\mathrm{tot}}(\mu_0)\right)\right]\right\},
+\label{eq:wrapped_total_excursion}
+\end{equation}
+\begin{equation}
+\delta\Phi_{\mathrm{diff},j}
+=
+\arg\!\left\{\exp\!\left[i\left(\Phi_{\mathrm{diff}}(\mu_j)-\Phi_{\mathrm{diff}}(\mu_0)\right)\right]\right\}.
+\label{eq:wrapped_diff_excursion}
+\end{equation}
+The corresponding RMS values are
+\begin{equation}
+\sigma_{\phi,\mathrm{tot}}^{(\mathrm{MC})}
+=
+\operatorname{Std}\!\left[\delta\Phi_{\mathrm{tot},j}\right],
+\qquad
+\sigma_{\phi,\mathrm{diff}}^{(\mathrm{MC})}
+=
+\operatorname{Std}\!\left[\delta\Phi_{\mathrm{diff},j}\right].
+\label{eq:mc_noise_definitions}
+\end{equation}
+This makes the role of $c(\Delta)$ in the Monte Carlo chain completely explicit:
+\begin{equation}
+c(\Delta)
+\longrightarrow
+\bar c(\mu_j)
+\longrightarrow
+\Phi(\mu_j)=-\arg\!\left[\bar c(\mu_j)\right]
+\longrightarrow
+\sigma_\phi.
+\label{eq:c_to_sigma_chain}
+\end{equation}
+For each synthetic shot center $\mu_j$, the code first averages the single-class interference kernel $c(\Delta)$ over the shifted Gaussian ensemble, then extracts the shot phase from the argument of the resulting complex number, and finally computes the standard deviation across many such shots.
+
+\section{Interpretation of the Four Plots Produced by the UI}
+The graphical interface displays four panels. Their mathematical definitions are summarized here so that the figures can be discussed in a paper-like way.
+
+\subsection{Panel 1: selected velocity distribution}
+The upper-left panel shows the nominal and shifted selected distributions. The nominal profile is
+\begin{equation}
+I_{\mathrm{nom}}(\Delta)
+\propto
+\exp\!\left[-\frac{(\Delta-\mu_0)^2}{2\sigma^2}\right],
+\label{eq:nominal_distribution_plot}
+\end{equation}
+while the reference shifted profile shown by the UI corresponds to a $+1$ RMS center shift,
+\begin{equation}
+I_{+1\sigma}(\Delta)
+\propto
+\exp\!\left[-\frac{(\Delta-\mu_0-\sigma_{\mathrm{noise}})^2}{2\sigma^2}\right].
+\label{eq:shifted_distribution_plot}
+\end{equation}
+These curves are not themselves interferometer observables; they visualize the Raman-selected input ensemble and the meaning of the shot-to-shot center fluctuation.
+
+\subsection{Panel 2: phase change versus shot center detuning}
+The upper-right panel plots the phase change relative to the nominal center. For the total interferometer phase, the plotted quantity is
+\begin{equation}
+\Delta\Phi_{\mathrm{tot}}(\mu)
+=
+\operatorname{unwrap}\!\left[\Phi_{\mathrm{tot}}(\mu)\right]
+-
+\operatorname{unwrap}\!\left[\Phi_{\mathrm{tot}}(\mu_0)\right].
+\label{eq:delta_total_phase_plot}
+\end{equation}
+Likewise, for the pulse-only diffraction phase,
+\begin{equation}
+\Delta\Phi_{\mathrm{diff}}(\mu)
+=
+\operatorname{unwrap}\!\left[\Phi_{\mathrm{diff}}(\mu)\right]
+-
+\operatorname{unwrap}\!\left[\Phi_{\mathrm{diff}}(\mu_0)\right].
+\label{eq:delta_diff_phase_plot}
+\end{equation}
+This panel directly shows how sensitive the interferometer phase is to shot-to-shot shifts of the selected mean velocity.
+
+\subsection{Panel 3: phase noise versus Raman center-noise amplitude}
+The lower-left panel maps the Raman center-noise RMS $\sigma_{\mathrm{noise}}$ to the resulting phase-noise RMS. Four curves are shown:
+\begin{align}
+\sigma_{\phi,\mathrm{tot}}^{(\mathrm{lin})}(\sigma_{\mathrm{noise}})
+&=
+\left|\frac{d\Phi_{\mathrm{tot}}}{d\mu}\right|_{\mu_0}\sigma_{\mathrm{noise}},
+\label{eq:plot_total_linear}
+\\
+\sigma_{\phi,\mathrm{tot}}^{(\mathrm{MC})}(\sigma_{\mathrm{noise}})
+&=
+\operatorname{Std}\!\left[\delta\Phi_{\mathrm{tot},j}\right],
+\label{eq:plot_total_mc}
+\\
+\sigma_{\phi,\mathrm{diff}}^{(\mathrm{lin})}(\sigma_{\mathrm{noise}})
+&=
+\left|\frac{d\Phi_{\mathrm{diff}}}{d\mu}\right|_{\mu_0}\sigma_{\mathrm{noise}},
+\label{eq:plot_diff_linear}
+\\
+\sigma_{\phi,\mathrm{diff}}^{(\mathrm{MC})}(\sigma_{\mathrm{noise}})
+&=
+\operatorname{Std}\!\left[\delta\Phi_{\mathrm{diff},j}\right].
+\label{eq:plot_diff_mc}
+\end{align}
+Agreement between linearized and Monte Carlo curves indicates a locally linear response around $\mu_0$; deviation indicates a non-linear phase response over the noise scale being probed.
+
+\subsection{Panel 4: contrast versus shot center detuning}
+The lower-right panel plots the ensemble-averaged contrast versus the shot center detuning,
+\begin{equation}
+C_{\mathrm{tot}}(\mu)
+=
+\frac{2|\bar{c}_{\mathrm{tot}}(\mu)|}{\bar{A}_{\mathrm{tot}}(\mu)},
+\qquad
+C_{\mathrm{diff}}(\mu)
+=
+\frac{2|\bar{c}_{\mathrm{diff}}(\mu)|}{\bar{A}_{\mathrm{diff}}(\mu)}.
+\label{eq:contrast_plot_definitions}
+\end{equation}
+This panel is important because phase sensitivity and contrast are coupled: a steep phase response accompanied by strong contrast loss may indicate that the selected distribution is moving into a spectrally unfavorable region of the Bragg response.
+
+\section{Discussion of What the Four Plots Mean Physically}
+Taken together, the four panels provide a compact diagnostic chain:
+\begin{enumerate}[leftmargin=1.5em]
+  \item Panel 1 defines the input ensemble and the magnitude of the imposed shot-to-shot Raman fluctuation.
+  \item Panel 2 converts that input fluctuation into a phase-response curve in detuning space.
+  \item Panel 3 turns the local or non-linear phase response into a directly useful noise metric, namely $\sigma_\phi$.
+  \item Panel 4 tracks whether the same detuning excursion also degrades contrast, which is often a signature of operating away from optimal Bragg resonance.
+\end{enumerate}
+In a paper-style discussion, Panel 2 is the response function, Panel 3 is the propagated noise metric, and Panel 4 is the associated visibility penalty.
+
+\section{Assumptions and Limitations}
+The model is rigorous only within the reduced description above. It does \emph{not} yet include:
+\begin{itemize}[leftmargin=1.5em]
+  \item coupling to higher Bragg momentum orders,
+  \item explicit multi-state diffraction phases,
+  \item spatial intensity inhomogeneity and wavefront effects,
+  \item initial cloud size or position distribution,
+  \item Raman pulse dynamics or a microscopic model for the origin of the center noise,
+  \item correlations between center fluctuations and width fluctuations.
+\end{itemize}
+Accordingly, the current results should be interpreted as a controlled first estimate of how a noisy Raman-selected mean velocity maps into total fringe phase noise and pulse-only diffraction phase noise.
+
+\section{Code Organization}
+The implementation used by the desktop application is organized as follows:
+\begin{itemize}[leftmargin=1.5em]
+  \item \texttt{main.py}: launches the desktop UI,
+  \item \texttt{bragg\_phase\_noise/config.py}: model configuration,
+  \item \texttt{bragg\_phase\_noise/physics.py}: Gaussian pulses and finite-step propagators,
+  \item \texttt{bragg\_phase\_noise/analysis.py}: ensemble averages, phases, contrasts, and noise propagation,
+  \item \texttt{bragg\_phase\_noise/ui.py}: Tkinter + Matplotlib interface.
+\end{itemize}
+
+\end{document}

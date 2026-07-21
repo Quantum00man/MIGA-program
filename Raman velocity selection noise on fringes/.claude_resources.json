@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-07-17T15:12:52.826865",
+  "os": {
+    "system": "Linux",
+    "release": "6.17.0-35-generic",
+    "version": "#35~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 19:30:42 UTC 2",
+    "machine": "x86_64",
+    "python_version": "3.12.3"
+  },
+  "cpu": {
+    "physical_cores": 4,
+    "logical_cores": 4,
+    "max_frequency_mhz": 3600.0,
+    "architecture": "x86_64",
+    "processor": "x86_64",
+    "current_frequency_mhz": 3599.9992500000003
+  },
+  "memory": {
+    "total_gb": 7.55,
+    "available_gb": 1.23,
+    "used_gb": 4.88,
+    "percent_used": 83.7,
+    "swap_total_gb": 4.0,
+    "swap_available_gb": 0.19
+  },
+  "disk": {
+    "path": "/home/yiming/Documents/MIGA-program/Raman velocity selection noise on fringes",
+    "total_gb": 628.94,
+    "available_gb": 297.46,
+    "used_gb": 299.46,
+    "percent_used": 50.2
+  },
+  "gpu": {
+    "nvidia_gpus": [],
+    "amd_gpus": [],
+    "apple_silicon": null,
+    "total_gpus": 0,
+    "available_backends": []
+  },
+  "recommendations": {
+    "parallel_processing": {
+      "strategy": "moderate_parallelism",
+      "suggested_workers": 3,
+      "libraries": [
+        "joblib",
+        "multiprocessing"
+      ]
+    },
+    "memory_strategy": {
+      "strategy": "memory_constrained",
+      "libraries": [
+        "zarr",
+        "dask",
+        "h5py"
+      ],
+      "note": "Use out-of-core processing for large datasets"
+    },
+    "gpu_acceleration": {
+      "available": false,
+      "note": "No GPU detected, use CPU-based libraries"
+    },
+    "large_data_handling": {
+      "strategy": "disk_abundant",
+      "note": "Sufficient space for large intermediate files"
+    }
+  }
+}
