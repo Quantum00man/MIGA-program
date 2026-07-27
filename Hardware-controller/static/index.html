@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIGA Hardware Controller</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="console-body">
+    <div id="message-bar" class="message-bar hidden"></div>
+
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-copy">
+                <div class="eyebrow">Integrated Hardware Service</div>
+                <h1>MIGA Hardware Controller</h1>
+                <div class="subtitle">Unified browser control for multiple EDFA systems and remote power supplies.</div>
+            </div>
+
+            <div class="topbar-actions">
+                <div class="status-group">
+                    <span class="status-pill" id="ws-indicator">WS: Connecting</span>
+                    <span class="status-pill" id="scheduler-indicator">Scheduler: --</span>
+                </div>
+                <div class="action-row">
+                    <button class="ghost-button" id="refresh-button">Refresh</button>
+                    <button class="ghost-button" id="download-manual-button">Download LaTeX Manual</button>
+                    <button class="ghost-button" id="logout-button">Log Out</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <section class="panel summary-panel">
+                <div class="panel-title-row">
+                    <h2>System Overview</h2>
+                    <span class="panel-note">Service origin: <span id="origin-label">--</span></span>
+                </div>
+                <div id="summary-grid" class="summary-grid"></div>
+                <div id="service-meta" class="service-meta"></div>
+            </section>
+
+            <section class="panel tab-shell">
+                <nav class="tab-nav" aria-label="Hardware sections">
+                    <button class="tab-button is-active" data-tab-target="tab-edfa">EDFA</button>
+                    <button class="tab-button" data-tab-target="tab-psu">Power Supplies</button>
+                    <button class="tab-button" data-tab-target="tab-settings">Settings</button>
+                </nav>
+
+                <section class="tab-panel is-active" id="tab-edfa">
+                    <div class="tab-hero">
+                        <div>
+                            <h2>EDFA Systems</h2>
+                            <p class="panel-note">All EDFA devices are grouped here. Each device keeps its own IP address, power presets, and weekly schedule.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="action-button action-button-positive" id="edfa-batch-on">Start All EDFA Devices</button>
+                            <button class="action-button action-button-danger" id="edfa-batch-off">Shutdown All EDFA Devices</button>
+                        </div>
+                    </div>
+
+                    <div id="edfa-summary-grid" class="compact-summary-grid"></div>
+
+                    <div class="utility-grid">
+                        <section class="subpanel">
+                            <div class="panel-title-row">
+                                <h3>Global EDFA Preset</h3>
+                                <span class="panel-note">Apply one preset to every EDFA device.</span>
+                            </div>
+                            <form id="edfa-template-form" class="stack">
+                                <div class="form-grid narrow-grid">
+                                    <label>
+                                        <span>Enable Schedule</span>
+                                        <input type="checkbox" id="template-schedule-enabled">
+                                    </label>
+                                    <label>
+                                        <span>Auto-ON</span>
+                                        <input type="text" id="template-on-time" value="08:00" placeholder="08:00">
+                                    </label>
+                                    <label>
+                                        <span>Auto-OFF</span>
+                                        <input type="text" id="template-off-time" value="18:00" placeholder="18:00">
+                                    </label>
+                                </div>
+                                <div class="weekday-row" id="template-weekdays"></div>
+                                <div class="form-grid narrow-grid" id="template-powers"></div>
+                                <button class="action-button" type="submit">Apply Preset To All EDFA Devices</button>
+                            </form>
+                        </section>
+
+                        <section class="subpanel">
+                            <div class="panel-title-row">
+                                <h3>Add EDFA Device</h3>
+                                <span class="panel-note">Use the same command protocol as the legacy EDFA tool.</span>
+                            </div>
+                            <form id="add-edfa-form" class="stack">
+                                <div class="form-grid">
+                                    <label><span>Name</span><input type="text" name="name" placeholder="EDFA System 1"></label>
+                                    <label><span>IP Address</span><input type="text" name="ip" placeholder="10.0.1.133" required></label>
+                                    <label><span>Port</span><input type="number" name="port" value="23" required></label>
+                                    <label><span>Timeout (s)</span><input type="number" name="timeout_sec" value="3" step="0.1" required></label>
+                                    <label><span>Command Delay (s)</span><input type="number" name="command_delay_sec" value="1" step="0.1" required></label>
+                                    <label><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
+                                </div>
+                                <button class="action-button" type="submit">Add EDFA Device</button>
+                            </form>
+                        </section>
+                    </div>
+
+                    <div id="edfa-device-list" class="device-list"></div>
+                </section>
+
+                <section class="tab-panel" id="tab-psu">
+                    <div class="tab-hero">
+                        <div>
+                            <h2>Power Supply Systems</h2>
+                            <p class="panel-note">All programmable power supplies are grouped here. Each device keeps its own IP address and each channel keeps its own schedule.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="action-button action-button-positive" id="psu-batch-on">Turn All PSU Outputs ON</button>
+                            <button class="action-button action-button-danger" id="psu-batch-off">Turn All PSU Outputs OFF</button>
+                        </div>
+                    </div>
+
+                    <div id="psu-summary-grid" class="compact-summary-grid"></div>
+
+                    <div class="utility-grid utility-grid-single">
+                        <section class="subpanel">
+                            <div class="panel-title-row">
+                                <h3>Add Power Supply Device</h3>
+                                <span class="panel-note">Default protocol: two channels on TCP port 9221.</span>
+                            </div>
+                            <form id="add-psu-form" class="stack">
+                                <div class="form-grid">
+                                    <label><span>Name</span><input type="text" name="name" placeholder="PSU System 1"></label>
+                                    <label><span>IP Address</span><input type="text" name="ip" placeholder="192.168.0.100" required></label>
+                                    <label><span>Port</span><input type="number" name="port" value="9221" required></label>
+                                    <label><span>Timeout (s)</span><input type="number" name="timeout_sec" value="3" step="0.1" required></label>
+                                    <label><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
+                                </div>
+                                <button class="action-button" type="submit">Add PSU Device</button>
+                            </form>
+                        </section>
+                    </div>
+
+                    <div id="psu-device-list" class="device-list"></div>
+                </section>
+
+                <section class="tab-panel" id="tab-settings">
+                    <div class="tab-hero">
+                        <div>
+                            <h2>Settings</h2>
+                            <p class="panel-note">Security controls, access notes, and the live event stream.</p>
+                        </div>
+                    </div>
+
+                    <div class="utility-grid">
+                        <form id="password-form" class="subpanel stack">
+                            <div class="panel-title-row">
+                                <h3>Change Web Password</h3>
+                                <span class="panel-note">Default password: <code>miga</code></span>
+                            </div>
+                            <label><span>Current Password</span><input type="password" name="current_password" required></label>
+                            <label><span>New Password</span><input type="password" name="new_password" required></label>
+                            <button class="action-button" type="submit">Update Password</button>
+                        </form>
+
+                        <section class="subpanel">
+                            <div class="panel-title-row">
+                                <h3>Access Notes</h3>
+                                <span class="panel-note">Designed for local and same-LAN use.</span>
+                            </div>
+                            <ul class="plain-list">
+                                <li>Run the service on the host computer, then open the shown origin in any browser on the same LAN.</li>
+                                <li>EDFA state is command-tracked because the current protocol does not expose a readback query.</li>
+                                <li>PSU channel state is refreshed from the instrument after successful commands.</li>
+                                <li>All device configuration and schedules are saved in the local JSON state file.</li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <section class="subpanel">
+                        <div class="panel-title-row">
+                            <h3>Activity Log</h3>
+                            <span class="panel-note">Live WebSocket event feed</span>
+                        </div>
+                        <div id="event-log" class="event-log"></div>
+                    </section>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

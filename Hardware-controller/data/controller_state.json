@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "server": {
+    "default_host": "0.0.0.0",
+    "default_port": 8050
+  },
+  "auth": {
+    "salt": "b6c948649c2bb509b193bcb41dc4f805",
+    "hash": "30c057244719a1fa56dbf988f3c53959dd13ec2f666f928a21abbf2123fe4b6b",
+    "iterations": 200000
+  },
+  "edfa_devices": [
+    {
+      "id": "45be5d85",
+      "name": "MIGA22",
+      "ip": "10.0.1.133",
+      "port": 23,
+      "timeout_sec": 3.0,
+      "command_delay_sec": 1.0,
+      "channels": [
+        {
+          "key": "edfa0",
+          "label": "EDFA0",
+          "power": "3",
+          "assumed_on": false
+        },
+        {
+          "key": "edfa1",
+          "label": "EDFA1",
+          "power": "2.4",
+          "assumed_on": false
+        },
+        {
+          "key": "edfa2",
+          "label": "EDFA2",
+          "power": "3",
+          "assumed_on": false
+        },
+        {
+          "key": "edfa3",
+          "label": "EDFA3",
+          "power": "3",
+          "assumed_on": false
+        }
+      ],
+      "schedule": {
+        "enabled": false,
+        "days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "on_time": "08:00",
+        "off_time": "18:00"
+      },
+      "notes": "",
+      "reachable": false,
+      "last_action": "Failed to switch edfa0 ON",
+      "last_error": "Failed to communicate with EDFA device at 10.0.1.133:23: timed out",
+      "last_contact_at": "2026-07-27T15:52:14+02:00"
+    }
+  ],
+  "psu_devices": [],
+  "metadata": {
+    "created_at": "2026-07-27T14:13:56+02:00",
+    "updated_at": "2026-07-27T15:52:14+02:00"
+  }
+}

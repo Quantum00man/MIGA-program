@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIGA Hardware Controller Login</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-body">
+    <div id="message-bar" class="message-bar hidden"></div>
+    <main class="login-shell">
+        <section class="login-card">
+            <div class="eyebrow">Laboratory Access Control</div>
+            <h1>MIGA Hardware Controller</h1>
+            <p class="login-copy">
+                Sign in to operate EDFA systems and network power supplies from this workstation or the local network.
+            </p>
+            <form id="login-form" class="stack">
+                <label>
+                    <span>Password</span>
+                    <input type="password" name="password" placeholder="Default: miga" required autofocus>
+                </label>
+                <button class="action-button" type="submit">Sign In</button>
+            </form>
+            <div class="login-footnote">
+                Password-protected access is stored in the local controller state file. Change it after first login.
+            </div>
+        </section>
+    </main>
+    <script src="/static/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{titlesec}
+
+\definecolor{miganavy}{HTML}{16324D}
+\definecolor{migablue}{HTML}{2F6F97}
+\definecolor{migasoft}{HTML}{EAF3FA}
+\definecolor{migatext}{HTML}{31465A}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=miganavy,
+    urlcolor=migablue,
+    pdftitle={Hardware Controller User Manual},
+    pdfauthor={OpenAI Codex},
+}
+
+\titleformat{\section}{\Large\bfseries\color{miganavy}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{miganavy}}{\thesubsection}{0.7em}{}
+
+\lstdefinestyle{migacode}{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{migasoft},
+    frame=single,
+    framerule=0pt,
+    breaklines=true,
+    showstringspaces=false,
+    columns=fullflexible,
+}
+
+\title{\textbf{Hardware Controller User Manual}\\[0.4em]
+\large Integrated Multi-Device EDFA and PSU Web Control}
+\author{Prepared for the MIGA laboratory workflow}
+\date{Revision date: July 27, 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Purpose}
+This document describes how to use the \texttt{Hardware-controller} application created to integrate two existing laboratory tools:
+\begin{itemize}[leftmargin=1.5em]
+    \item the EDFA remote control workflow from \texttt{Edfa-controller/edfa-controller.py},
+    \item the programmable power supply scheduler from \texttt{Power-supply-remote/Dispenser\_remote\_control-2channels\_STD.py}.
+\end{itemize}
+
+The new application exposes both functions through a single local web service. The service can be opened in a browser on the host computer or from another computer on the same local area network (LAN), provided the host and network permissions allow it.
+
+\section{Project Location and File Layout}
+The project lives inside:
+
+\begin{lstlisting}[style=migacode]
+/home/yiming/Documents/MIGA-program/Hardware-controller
+\end{lstlisting}
+
+The main files are listed in Table~\ref{tab:layout}.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.31\linewidth} >{\raggedright\arraybackslash}p{0.61\linewidth}}
+\caption{Important files in the Hardware Controller project.}\label{tab:layout}\\
+\toprule
+\textbf{Path} & \textbf{Role} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Path} & \textbf{Role} \\
+\midrule
+\endhead
+\texttt{main.py} & Uvicorn/FastAPI entry point. \\
+\texttt{config.py} & Default ports, timing constants, password policy, and file paths. \\
+\texttt{app/\_\_init\_\_.py} & Builds the FastAPI application, login page, main page, and WebSocket bridge. \\
+\texttt{app/api/routes.py} & Browser-facing HTTP API for login, device management, manual actions, and downloads. \\
+\texttt{app/core/controller\_manager.py} & Main coordination layer for devices, scheduling, state updates, and event logging. \\
+\texttt{app/core/scheduler.py} & Background scheduler thread for EDFA and PSU timed actions. \\
+\texttt{app/core/state\_store.py} & Persistent JSON storage for devices, schedules, and password hash. \\
+\texttt{app/core/auth.py} & Session handling and password change logic. \\
+\texttt{app/drivers/edfa.py} & TCP command sender for EDFA devices. \\
+\texttt{app/drivers/psu.py} & Persistent socket driver for the QPX-like power supply protocol. \\
+\texttt{static/index.html} & Main browser control console. \\
+\texttt{static/login.html} & Login page. \\
+\texttt{static/app.js} & Frontend logic for browser actions and live updates. \\
+\texttt{static/styles.css} & Frontend styling. \\
+\texttt{data/controller\_state.json} & Persistent runtime configuration, device list, schedules, and password hash. \\
+\texttt{docs/hardware\_controller\_manual.tex} & This manual. \\
+\bottomrule
+\end{longtable}
+
+\section{System Design Summary}
+The architecture follows the same general web-service idea used in the existing \texttt{MIGA-controller} project:
+\begin{itemize}[leftmargin=1.5em]
+    \item a Python backend using \texttt{FastAPI},
+    \item browser pages served locally by the same backend,
+    \item a JSON state file to persist configuration across restarts,
+    \item a WebSocket channel to push event messages to the browser,
+    \item a background scheduler thread to handle timed switching.
+\end{itemize}
+
+The controller does \textbf{not} depend on an external cloud service. It is designed for local laboratory use.
+
+\section{Hardware Capabilities}
+\subsection{EDFA Systems}
+The EDFA integration assumes the same control logic as the original EDFA script:
+\begin{itemize}[leftmargin=1.5em]
+    \item each EDFA system exposes four channels,
+    \item the channel names are \texttt{edfa0}, \texttt{edfa1}, \texttt{edfa2}, and \texttt{edfa3},
+    \item the default startup powers are:
+    \begin{itemize}[leftmargin=1.5em]
+        \item \texttt{edfa0 = 3},
+        \item \texttt{edfa1 = 2.4},
+        \item \texttt{edfa2 = 3},
+        \item \texttt{edfa3 = 3}.
+    \end{itemize}
+    \item the browser allows these power values to be edited per device,
+    \item a device-wide schedule can turn all four channels on using the stored powers, and off using the safe shutdown sequence.
+\end{itemize}
+
+\subsection{Power Supply Systems}
+The PSU integration assumes the same protocol as the original scheduler:
+\begin{itemize}[leftmargin=1.5em]
+    \item each PSU uses TCP port \texttt{9221} by default,
+    \item each PSU provides two independently controlled outputs,
+    \item channel status can be queried back from the instrument,
+    \item independent mode can be applied from the browser,
+    \item each channel can have its own weekly schedule and its own on/off times.
+\end{itemize}
+
+\section{Installation}
+\subsection{Python Dependencies}
+The required Python packages are listed in \texttt{requirements.txt}.
+
+Install them with:
+
+\begin{lstlisting}[style=migacode]
+cd /home/yiming/Documents/MIGA-program/Hardware-controller
+python3 -m pip install -r requirements.txt
+\end{lstlisting}
+
+\subsection{Recommended Launch Command}
+The default listening port defined in \texttt{config.py} is \texttt{8050}. A practical launch command is:
+
+\begin{lstlisting}[style=migacode]
+cd /home/yiming/Documents/MIGA-program/Hardware-controller
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8050
+\end{lstlisting}
+
+This makes the service available on all network interfaces of the host computer.
+
+\section{Accessing the Service}
+\subsection{Local Browser Access}
+From the host computer, open:
+
+\begin{lstlisting}[style=migacode]
+http://127.0.0.1:8050
+\end{lstlisting}
+
+\subsection{LAN Access}
+From another computer on the same LAN, open:
+
+\begin{lstlisting}[style=migacode]
+http://<host-ip-address>:8050
+\end{lstlisting}
+
+Replace \texttt{<host-ip-address>} with the actual IPv4 address of the host computer, for example \texttt{192.168.0.42}.
+
+\subsection{Firewall Considerations}
+If LAN access does not work:
+\begin{itemize}[leftmargin=1.5em]
+    \item check that the host machine firewall allows inbound TCP connections on port \texttt{8050},
+    \item check that the browser machine can reach the host on the same subnet,
+    \item check that no other service is already occupying port \texttt{8050}.
+\end{itemize}
+
+\section{Authentication}
+\subsection{Default Password}
+The initial login password is:
+
+\begin{lstlisting}[style=migacode]
+miga
+\end{lstlisting}
+
+\subsection{Password Storage}
+The controller stores a password hash and salt inside:
+
+\begin{lstlisting}[style=migacode]
+data/controller_state.json
+\end{lstlisting}
+
+The plaintext password is not written to disk.
+
+\subsection{Password Change Workflow}
+After login:
+\begin{enumerate}[leftmargin=1.5em]
+    \item scroll to the \textbf{Security \& Service} section,
+    \item enter the current password,
+    \item enter a new password,
+    \item click \textbf{Update Password}.
+\end{enumerate}
+
+The current browser session is refreshed automatically after a successful password change.
+
+\section{Persistent State}
+The application automatically saves:
+\begin{itemize}[leftmargin=1.5em]
+    \item all EDFA device entries,
+    \item all PSU device entries,
+    \item all schedule settings,
+    \item device notes,
+    \item the password hash,
+    \item recent device runtime state such as last action and last communication error.
+\end{itemize}
+
+The persistent file is:
+
+\begin{lstlisting}[style=migacode]
+Hardware-controller/data/controller_state.json
+\end{lstlisting}
+
+When the service restarts, the file is loaded automatically.
+
+\section{Using the Main Dashboard}
+\subsection{Top Bar}
+The top bar displays:
+\begin{itemize}[leftmargin=1.5em]
+    \item WebSocket connection status,
+    \item scheduler status,
+    \item a button to download this \LaTeX{} manual,
+    \item a logout button.
+\end{itemize}
+
+\subsection{Sidebar}
+The sidebar provides:
+\begin{itemize}[leftmargin=1.5em]
+    \item a summary of EDFA and PSU device counts,
+    \item EDFA batch actions,
+    \item the \textbf{Apply EDFA Template} form,
+    \item a live activity log.
+\end{itemize}
+
+\subsection{Main Sections}
+The main page contains four sections:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Control Dashboard},
+    \item \textbf{EDFA Systems},
+    \item \textbf{Power Supply Systems},
+    \item \textbf{Security \& Service}.
+\end{enumerate}
+
+\section{EDFA Operation}
+\subsection{Adding an EDFA Device}
+In the \textbf{EDFA Systems} section:
+\begin{enumerate}[leftmargin=1.5em]
+    \item fill in the device name,
+    \item enter the device IP address,
+    \item adjust the port, timeout, and command delay if needed,
+    \item click \textbf{Add EDFA Device}.
+\end{enumerate}
+
+\subsection{Single-Device Commands}
+Each EDFA card offers:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Save Config},
+    \item \textbf{Probe},
+    \item \textbf{Start All},
+    \item \textbf{Safe Shutdown},
+    \item \textbf{Delete}.
+\end{itemize}
+
+\subsection{Per-Channel Commands}
+Each channel row provides:
+\begin{itemize}[leftmargin=1.5em]
+    \item a power field,
+    \item an \textbf{ON} button,
+    \item an \textbf{OFF} button.
+\end{itemize}
+
+When \textbf{ON} is pressed, the current power field is used as the command value.
+
+\subsection{Important Note on EDFA State Readback}
+The current EDFA protocol in the inherited script provides command sending but no confirmed state query. Therefore:
+\begin{itemize}[leftmargin=1.5em]
+    \item the UI shows \textbf{assumed} EDFA channel state,
+    \item the assumed state is based on the most recent successful controller action,
+    \item it should be interpreted as a control log, not as a hardware readback measurement.
+\end{itemize}
+
+\subsection{EDFA Weekly Schedule}
+Each EDFA device contains one schedule block:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Enable schedule},
+    \item \textbf{Auto-ON} time,
+    \item \textbf{Auto-OFF} time,
+    \item active weekdays.
+\end{itemize}
+
+When the schedule is enabled:
+\begin{itemize}[leftmargin=1.5em]
+    \item the ON event applies the stored power preset to all four channels,
+    \item the OFF event sends the safe shutdown sequence to all four channels.
+\end{itemize}
+
+\subsection{Applying One Template to Many EDFA Devices}
+The sidebar contains a batch template form. It can push:
+\begin{itemize}[leftmargin=1.5em]
+    \item one set of four channel powers,
+    \item one schedule definition,
+    \item one weekday selection,
+\end{itemize}
+to all selected EDFA devices, or to all EDFA devices if none are selected.
+
+\section{PSU Operation}
+\subsection{Adding a PSU Device}
+In the \textbf{Power Supply Systems} section:
+\begin{enumerate}[leftmargin=1.5em]
+    \item fill in the name and IP address,
+    \item keep the default port \texttt{9221} unless your instrument differs,
+    \item set the timeout if necessary,
+    \item click \textbf{Add PSU Device}.
+\end{enumerate}
+
+\subsection{PSU Device Controls}
+Each PSU card provides:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Save Config},
+    \item \textbf{Probe \& IDN},
+    \item \textbf{Refresh State},
+    \item \textbf{Set Independent Mode},
+    \item \textbf{Disconnect},
+    \item \textbf{Delete}.
+\end{itemize}
+
+\subsection{PSU Channel Controls}
+Each PSU offers:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{CH1 ON} and \textbf{CH1 OFF},
+    \item \textbf{CH2 ON} and \textbf{CH2 OFF}.
+\end{itemize}
+
+After a successful command, the controller reads the PSU output state back from the instrument and updates the browser.
+
+\subsection{PSU Weekly Schedules}
+Each PSU card contains a schedule block for:
+\begin{itemize}[leftmargin=1.5em]
+    \item channel 1,
+    \item channel 2.
+\end{itemize}
+
+Each channel schedule contains:
+\begin{itemize}[leftmargin=1.5em]
+    \item an enable checkbox,
+    \item an ON time,
+    \item an OFF time,
+    \item its own weekday selection.
+\end{itemize}
+
+This means the two outputs can run completely independent schedules.
+
+\section{Scheduler Behavior}
+The scheduler runs in a background thread inside the Python service. It checks device schedules once per second.
+
+\subsection{Trigger Logic}
+\begin{itemize}[leftmargin=1.5em]
+    \item A schedule only runs on the selected weekdays.
+    \item A schedule action triggers when the current local time matches the configured \texttt{HH:MM}.
+    \item A once-per-day guard prevents the same scheduled action from repeating continuously during the same minute.
+\end{itemize}
+
+\subsection{Recommended Practice}
+For laboratory safety:
+\begin{itemize}[leftmargin=1.5em]
+    \item verify the host clock before trusting scheduled events,
+    \item use simple, clearly separated schedule times,
+    \item confirm network reachability for all remote devices before leaving the system unattended,
+    \item prefer safe shutdown times for all remotely powered hardware.
+\end{itemize}
+
+\section{Event Log}
+The sidebar log records:
+\begin{itemize}[leftmargin=1.5em]
+    \item startup and shutdown events,
+    \item device add/update/remove events,
+    \item successful commands,
+    \item communication failures,
+    \item scheduler-triggered actions,
+    \item password change events.
+\end{itemize}
+
+The log is intended as an operational trace for the active service session.
+
+\section{Troubleshooting}
+\subsection{Cannot Reach the Login Page}
+Check:
+\begin{itemize}[leftmargin=1.5em]
+    \item whether \texttt{uvicorn} is running,
+    \item whether the chosen port is correct,
+    \item whether another service is already using the same port.
+\end{itemize}
+
+\subsection{EDFA Probe Fails}
+Check:
+\begin{itemize}[leftmargin=1.5em]
+    \item EDFA IP address,
+    \item EDFA port,
+    \item device power and network cable,
+    \item firewall rules between the browser host and the EDFA host.
+\end{itemize}
+
+\subsection{PSU State Refresh Fails}
+Check:
+\begin{itemize}[leftmargin=1.5em]
+    \item PSU IP address,
+    \item port \texttt{9221},
+    \item whether the PSU network socket is already occupied by another tool,
+    \item whether the instrument is in a valid remote control mode.
+\end{itemize}
+
+\subsection{Browser Shows Authentication Required}
+This usually means:
+\begin{itemize}[leftmargin=1.5em]
+    \item the login session expired,
+    \item the password was changed in another session,
+    \item the browser cookie was cleared.
+\end{itemize}
+
+Log in again through \texttt{/login}.
+
+\section{Recommended Operational Workflow}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Start the FastAPI service on the host computer.
+    \item Open the login page locally and confirm access.
+    \item Change the default password from \texttt{miga}.
+    \item Add all EDFA and PSU devices.
+    \item Probe each device once and confirm communication.
+    \item Save final power presets and schedule definitions.
+    \item Test one manual ON/OFF cycle per device before remote unattended use.
+    \item If LAN access is required, test the same page from another machine on the subnet.
+\end{enumerate}
+
+\section{Suggested Future Extensions}
+The current version is intentionally conservative and aligned with the inherited scripts. Reasonable future additions could include:
+\begin{itemize}[leftmargin=1.5em]
+    \item role-based multi-user authentication,
+    \item TLS reverse-proxy deployment,
+    \item confirmed EDFA state readback if the hardware protocol later exposes a query command,
+    \item configuration export/import workflows,
+    \item explicit audit log persistence beyond the active session.
+\end{itemize}
+
+\section{Conclusion}
+The \texttt{Hardware-controller} project consolidates legacy EDFA and PSU control into one browser-based service while preserving the practical command logic of the original laboratory scripts. It supports multiple EDFA systems, multiple power supplies, persistent device configuration, independent scheduling, LAN access, and a simple password-protected workflow suitable for day-to-day experimental operations.
+
+\end{document}
