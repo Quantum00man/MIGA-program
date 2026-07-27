@@ -9,13 +9,15 @@
     --text-muted: #607489;
     --navy: #12324a;
     --accent: #2f6f97;
-    --accent-soft: #dcecf8;
     --positive: #207151;
     --positive-soft: #def2e8;
+    --positive-surface: linear-gradient(160deg, rgba(32, 113, 81, 0.22) 0%, rgba(239, 251, 246, 0.96) 78%);
     --danger: #a03c37;
     --danger-soft: #fde8e5;
+    --danger-surface: linear-gradient(160deg, rgba(160, 60, 55, 0.2) 0%, rgba(255, 244, 243, 0.96) 78%);
     --warning: #a16e00;
     --warning-soft: #fff3d6;
+    --warning-surface: linear-gradient(160deg, rgba(161, 110, 0, 0.17) 0%, rgba(255, 250, 240, 0.96) 78%);
     --shadow: 0 18px 40px rgba(12, 34, 56, 0.08);
     --radius: 18px;
     --radius-sm: 12px;
@@ -141,23 +143,23 @@ body::before {
 
 .device-badge.success,
 .state-badge.success {
-    background: var(--positive-soft);
-    color: var(--positive);
-    border-color: rgba(32, 113, 81, 0.16);
+    background: rgba(32, 113, 81, 0.16);
+    color: #16573d;
+    border-color: rgba(32, 113, 81, 0.22);
 }
 
 .device-badge.danger,
 .state-badge.danger {
-    background: var(--danger-soft);
-    color: var(--danger);
-    border-color: rgba(160, 60, 55, 0.16);
+    background: rgba(160, 60, 55, 0.14);
+    color: #8c2f2a;
+    border-color: rgba(160, 60, 55, 0.22);
 }
 
 .device-badge.warning,
 .state-badge.warning {
-    background: var(--warning-soft);
-    color: var(--warning);
-    border-color: rgba(161, 110, 0, 0.16);
+    background: rgba(161, 110, 0, 0.13);
+    color: #815900;
+    border-color: rgba(161, 110, 0, 0.2);
 }
 
 .dashboard-main {
@@ -200,7 +202,8 @@ body::before {
 .subpanel h3,
 .tab-hero h2,
 .device-card h3,
-.device-card-section h4 {
+.device-card-section h4,
+.schedule-tile-title {
     margin: 0;
 }
 
@@ -326,7 +329,7 @@ body::before {
 }
 
 .psu-channel-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .narrow-grid {
@@ -356,7 +359,7 @@ input[type="number"] {
     padding: 11px 12px;
     background: rgba(255, 255, 255, 0.98);
     color: var(--text);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 input:focus {
@@ -377,7 +380,7 @@ input[type="checkbox"] {
     border: none;
     border-radius: 12px;
     cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
 .action-button:hover,
@@ -406,7 +409,7 @@ input[type="checkbox"] {
 .inline-button {
     padding: 10px 14px;
     border: 1px solid var(--line);
-    background: #f8fbfd;
+    background: rgba(255, 255, 255, 0.78);
     color: var(--text);
 }
 
@@ -465,14 +468,50 @@ input[type="checkbox"] {
     gap: 18px;
 }
 
-.device-card-section,
-.channel-tile,
-.psu-channel-tile,
-.schedule-tile {
+.device-card-section {
     border: 1px solid var(--line);
     border-radius: 14px;
     padding: 16px;
     background: linear-gradient(180deg, #ffffff, #f9fbfd);
+}
+
+.channel-tile,
+.psu-channel-tile,
+.schedule-tile {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.channel-tile.state-on,
+.psu-channel-tile.state-on {
+    background: var(--positive-surface);
+    border-color: rgba(32, 113, 81, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.channel-tile.state-off,
+.psu-channel-tile.state-off {
+    background: var(--danger-surface);
+    border-color: rgba(160, 60, 55, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.channel-tile.state-unknown,
+.psu-channel-tile.state-unknown {
+    background: var(--warning-surface);
+    border-color: rgba(161, 110, 0, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.channel-tile.state-on input[type="text"],
+.psu-channel-tile.state-on input[type="text"],
+.channel-tile.state-off input[type="text"],
+.psu-channel-tile.state-off input[type="text"],
+.channel-tile.state-unknown input[type="text"],
+.psu-channel-tile.state-unknown input[type="text"] {
+    background: rgba(255, 255, 255, 0.88);
 }
 
 .channel-tile-header,
@@ -481,13 +520,48 @@ input[type="checkbox"] {
     justify-content: space-between;
     align-items: center;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .channel-name {
     font-family: var(--mono);
     font-weight: 700;
     color: var(--navy);
+}
+
+.schedule-tile {
+    margin-top: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(18, 50, 74, 0.1);
+}
+
+.schedule-tile-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.schedule-tile-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--navy);
+}
+
+.psu-channel-tile.state-on .schedule-tile {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(32, 113, 81, 0.16);
+}
+
+.psu-channel-tile.state-off .schedule-tile {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(160, 60, 55, 0.16);
+}
+
+.psu-channel-tile.state-unknown .schedule-tile {
+    background: rgba(255, 255, 255, 0.78);
+    border-color: rgba(161, 110, 0, 0.16);
 }
 
 .selection-row {
@@ -639,7 +713,8 @@ code,
 
     .tab-hero,
     .device-header,
-    .panel-title-row {
+    .panel-title-row,
+    .schedule-tile-title-row {
         flex-direction: column;
     }
 }

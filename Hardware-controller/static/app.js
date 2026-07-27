@@ -77,20 +77,6 @@ function renderWeekdayCheckboxes(containerId, prefix, selectedDays = [0, 1, 2, 3
         .join("");
 }
 
-function renderTemplatePowerInputs() {
-    const container = document.getElementById("template-powers");
-    container.innerHTML = Object.entries(defaultEdfaTemplatePowers)
-        .map(
-            ([key, value]) => `
-                <label>
-                    <span>${key}</span>
-                    <input type="text" data-role="template-power" data-key="${key}" value="${escapeHtml(value)}">
-                </label>
-            `
-        )
-        .join("");
-}
-
 function collectTemplateWeekdays() {
     return Array.from(document.querySelectorAll('#template-weekdays [data-role="template-weekday"]:checked')).map((node) => Number(node.value));
 }
@@ -114,6 +100,17 @@ function stateBadgeFromText(text, fallback = "Unknown") {
         return `<span class="state-badge danger">OFF</span>`;
     }
     return `<span class="state-badge warning">${normalized}</span>`;
+}
+
+function stateClassFromText(text, fallback = "unknown") {
+    const normalized = String(text || fallback).toUpperCase();
+    if (normalized === "ON") {
+        return "state-on";
+    }
+    if (normalized === "OFF") {
+        return "state-off";
+    }
+    return "state-unknown";
 }
 
 function statusDotClass(status) {
@@ -244,22 +241,25 @@ function renderEdfaDevices(devices) {
     container.innerHTML = devices.map((device) => {
         const runtime = getEdfaRuntimeStatus(device);
         const scheduleDays = device.schedule.days || [];
-        const channelTiles = (device.channels || []).map((channel) => `
-            <div class="channel-tile">
-                <div class="channel-tile-header">
-                    <span class="channel-name">${escapeHtml(channel.key)}</span>
-                    ${stateBadgeFromText(channel.assumed_on ? "ON" : "OFF")}
+        const channelTiles = (device.channels || []).map((channel) => {
+            const channelStateText = channel.assumed_on ? "ON" : "OFF";
+            return `
+                <div class="channel-tile ${stateClassFromText(channelStateText)}">
+                    <div class="channel-tile-header">
+                        <span class="channel-name">${escapeHtml(channel.key)}</span>
+                        ${stateBadgeFromText(channelStateText)}
+                    </div>
+                    <label>
+                        <span>Power</span>
+                        <input type="text" data-field="channel-power" data-key="${channel.key}" value="${escapeHtml(channel.power)}">
+                    </label>
+                    <div class="device-actions">
+                        <button class="inline-button" data-action="edfa-channel-on" data-device-id="${device.id}" data-channel-key="${channel.key}">Turn ON</button>
+                        <button class="inline-button inline-danger" data-action="edfa-channel-off" data-device-id="${device.id}" data-channel-key="${channel.key}">Turn OFF</button>
+                    </div>
                 </div>
-                <label>
-                    <span>Power</span>
-                    <input type="text" data-field="channel-power" data-key="${channel.key}" value="${escapeHtml(channel.power)}">
-                </label>
-                <div class="device-actions">
-                    <button class="inline-button" data-action="edfa-channel-on" data-device-id="${device.id}" data-channel-key="${channel.key}">Turn ON</button>
-                    <button class="inline-button inline-danger" data-action="edfa-channel-off" data-device-id="${device.id}" data-channel-key="${channel.key}">Turn OFF</button>
-                </div>
-            </div>
-        `).join("");
+            `;
+        }).join("");
 
         return `
             <article class="device-card" data-device-type="edfa" data-device-id="${device.id}">
@@ -303,7 +303,7 @@ function renderEdfaDevices(devices) {
                     <div class="device-card-section">
                         <div class="panel-title-row">
                             <h4>Channel Control</h4>
-                            <span class="panel-note">Green and red show the command-tracked output state for each channel.</span>
+                            <span class="panel-note">Each channel card now uses a full-state surface. Green means ON, red means OFF.</span>
                         </div>
                         <div class="channel-grid">${channelTiles}</div>
                     </div>
@@ -351,7 +351,7 @@ function renderPsuDevices(devices) {
             const channelState = (device.channel_states || {})[channel] || "unknown";
 
             return `
-                <div class="psu-channel-tile">
+                <div class="psu-channel-tile ${stateClassFromText(channelState)}">
                     <div class="psu-channel-header">
                         <span class="channel-name">CH${channel}</span>
                         ${stateBadgeFromText(channelState)}
@@ -361,8 +361,8 @@ function renderPsuDevices(devices) {
                         <button class="inline-button inline-danger" data-action="psu-channel-off" data-device-id="${device.id}" data-channel="${channel}">Turn OFF</button>
                     </div>
                     <div class="schedule-tile">
-                        <div class="panel-title-row">
-                            <h4>Schedule</h4>
+                        <div class="schedule-tile-title-row">
+                            <h5 class="schedule-tile-title">Channel Schedule</h5>
                             <label class="selection-row">
                                 <input type="checkbox" data-field="schedule-enabled-${channel}" ${channelSchedule.enabled ? "checked" : ""}>
                                 <span>Enable</span>
@@ -429,7 +429,7 @@ function renderPsuDevices(devices) {
                     <div class="device-card-section">
                         <div class="panel-title-row">
                             <h4>Channel Control and Schedule</h4>
-                            <span class="panel-note">Green and red indicate the last readback state for each PSU channel.</span>
+                            <span class="panel-note">Each channel uses the same full-state red/green surface logic and a nested schedule panel.</span>
                         </div>
                         <div class="psu-channel-grid">${channelTiles}</div>
                     </div>
@@ -656,15 +656,11 @@ async function handleFormSubmit(event) {
     }
 
     if (form.id === "edfa-template-form") {
-        const channels = Array.from(document.querySelectorAll('[data-role="template-power"]')).map((node) => ({
-            key: node.dataset.key,
-            power: node.value.trim(),
-        }));
         await fetchJson("/api/edfa/template/apply", {
             method: "POST",
             body: {
                 device_ids: [],
-                channels,
+                channels: [],
                 schedule: {
                     enabled: document.getElementById("template-schedule-enabled").checked,
                     days: collectTemplateWeekdays(),
@@ -673,7 +669,7 @@ async function handleFormSubmit(event) {
                 },
             },
         });
-        showMessage("EDFA preset applied to all devices.");
+        showMessage("EDFA schedule applied to all devices.");
         await loadOverview();
     }
 }
@@ -812,7 +808,6 @@ function bindFormsAndButtons() {
 
 async function initialize() {
     renderWeekdayCheckboxes("template-weekdays", "template", [0, 1, 2, 3, 4]);
-    renderTemplatePowerInputs();
     bindTabNavigation();
     bindFormsAndButtons();
     connectWebSocket();
