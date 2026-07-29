@@ -14,7 +14,7 @@
             <div class="topbar-copy">
                 <div class="eyebrow">Integrated Hardware Service</div>
                 <h1>MIGA Hardware Controller</h1>
-                <div class="subtitle">Unified browser control for multiple EDFA systems and remote power supplies.</div>
+                <div class="subtitle">Unified browser control for EDFA systems, laser locking, and remote power supplies.</div>
             </div>
 
             <div class="topbar-actions">
@@ -44,6 +44,7 @@
                 <nav class="tab-nav" aria-label="Hardware sections">
                     <button class="tab-button is-active" data-tab-target="tab-edfa">EDFA</button>
                     <button class="tab-button" data-tab-target="tab-psu">Power Supplies</button>
+                    <button class="tab-button" data-tab-target="tab-laser-lock">Laser Locking</button>
                     <button class="tab-button" data-tab-target="tab-settings">Settings</button>
                 </nav>
 
@@ -145,6 +146,39 @@
                     <div id="psu-device-list" class="device-list"></div>
                 </section>
 
+                <section class="tab-panel" id="tab-laser-lock">
+                    <div class="tab-hero">
+                        <div>
+                            <h2>Laser Locking</h2>
+                            <p class="panel-note">Monitor and relock the fixed MIGA2 layout: one Master and three slave lasers. Only approved lock commands are sent.</p>
+                        </div>
+                    </div>
+
+                    <div id="laser-lock-summary-grid" class="compact-summary-grid"></div>
+
+                    <div class="utility-grid utility-grid-single">
+                        <form id="laser-lock-form" class="subpanel stack">
+                            <div class="panel-title-row">
+                                <h3>Laser Lock Controller</h3>
+                                <span class="panel-note">Saving a new address creates the four fixed channels below. Default Telnet port: 23.</span>
+                            </div>
+                            <div class="form-grid">
+                                <label><span>Name</span><input type="text" name="name" value="MIGA2 Laser Lock"></label>
+                                <label><span>IP Address</span><input type="text" name="ip" placeholder="10.0.1.134" required></label>
+                                <label><span>Port</span><input type="number" name="port" value="23" required></label>
+                                <label><span>Timeout (s)</span><input type="number" name="timeout_sec" value="3" step="0.1" required></label>
+                                <label><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
+                            </div>
+                            <div class="device-actions">
+                                <button class="action-button" type="submit">Save Laser Lock Address</button>
+                                <button class="ghost-button" type="button" id="laser-lock-probe">Probe Connection</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="laser-lock-channel-grid" class="laser-lock-grid"></div>
+                </section>
+
                 <section class="tab-panel" id="tab-settings">
                     <div class="tab-hero">
                         <div>
@@ -173,6 +207,7 @@
                                 <li>Run the service on the host computer, then open the shown origin in any browser on the same LAN.</li>
                                 <li>EDFA state is command-tracked because the current protocol does not expose a readback query.</li>
                                 <li>PSU channel state is refreshed from the instrument after successful commands.</li>
+                                <li>Laser lock status is parsed from four dedicated Telnet sessions; no files on the laser controller are modified.</li>
                                 <li>All device configuration and schedules are saved in the local JSON state file.</li>
                             </ul>
                         </section>

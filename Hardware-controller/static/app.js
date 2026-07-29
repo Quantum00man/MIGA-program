@@ -13,6 +13,7 @@ let websocket = null;
 let refreshTimer = null;
 let websocketHeartbeat = null;
 let refreshDebounce = null;
+let lastOverviewAt = 0;
 
 function showMessage(message, level = "success") {
     const bar = document.getElementById("message-bar");
@@ -182,12 +183,15 @@ function renderSummary(data) {
     const runtime = data.runtime;
     const edfaDevices = state.edfa_devices || [];
     const psuDevices = state.psu_devices || [];
+    const laserLocks = Object.values(runtime.laser_locks || {});
 
     document.getElementById("summary-grid").innerHTML = buildSummaryCards([
         { label: "EDFA Systems", value: edfaDevices.length },
         { label: "Power Supplies", value: psuDevices.length },
+        { label: "Laser Locks", value: laserLocks.length || 4 },
         { label: "Online EDFA", value: summarizeDevices(edfaDevices, (device) => device.reachable === true) },
         { label: "Online PSU", value: summarizeDevices(psuDevices, (device) => device.reachable === true) },
+        { label: "Active Laser Locks", value: laserLocks.filter((channel) => channel.status === "LOCK_ACTIVE").length },
     ]);
 
     document.getElementById("service-meta").innerHTML = `
@@ -216,6 +220,115 @@ function renderPsuSummary(devices) {
         { label: "Active Outputs", value: summarizeDevices(devices, (device) => getPsuRuntimeStatus(device).outputActive) },
         { label: "Scheduled Channels", value: summarizeDevices(devices, (device) => Object.values((device.schedule && device.schedule.channels) || {}).some((channel) => channel.enabled)) },
     ]);
+}
+
+function laserStatusClass(status) {
+    const normalized = String(status || "IDLE").toUpperCase();
+    if (normalized === "LOCK_ACTIVE") {
+        return "success";
+    }
+    if (["ERROR", "DISCONNECTED"].includes(normalized)) {
+        return "danger";
+    }
+    if (["CONNECTING", "INITIALIZING", "SCANNING", "ANALYZING", "ACQUIRING", "STALE"].includes(normalized)) {
+        return "warning";
+    }
+    return "neutral";
+}
+
+function laserStatusLabel(status) {
+    return String(status || "IDLE").replaceAll("_", " ");
+}
+
+function renderLaserLockSummary(system, channels) {
+    const values = Object.values(channels || {});
+    document.getElementById("laser-lock-summary-grid").innerHTML = buildSummaryCards([
+        { label: "Controller", value: system && system.ip ? escapeHtml(system.ip) : "Not configured" },
+        { label: "Fixed Channels", value: values.length || 4 },
+        { label: "Active Locks", value: values.filter((channel) => channel.status === "LOCK_ACTIVE").length },
+        { label: "Live Connections", value: values.filter((channel) => channel.connected).length },
+    ]);
+}
+
+function populateLaserLockForm(system) {
+    const form = document.getElementById("laser-lock-form");
+    if (!form || form.contains(document.activeElement)) {
+        return;
+    }
+    form.elements.name.value = system.name || "MIGA2 Laser Lock";
+    form.elements.ip.value = system.ip || "";
+    form.elements.port.value = system.port || 23;
+    form.elements.timeout_sec.value = system.timeout_sec || 3;
+    form.elements.notes.value = system.notes || "";
+}
+
+function renderLaserLockChannels(channels) {
+    const container = document.getElementById("laser-lock-channel-grid");
+    const expandedChannels = new Set(
+        Array.from(container.querySelectorAll(".laser-output[open]"))
+            .map((details) => details.closest("[data-laser-channel]")?.dataset.laserChannel)
+            .filter(Boolean)
+    );
+    const orderedKeys = ["master", "slave_2d", "slave_3d", "repump"];
+    container.innerHTML = orderedKeys.map((key) => {
+        const channel = channels[key] || {
+            key,
+            label: key,
+            status: "IDLE",
+            command: "--",
+            recent_output: [],
+        };
+        const progress = channel.scan_progress === null || channel.scan_progress === undefined
+            ? "--"
+            : `${channel.scan_progress}%`;
+        const pllError = channel.pllerror === null || channel.pllerror === undefined
+            ? "--"
+            : `${Number(channel.pllerror).toFixed(6)} V`;
+        const pidOut = channel.pid_out === null || channel.pid_out === undefined
+            ? "--"
+            : Number(channel.pid_out).toFixed(6);
+        const output = (channel.recent_output || []).slice(-18).join("\n") || "No output received yet.";
+
+        return `
+            <article class="laser-lock-card" data-laser-channel="${escapeHtml(key)}">
+                <div class="laser-lock-card-header">
+                    <div>
+                        <div class="device-title-row">
+                            <span class="status-dot ${laserStatusClass(channel.status)}"></span>
+                            <h3>${escapeHtml(channel.label)}</h3>
+                        </div>
+                        <div class="device-subtitle">${escapeHtml(channel.command)}</div>
+                    </div>
+                    <span class="state-badge ${laserStatusClass(channel.status)}">${escapeHtml(laserStatusLabel(channel.status))}</span>
+                </div>
+
+                <div class="laser-metrics">
+                    <div><span class="meta-label">Scan</span><div class="metric-value">${escapeHtml(progress)}</div></div>
+                    <div><span class="meta-label">PLL Error</span><div class="metric-value">${escapeHtml(pllError)}</div></div>
+                    <div><span class="meta-label">PID Output</span><div class="metric-value">${escapeHtml(pidOut)}</div></div>
+                    <div><span class="meta-label">Control</span><div class="metric-value">${escapeHtml(channel.ctrltemp ?? "--")}</div></div>
+                    <div><span class="meta-label">Lock Control</span><div class="metric-value">${escapeHtml(channel.lockctrl ?? "--")}</div></div>
+                    <div><span class="meta-label">Last Update</span><div class="metric-value metric-time">${escapeHtml(channel.last_update || "--")}</div></div>
+                </div>
+
+                <div class="device-actions">
+                    <button class="inline-button" data-action="laser-lock-start" data-channel-key="${escapeHtml(key)}">Start Lock</button>
+                    <button class="inline-button" data-action="laser-lock-relock" data-channel-key="${escapeHtml(key)}">Relock</button>
+                </div>
+
+                <details class="laser-output">
+                    <summary>Recent device output</summary>
+                    <pre>${escapeHtml(output)}</pre>
+                </details>
+                ${channel.last_error ? `<div class="laser-error">${escapeHtml(channel.last_error)}</div>` : ""}
+            </article>
+        `;
+    }).join("");
+    container.querySelectorAll("[data-laser-channel]").forEach((card) => {
+        if (expandedChannels.has(card.dataset.laserChannel)) {
+            card.querySelector(".laser-output")?.setAttribute("open", "");
+        }
+    });
 }
 
 function weekdayCheckboxGroup(selectedDays, rolePrefix) {
@@ -520,14 +633,26 @@ async function loadOverview() {
     renderSummary(overviewPayload);
     renderEdfaSummary(overviewPayload.state.edfa_devices || []);
     renderPsuSummary(overviewPayload.state.psu_devices || []);
+    renderLaserLockSummary(
+        overviewPayload.state.laser_lock_system || {},
+        overviewPayload.runtime.laser_locks || {}
+    );
     renderEdfaDevices(overviewPayload.state.edfa_devices || []);
     renderPsuDevices(overviewPayload.state.psu_devices || []);
+    populateLaserLockForm(overviewPayload.state.laser_lock_system || {});
+    renderLaserLockChannels(overviewPayload.runtime.laser_locks || {});
     renderEventLog(overviewPayload.runtime.events || []);
+    lastOverviewAt = Date.now();
 }
 
 function startPolling() {
     window.clearInterval(refreshTimer);
-    refreshTimer = window.setInterval(loadOverview, 25000);
+    refreshTimer = window.setInterval(() => {
+        const laserTabActive = document.getElementById("tab-laser-lock").classList.contains("is-active");
+        if (laserTabActive || Date.now() - lastOverviewAt >= 25000) {
+            loadOverview();
+        }
+    }, 2000);
 }
 
 function connectWebSocket() {
@@ -641,6 +766,23 @@ async function handleFormSubmit(event) {
         return;
     }
 
+    if (form.id === "laser-lock-form") {
+        const formData = new FormData(form);
+        await fetchJson("/api/laser-lock/system", {
+            method: "PUT",
+            body: {
+                name: formData.get("name"),
+                ip: formData.get("ip"),
+                port: Number(formData.get("port")),
+                timeout_sec: Number(formData.get("timeout_sec")),
+                notes: formData.get("notes"),
+            },
+        });
+        showMessage("Laser lock controller address saved.");
+        await loadOverview();
+        return;
+    }
+
     if (form.id === "password-form") {
         const formData = new FormData(form);
         await fetchJson("/auth/password", {
@@ -698,6 +840,12 @@ async function handleClick(event) {
             return;
         }
 
+        if (target.id === "laser-lock-probe") {
+            await fetchJson("/api/laser-lock/probe", { method: "POST" });
+            showMessage("Laser lock controller is reachable.");
+            return;
+        }
+
         if (target.id === "edfa-batch-on") {
             await fetchJson("/api/edfa/batch/on", { method: "POST", body: { device_ids: [] } });
             showMessage("All EDFA devices received the ON command.");
@@ -736,7 +884,16 @@ async function handleClick(event) {
         const channel = target.dataset.channel;
         const card = target.closest(".device-card");
 
-        if (action === "edfa-save") {
+        if (action === "laser-lock-start") {
+            await fetchJson(`/api/laser-lock/channels/${channelKey}/start`, { method: "POST" });
+            showMessage(`${channelKey} lock session started.`);
+        } else if (action === "laser-lock-relock") {
+            if (!window.confirm(`Interrupt and relock ${channelKey}?`)) {
+                return;
+            }
+            await fetchJson(`/api/laser-lock/channels/${channelKey}/relock`, { method: "POST" });
+            showMessage(`${channelKey} relock started.`);
+        } else if (action === "edfa-save") {
             await fetchJson(`/api/edfa/devices/${deviceId}`, { method: "PUT", body: readEdfaCardPayload(card) });
             showMessage("EDFA configuration saved.");
         } else if (action === "edfa-probe") {
@@ -799,6 +956,7 @@ async function handleClick(event) {
 function bindFormsAndButtons() {
     document.getElementById("add-edfa-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.getElementById("add-psu-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
+    document.getElementById("laser-lock-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.getElementById("password-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.getElementById("edfa-template-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.body.addEventListener("click", (event) => {

@@ -56,15 +56,70 @@
         "off_time": "18:00"
       },
       "notes": "",
-      "reachable": false,
-      "last_action": "Failed to switch edfa0 ON",
-      "last_error": "Failed to communicate with EDFA device at 10.0.1.133:23: timed out",
-      "last_contact_at": "2026-07-27T15:52:14+02:00"
+      "reachable": true,
+      "last_action": "Manual SAFE SHUTDOWN ALL EDFA",
+      "last_error": "",
+      "last_contact_at": "2026-07-27T17:30:34+02:00"
     }
   ],
-  "psu_devices": [],
+  "psu_devices": [
+    {
+      "id": "893fe33e",
+      "name": "MIGA2II Rb power supply",
+      "ip": "192.168.0.100",
+      "port": 9221,
+      "timeout_sec": 3.0,
+      "schedule": {
+        "channels": {
+          "1": {
+            "enabled": false,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "on_time": "",
+            "off_time": ""
+          },
+          "2": {
+            "enabled": false,
+            "days": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "on_time": "",
+            "off_time": ""
+          }
+        }
+      },
+      "notes": "",
+      "connected": true,
+      "reachable": true,
+      "idn": "",
+      "config_mode": "2",
+      "channel_states": {
+        "1": "OFF",
+        "2": "OFF"
+      },
+      "last_action": "Manual CH2 OFF",
+      "last_error": "",
+      "last_contact_at": "2026-07-27T17:32:07+02:00"
+    }
+  ],
+  "laser_lock_system": {
+    "name": "MIGA2 Laser Lock",
+    "ip": "10.0.1.134",
+    "port": 23,
+    "timeout_sec": 3.0,
+    "notes": ""
+  },
   "metadata": {
     "created_at": "2026-07-27T14:13:56+02:00",
-    "updated_at": "2026-07-27T15:52:14+02:00"
+    "updated_at": "2026-07-27T17:35:06+02:00"
   }
 }

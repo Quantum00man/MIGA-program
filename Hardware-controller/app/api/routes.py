@@ -7,6 +7,7 @@ from app.models.schemas import (
     ChannelPowerOverrideRequest,
     EdfaDevicePayload,
     EdfaTemplateApplyRequest,
+    LaserLockSystemPayload,
     LoginRequest,
     MessageResponse,
     PasswordChangeRequest,
@@ -270,3 +271,31 @@ def set_psu_channel_off(device_id: str, channel: int, request: Request):
     controller = _controller(request)
     _run_action(controller.set_psu_channel_output, device_id, channel, False)
     return _ok(f"PSU channel {channel} switched OFF.")
+
+
+@router.put("/api/laser-lock/system", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def save_laser_lock_system(payload: LaserLockSystemPayload, request: Request):
+    controller = _controller(request)
+    system = _run_action(controller.save_laser_lock_system, _model_to_dict(payload))
+    return _ok("Laser lock controller configuration saved.", system)
+
+
+@router.post("/api/laser-lock/probe", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def probe_laser_lock_system(request: Request):
+    controller = _controller(request)
+    _run_action(controller.probe_laser_lock_system)
+    return _ok("Laser lock controller probe completed.")
+
+
+@router.post("/api/laser-lock/channels/{channel_key}/start", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def start_laser_lock_channel(channel_key: str, request: Request):
+    controller = _controller(request)
+    _run_action(controller.start_laser_lock_channel, channel_key, False)
+    return _ok(f"Laser lock started for {channel_key}.")
+
+
+@router.post("/api/laser-lock/channels/{channel_key}/relock", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def relock_laser_lock_channel(channel_key: str, request: Request):
+    controller = _controller(request)
+    _run_action(controller.start_laser_lock_channel, channel_key, True)
+    return _ok(f"Laser relock started for {channel_key}.")

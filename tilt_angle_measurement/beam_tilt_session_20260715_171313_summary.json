@@ -1,0 +1,51 @@
+{
+  "exported_at": "2026-07-15T17:13:13.803656",
+  "backend": "Basler",
+  "camera_settings": {
+    "exposure_us": 1000.0,
+    "gain_db": 0.0,
+    "frame_rate_fps": 10.0,
+    "pixel_format": "Mono8",
+    "width": 1440,
+    "height": 1080,
+    "offset_x": 0,
+    "offset_y": 0,
+    "serial_number": ""
+  },
+  "geometry_settings": {
+    "optical_path_m": 8.6,
+    "camera_to_screen_m": 0.25,
+    "lens_focal_length_mm": 25.0,
+    "pixel_size_um": 3.45,
+    "static_tilt_mrad": 15.0,
+    "analysis_axis": "Y",
+    "use_manual_scale": true,
+    "manual_scale_mm_per_px": 0.03
+  },
+  "analysis_settings": {
+    "roi_x": 364,
+    "roi_y": 198,
+    "roi_width": 711,
+    "roi_height": 589,
+    "threshold_fraction": 0.1,
+    "subtract_background": false,
+    "gaussian_refinement": true,
+    "analysis_stride": 1,
+    "display_fps": 10.0,
+    "background_average_count": 16
+  },
+  "session_summary": {
+    "selected_axis": "Y",
+    "samples": 31485,
+    "duration_s": 3148.340112099424,
+    "sampling_rate_hz": 10.000160041032494,
+    "mean_tilt_urad": 1.6421449944792026,
+    "std_tilt_urad": 4.127833766281117,
+    "rms_tilt_urad": 4.442421705132941,
+    "peak_to_peak_urad": 44.02228878346026,
+    "drift_slope_urad_per_s": -0.00022194280334088598,
+    "mean_absolute_tilt_mrad": 15.001642144994479,
+    "mean_fwhm_major_px": 150.5692675202726,
+    "mean_fwhm_minor_px": 145.35084118988266
+  }
+}

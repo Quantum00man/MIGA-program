@@ -1,6 +1,7 @@
 from collections import deque
 from copy import deepcopy
 from datetime import datetime
+import socket
 from threading import RLock
 from uuid import uuid4
 
@@ -8,6 +9,11 @@ import config
 from app.core.scheduler import HardwareScheduler
 from app.core.state_store import StateStore
 from app.drivers.edfa import EdfaCommunicationError, probe_device as probe_edfa_device, send_commands
+from app.drivers.laser_lock import (
+    LASER_CHANNELS,
+    LaserLockCommunicationError,
+    LaserLockSession,
+)
 from app.drivers.psu import PsuClient, PsuCommunicationError
 
 
@@ -44,6 +50,10 @@ class ControllerManager:
         self._event_log = deque(maxlen=config.MAX_EVENT_LOG)
         self._io_lock = RLock()
         self._psu_clients: dict[str, PsuClient] = {}
+        self._laser_sessions = {
+            key: LaserLockSession(key, max_output_lines=config.LASER_LOCK_OUTPUT_LINES)
+            for key in LASER_CHANNELS
+        }
 
     def start(self):
         self.scheduler.start()
@@ -51,6 +61,8 @@ class ControllerManager:
 
     def stop(self):
         self.scheduler.stop()
+        for session in self._laser_sessions.values():
+            session.stop(send_interrupt=False)
         with self._io_lock:
             for client in self._psu_clients.values():
                 client.close()
@@ -89,6 +101,10 @@ class ControllerManager:
             "runtime": {
                 "events": list(self._event_log),
                 "scheduler": self.scheduler.status(),
+                "laser_locks": {
+                    key: session.snapshot()
+                    for key, session in self._laser_sessions.items()
+                },
                 "generated_at": _now_iso(),
             },
         }
@@ -291,6 +307,96 @@ class ControllerManager:
             "last_error": existing.get("last_error", ""),
             "last_contact_at": existing.get("last_contact_at", ""),
         }
+
+    def save_laser_lock_system(self, payload: dict) -> dict:
+        current = self.store.get_state().get("laser_lock_system", {})
+        name = str(payload.get("name") or current.get("name") or "MIGA2 Laser Lock").strip()
+        ip = str(payload.get("ip") or "").strip()
+        if not ip:
+            raise ValueError("Laser lock IP address is required.")
+        port = self._coerce_port(payload.get("port"), current.get("port", config.LASER_LOCK_DEFAULT_PORT))
+        timeout_sec = self._coerce_float(
+            payload.get("timeout_sec"),
+            current.get("timeout_sec", config.NETWORK_TIMEOUT_SEC),
+            "Timeout",
+            minimum=0.1,
+        )
+        system = {
+            "name": name or "MIGA2 Laser Lock",
+            "ip": ip,
+            "port": port,
+            "timeout_sec": timeout_sec,
+            "notes": str(payload.get("notes") or "").strip(),
+        }
+
+        before_connection = (
+            current.get("ip"),
+            current.get("port"),
+            current.get("timeout_sec"),
+        )
+        after_connection = (ip, port, timeout_sec)
+        if before_connection != after_connection:
+            for session in self._laser_sessions.values():
+                if session.is_running:
+                    session.stop(send_interrupt=True)
+
+        def mutator(state: dict):
+            state["laser_lock_system"] = system
+
+        self.store.update(mutator)
+        self.publish_event(
+            "info",
+            f"Saved laser lock controller {system['name']} ({ip}:{port}).",
+            category="laser_lock",
+        )
+        self.notify_state_changed()
+        return system
+
+    def probe_laser_lock_system(self):
+        system = self.store.get_state().get("laser_lock_system", {})
+        if not system.get("ip"):
+            raise ValueError("Configure the laser lock IP address first.")
+        try:
+            with socket.create_connection(
+                (system["ip"], int(system["port"])),
+                timeout=float(system["timeout_sec"]),
+            ):
+                pass
+            self.publish_event(
+                "info",
+                f"Laser lock controller responded at {system['ip']}:{system['port']}.",
+                category="laser_lock",
+            )
+        except OSError as exc:
+            message = (
+                f"Failed to connect to laser lock controller at "
+                f"{system['ip']}:{system['port']}: {exc}"
+            )
+            self.publish_event("error", message, category="laser_lock")
+            raise LaserLockCommunicationError(message) from exc
+
+    def start_laser_lock_channel(self, channel_key: str, relock: bool = False):
+        if channel_key not in self._laser_sessions:
+            raise ValueError(f"Unknown laser lock channel {channel_key}.")
+        system = self.store.get_state().get("laser_lock_system", {})
+        if not system.get("ip"):
+            raise ValueError("Configure the laser lock IP address first.")
+
+        session = self._laser_sessions[channel_key]
+        session.start(
+            system["ip"],
+            int(system["port"]),
+            float(system["timeout_sec"]),
+            relock=relock,
+        )
+        action = "relock" if relock else "start lock"
+        self.publish_event(
+            "warning" if relock else "info",
+            f"{LASER_CHANNELS[channel_key]['label']}: requested {action}.",
+            category="laser_lock",
+            device_id=channel_key,
+        )
+        self.notify_state_changed()
 
     def add_edfa_device(self, payload: dict) -> dict:
         device = self._build_edfa_device(payload)

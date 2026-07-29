@@ -81,3 +81,11 @@ class PsuDevicePayload(IgnoreExtraBaseModel):
     timeout_sec: float = config.NETWORK_TIMEOUT_SEC
     schedule: PsuSchedulePayload = Field(default_factory=PsuSchedulePayload)
     notes: str = ""
+
+
+class LaserLockSystemPayload(IgnoreExtraBaseModel):
+    name: str = "MIGA2 Laser Lock"
+    ip: str
+    port: int = config.LASER_LOCK_DEFAULT_PORT
+    timeout_sec: float = config.NETWORK_TIMEOUT_SEC
+    notes: str = ""

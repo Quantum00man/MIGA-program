@@ -57,6 +57,16 @@ def _default_psu_channel_schedule():
     }
 
 
+def _default_laser_lock_system():
+    return {
+        "name": "MIGA2 Laser Lock",
+        "ip": "",
+        "port": config.LASER_LOCK_DEFAULT_PORT,
+        "timeout_sec": config.NETWORK_TIMEOUT_SEC,
+        "notes": "",
+    }
+
+
 def _normalize_edfa_device(device: dict, index: int) -> dict:
     normalized = {
         "id": str(device.get("id") or uuid4().hex[:8]),
@@ -143,6 +153,7 @@ def _default_state() -> dict:
         "auth": build_password_record(config.DEFAULT_PASSWORD),
         "edfa_devices": [],
         "psu_devices": [],
+        "laser_lock_system": _default_laser_lock_system(),
         "metadata": {
             "created_at": now,
             "updated_at": now,
@@ -161,6 +172,7 @@ def _normalize_state(state: dict) -> dict:
         "auth": state.get("auth") if isinstance(state.get("auth"), dict) else defaults["auth"],
         "edfa_devices": [],
         "psu_devices": [],
+        "laser_lock_system": _default_laser_lock_system(),
         "metadata": {
             "created_at": str((state.get("metadata") or {}).get("created_at") or defaults["metadata"]["created_at"]),
             "updated_at": str((state.get("metadata") or {}).get("updated_at") or defaults["metadata"]["updated_at"]),
@@ -171,6 +183,15 @@ def _normalize_state(state: dict) -> dict:
     raw_psu = state.get("psu_devices") if isinstance(state.get("psu_devices"), list) else []
     normalized["edfa_devices"] = [_normalize_edfa_device(item, index + 1) for index, item in enumerate(raw_edfa)]
     normalized["psu_devices"] = [_normalize_psu_device(item, index + 1) for index, item in enumerate(raw_psu)]
+
+    raw_laser = state.get("laser_lock_system") if isinstance(state.get("laser_lock_system"), dict) else {}
+    normalized["laser_lock_system"] = {
+        "name": str(raw_laser.get("name") or "MIGA2 Laser Lock").strip() or "MIGA2 Laser Lock",
+        "ip": str(raw_laser.get("ip") or "").strip(),
+        "port": int(raw_laser.get("port") or config.LASER_LOCK_DEFAULT_PORT),
+        "timeout_sec": float(raw_laser.get("timeout_sec") or config.NETWORK_TIMEOUT_SEC),
+        "notes": str(raw_laser.get("notes") or "").strip(),
+    }
 
     auth = normalized["auth"]
     if not auth.get("salt") or not auth.get("hash"):
