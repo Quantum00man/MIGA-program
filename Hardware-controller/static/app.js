@@ -14,6 +14,7 @@ let refreshTimer = null;
 let websocketHeartbeat = null;
 let refreshDebounce = null;
 let lastOverviewAt = 0;
+const dirtyPsuDevices = new Set();
 
 function showMessage(message, level = "success") {
     const bar = document.getElementById("message-bar");
@@ -227,10 +228,10 @@ function laserStatusClass(status) {
     if (normalized === "LOCK_ACTIVE") {
         return "success";
     }
-    if (["ERROR", "DISCONNECTED"].includes(normalized)) {
+    if (["ERROR", "DISCONNECTED", "DELOCKED"].includes(normalized)) {
         return "danger";
     }
-    if (["CONNECTING", "INITIALIZING", "SCANNING", "ANALYZING", "ACQUIRING", "STALE"].includes(normalized)) {
+    if (["CONNECTING", "INITIALIZING", "SCANNING", "ANALYZING", "ACQUIRING", "VERIFYING", "STALE"].includes(normalized)) {
         return "warning";
     }
     return "neutral";
@@ -287,6 +288,46 @@ function renderLaserLockChannels(channels) {
         const pidOut = channel.pid_out === null || channel.pid_out === undefined
             ? "--"
             : Number(channel.pid_out).toFixed(6);
+        const masterMetrics = `
+            <div><span class="meta-label">Scan Attempt</span><div class="metric-value">${
+                channel.scan_index === null || channel.scan_index === undefined
+                    ? "--"
+                    : `${escapeHtml(channel.scan_index)} / ${escapeHtml(channel.scan_total ?? "--")}`
+            }</div></div>
+            <div><span class="meta-label">Scan Progress</span><div class="metric-value">${escapeHtml(progress)}</div></div>
+            <div><span class="meta-label">Absorption</span><div class="metric-value">${
+                channel.absorption === null || channel.absorption === undefined
+                    ? "--"
+                    : `${Number(channel.absorption).toFixed(6)} V`
+            }</div></div>
+            <div><span class="meta-label">Selected Peak</span><div class="metric-value">${escapeHtml(channel.selected_peak_ctrl ?? "--")}</div></div>
+            <div><span class="meta-label">Lock Absorption</span><div class="metric-value">${
+                channel.lock_absorption === null || channel.lock_absorption === undefined
+                    ? "--"
+                    : `${Number(channel.lock_absorption).toFixed(6)} V`
+            }</div></div>
+            <div><span class="meta-label">Controller Output</span><div class="metric-value">${
+                channel.controller_output === null || channel.controller_output === undefined
+                    ? "--"
+                    : Number(channel.controller_output).toFixed(6)
+            }</div></div>
+            <div><span class="meta-label">Lock Check Count</span><div class="metric-value">${escapeHtml(channel.lock_check_count ?? "--")}</div></div>
+            <div><span class="meta-label">Delock Events</span><div class="metric-value">${escapeHtml(channel.delock_count ?? 0)}</div></div>
+            <div><span class="meta-label">Last Delock Jump</span><div class="metric-value">${
+                channel.delock_from === null || channel.delock_from === undefined
+                    ? "--"
+                    : `${Number(channel.delock_from).toFixed(4)} → ${Number(channel.delock_to).toFixed(4)} V`
+            }</div></div>
+            <div><span class="meta-label">Last Update</span><div class="metric-value metric-time">${escapeHtml(channel.last_update || "--")}</div></div>
+        `;
+        const slaveMetrics = `
+            <div><span class="meta-label">Scan</span><div class="metric-value">${escapeHtml(progress)}</div></div>
+            <div><span class="meta-label">PLL Error</span><div class="metric-value">${escapeHtml(pllError)}</div></div>
+            <div><span class="meta-label">PID Output</span><div class="metric-value">${escapeHtml(pidOut)}</div></div>
+            <div><span class="meta-label">Control</span><div class="metric-value">${escapeHtml(channel.ctrltemp ?? "--")}</div></div>
+            <div><span class="meta-label">Lock Control</span><div class="metric-value">${escapeHtml(channel.lockctrl ?? "--")}</div></div>
+            <div><span class="meta-label">Last Update</span><div class="metric-value metric-time">${escapeHtml(channel.last_update || "--")}</div></div>
+        `;
         const output = (channel.recent_output || []).slice(-18).join("\n") || "No output received yet.";
 
         return `
@@ -303,12 +344,7 @@ function renderLaserLockChannels(channels) {
                 </div>
 
                 <div class="laser-metrics">
-                    <div><span class="meta-label">Scan</span><div class="metric-value">${escapeHtml(progress)}</div></div>
-                    <div><span class="meta-label">PLL Error</span><div class="metric-value">${escapeHtml(pllError)}</div></div>
-                    <div><span class="meta-label">PID Output</span><div class="metric-value">${escapeHtml(pidOut)}</div></div>
-                    <div><span class="meta-label">Control</span><div class="metric-value">${escapeHtml(channel.ctrltemp ?? "--")}</div></div>
-                    <div><span class="meta-label">Lock Control</span><div class="metric-value">${escapeHtml(channel.lockctrl ?? "--")}</div></div>
-                    <div><span class="meta-label">Last Update</span><div class="metric-value metric-time">${escapeHtml(channel.last_update || "--")}</div></div>
+                    ${key === "master" ? masterMetrics : slaveMetrics}
                 </div>
 
                 <div class="device-actions">
@@ -451,6 +487,9 @@ function renderEdfaDevices(devices) {
 
 function renderPsuDevices(devices) {
     const container = document.getElementById("psu-device-list");
+    if (dirtyPsuDevices.size > 0 && container.children.length > 0) {
+        return;
+    }
     if (!devices.length) {
         container.innerHTML = '<div class="empty-state">No power supply systems are configured yet.</div>';
         return;
@@ -542,9 +581,13 @@ function renderPsuDevices(devices) {
                     <div class="device-card-section">
                         <div class="panel-title-row">
                             <h4>Channel Control and Schedule</h4>
-                            <span class="panel-note">Each channel uses the same full-state red/green surface logic and a nested schedule panel.</span>
+                            <span class="panel-note">Edit the channel schedules, then apply them with the button below.</span>
                         </div>
                         <div class="psu-channel-grid">${channelTiles}</div>
+                        <div class="schedule-apply-row">
+                            <span class="panel-note">Schedule changes are saved locally and used by the background scheduler after they are applied.</span>
+                            <button class="action-button" data-action="psu-save-schedules" data-device-id="${device.id}">Apply Channel Schedules</button>
+                        </div>
                     </div>
                 </div>
             </article>
@@ -840,6 +883,20 @@ async function handleClick(event) {
             return;
         }
 
+        if (target.id === "disconnect-all-telnet-button") {
+            if (!window.confirm(
+                "Disconnect every EDFA and laser locking Telnet connection? "
+                + "Active foreground laser lock sessions may stop."
+            )) {
+                return;
+            }
+            const result = await fetchJson("/api/telnet/disconnect-all", { method: "POST" });
+            const disconnected = result.data?.laser_channels_disconnected?.length || 0;
+            showMessage(`All Telnet connections are closed. Laser sessions closed: ${disconnected}.`);
+            await loadOverview();
+            return;
+        }
+
         if (target.id === "laser-lock-probe") {
             await fetchJson("/api/laser-lock/probe", { method: "POST" });
             showMessage("Laser lock controller is reachable.");
@@ -920,7 +977,12 @@ async function handleClick(event) {
             showMessage(`${channelKey} turned OFF.`);
         } else if (action === "psu-save") {
             await fetchJson(`/api/psu/devices/${deviceId}`, { method: "PUT", body: readPsuCardPayload(card) });
+            dirtyPsuDevices.delete(deviceId);
             showMessage("PSU configuration saved.");
+        } else if (action === "psu-save-schedules") {
+            await fetchJson(`/api/psu/devices/${deviceId}`, { method: "PUT", body: readPsuCardPayload(card) });
+            dirtyPsuDevices.delete(deviceId);
+            showMessage("PSU channel schedules applied.");
         } else if (action === "psu-probe") {
             await fetchJson(`/api/psu/devices/${deviceId}/probe`, { method: "POST" });
             showMessage("PSU probe completed.");
@@ -961,6 +1023,18 @@ function bindFormsAndButtons() {
     document.getElementById("edfa-template-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.body.addEventListener("click", (event) => {
         handleClick(event).catch((error) => showMessage(error.message, "error"));
+    });
+    document.body.addEventListener("input", (event) => {
+        const card = event.target.closest('.device-card[data-device-type="psu"]');
+        if (card) {
+            dirtyPsuDevices.add(card.dataset.deviceId);
+        }
+    });
+    document.body.addEventListener("change", (event) => {
+        const card = event.target.closest('.device-card[data-device-type="psu"]');
+        if (card) {
+            dirtyPsuDevices.add(card.dataset.deviceId);
+        }
     });
 }
 

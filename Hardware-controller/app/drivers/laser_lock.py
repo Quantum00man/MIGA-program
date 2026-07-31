@@ -35,6 +35,21 @@ _LOCKING_RE = re.compile(
 _TELEMETRY_RE = re.compile(
     r"pllerror\s*=\s*(-?[\d.]+)\s*V,\s*pidOut\s*=\s*(-?[\d.]+),\s*ctrltrmp\s*=\s*(-?\d+)"
 )
+_MASTER_SCAN_RE = re.compile(r"^scan\s+(\d+)\s*/\s*(\d+)", re.IGNORECASE)
+_MASTER_PEAK_RE = re.compile(
+    r"peak selected\s*:\s*ctrl\s*=\s*(-?\d+),\s*abspsignal\s*=\s*(-?[\d.]+)\s*V",
+    re.IGNORECASE,
+)
+_MASTER_LOCK_RE = re.compile(
+    r"lock at\s+(.+?),\s*absplock\s*=\s*(-?[\d.]+)",
+    re.IGNORECASE,
+)
+_MASTER_OUTPUT_RE = re.compile(r"^\s*out0\s*=\s*(-?[\d.]+)", re.IGNORECASE)
+_MASTER_ABSP_RE = re.compile(r"cnt\s*=\s*(\d+),\s*absp\s*=\s*(-?[\d.]+)\s*V", re.IGNORECASE)
+_MASTER_DELOCK_RE = re.compile(
+    r"delock detected\s*:\s*jumped from\s*(-?[\d.]+)\s*V\s*to\s*(-?[\d.]+)\s*V",
+    re.IGNORECASE,
+)
 
 
 def _now_iso() -> str:
@@ -83,6 +98,18 @@ class LaserLockSession:
             "ctrltemp": None,
             "pllerror": None,
             "pid_out": None,
+            "scan_index": None,
+            "scan_total": None,
+            "selected_peak_ctrl": None,
+            "absorption": None,
+            "lock_absorption": None,
+            "controller_output": None,
+            "lock_check_count": None,
+            "lock_verification_seen": False,
+            "lock_time": "",
+            "delock_from": None,
+            "delock_to": None,
+            "delock_count": 0,
             "last_update": "",
             "last_error": "",
             "recent_output": [],
@@ -96,7 +123,20 @@ class LaserLockSession:
             if snapshot["connected"] and snapshot["last_update"]:
                 try:
                     age = (datetime.now().astimezone() - datetime.fromisoformat(snapshot["last_update"])).total_seconds()
-                    if age > 8 and snapshot["status"] not in ("CONNECTING", "INITIALIZING"):
+                    if (
+                        self.channel_key == "master"
+                        and snapshot["lock_verification_seen"]
+                        and snapshot["delock_count"] == 0
+                        and snapshot["status"] not in ("ERROR", "DISCONNECTED", "STOPPED", "DELOCKED")
+                        and age > 2
+                    ):
+                        snapshot["status"] = "LOCK_ACTIVE"
+                    elif self.channel_key != "master" and age > 8 and snapshot["status"] in (
+                        "SCANNING",
+                        "ANALYZING",
+                        "ACQUIRING",
+                        "LOCK_ACTIVE",
+                    ):
                         snapshot["status"] = "STALE"
                 except ValueError:
                     pass
@@ -320,7 +360,53 @@ class LaserLockSession:
 
             if "-- locking --" in line:
                 self._state["status"] = "LOCK_ACTIVE"
+
+            if self.channel_key == "master":
+                self._consume_master_line(line)
         self._notify()
+
+    def _consume_master_line(self, line: str):
+        scan = _MASTER_SCAN_RE.search(line)
+        if scan:
+            self._state["status"] = "SCANNING"
+            self._state["scan_index"] = int(scan.group(1))
+            self._state["scan_total"] = int(scan.group(2))
+            self._state["delock_from"] = None
+            self._state["delock_to"] = None
+
+        peak = _MASTER_PEAK_RE.search(line)
+        if peak:
+            self._state["status"] = "ACQUIRING"
+            self._state["selected_peak_ctrl"] = int(peak.group(1))
+            self._state["absorption"] = float(peak.group(2))
+
+        lock = _MASTER_LOCK_RE.search(line)
+        if lock:
+            self._state["status"] = "LOCK_ACTIVE"
+            self._state["lock_time"] = lock.group(1).strip()
+            self._state["lock_absorption"] = float(lock.group(2))
+            self._state["absorption"] = float(lock.group(2))
+
+        output = _MASTER_OUTPUT_RE.search(line)
+        if output:
+            self._state["controller_output"] = float(output.group(1))
+            self._state["pid_out"] = float(output.group(1))
+
+        absorption = _MASTER_ABSP_RE.search(line)
+        if absorption:
+            if self._state["status"] != "DELOCKED":
+                self._state["status"] = "VERIFYING"
+            self._state["lock_check_count"] = int(absorption.group(1))
+            self._state["lock_verification_seen"] = True
+            self._state["absorption"] = float(absorption.group(2))
+
+        delock = _MASTER_DELOCK_RE.search(line)
+        if delock:
+            self._state["status"] = "DELOCKED"
+            self._state["delock_from"] = float(delock.group(1))
+            self._state["delock_to"] = float(delock.group(2))
+            self._state["absorption"] = float(delock.group(2))
+            self._state["delock_count"] += 1
 
     def _notify(self):
         if self.on_update:

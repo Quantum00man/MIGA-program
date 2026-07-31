@@ -299,3 +299,10 @@ def relock_laser_lock_channel(channel_key: str, request: Request):
     controller = _controller(request)
     _run_action(controller.start_laser_lock_channel, channel_key, True)
     return _ok(f"Laser relock started for {channel_key}.")
+
+
+@router.post("/api/telnet/disconnect-all", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def disconnect_all_telnet_sessions(request: Request):
+    controller = _controller(request)
+    result = _run_action(controller.disconnect_all_telnet_sessions)
+    return _ok("All EDFA and laser locking Telnet connections are closed.", result)

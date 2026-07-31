@@ -398,6 +398,31 @@ class ControllerManager:
         )
         self.notify_state_changed()
 
+    def disconnect_all_telnet_sessions(self) -> dict:
+        disconnected_laser_channels = []
+        for channel_key, session in self._laser_sessions.items():
+            snapshot = session.snapshot()
+            if session.is_running or snapshot["connected"]:
+                session.stop(send_interrupt=False)
+                disconnected_laser_channels.append(channel_key)
+
+        # EDFA commands use short-lived sockets. Taking the shared I/O lock
+        # guarantees any command already in progress has completed and closed
+        # its socket before this action returns.
+        with self._io_lock:
+            pass
+
+        self.publish_event(
+            "warning",
+            "Disconnected all Telnet sessions. EDFA command sockets are closed after every command.",
+            category="telnet",
+        )
+        self.notify_state_changed()
+        return {
+            "laser_channels_disconnected": disconnected_laser_channels,
+            "edfa_persistent_connections": 0,
+        }
+
     def add_edfa_device(self, payload: dict) -> dict:
         device = self._build_edfa_device(payload)
 

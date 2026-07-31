@@ -24,6 +24,7 @@
                 </div>
                 <div class="action-row">
                     <button class="ghost-button" id="refresh-button">Refresh</button>
+                    <button class="ghost-button ghost-button-danger" id="disconnect-all-telnet-button">Disconnect All Telnet</button>
                     <button class="ghost-button" id="download-manual-button">Download LaTeX Manual</button>
                     <button class="ghost-button" id="logout-button">Log Out</button>
                 </div>
@@ -42,10 +43,30 @@
 
             <section class="panel tab-shell">
                 <nav class="tab-nav" aria-label="Hardware sections">
-                    <button class="tab-button is-active" data-tab-target="tab-edfa">EDFA</button>
-                    <button class="tab-button" data-tab-target="tab-psu">Power Supplies</button>
-                    <button class="tab-button" data-tab-target="tab-laser-lock">Laser Locking</button>
-                    <button class="tab-button" data-tab-target="tab-settings">Settings</button>
+                    <div class="tab-nav-heading">
+                        <span class="tab-nav-eyebrow">Navigation</span>
+                        <strong>Device Pages</strong>
+                    </div>
+                    <div class="tab-nav-group">
+                        <button class="tab-button is-active" data-tab-target="tab-edfa">
+                            <span class="tab-button-icon">E</span>
+                            <span>EDFA</span>
+                        </button>
+                        <button class="tab-button" data-tab-target="tab-psu">
+                            <span class="tab-button-icon">P</span>
+                            <span>Power Supplies</span>
+                        </button>
+                        <button class="tab-button" data-tab-target="tab-laser-lock">
+                            <span class="tab-button-icon">L</span>
+                            <span>Laser Locking</span>
+                        </button>
+                    </div>
+                    <div class="tab-nav-group tab-nav-group-secondary">
+                        <button class="tab-button" data-tab-target="tab-settings">
+                            <span class="tab-button-icon">S</span>
+                            <span>Settings</span>
+                        </button>
+                    </div>
                 </nav>
 
                 <section class="tab-panel is-active" id="tab-edfa">
