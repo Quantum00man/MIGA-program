@@ -9,14 +9,14 @@ MOT gradient Jacobian at molasses position [mG/mm]:
   dBx/dx = -116.636993, dBx/dy = -0.000000, dBx/dz = -0.000000 mG/mm
   dBy/dx = -0.000000, dBy/dy = 58.302083, dBy/dz = 174.951430 mG/mm
   dBz/dx = -0.000000, dBz/dy = 174.951430, dBz/dz = 58.334889 mG/mm
-Coarse-grid best current setpoint: Ix=0.000000 A, Iy=0.000000 A, Iz=0.000000 A
-Final best current setpoint: Ix=-0.004902 A, Iy=-0.004902 A, Iz=-0.004902 A
-Compensation field at best setpoint: Bx=-1.452627 mG, By=-1.452835 mG, Bz=-1.452627 mG
-Predicted final temperature: 2.235833 uK
-Cooling efficiency (0=no cooling, 1=zero-field limit): 0.998809
-Initial residual field magnitude: 7317.467841 mG
-Final residual field magnitude: 2.516132 mG
-Time-averaged residual field magnitude: 373.118873 mG
+Coarse-grid best current setpoint: Ix=0.000000 A, Iy=-0.750000 A, Iz=-0.083333 A
+Final best current setpoint: Ix=-0.004902 A, Iy=-0.745098 A, Iz=-0.078431 A
+Compensation field at best setpoint: Bx=-1.452627 mG, By=-220.830931 mG, Bz=-23.242032 mG
+Predicted final temperature: 13.332138 uK
+Cooling efficiency (0=no cooling, 1=zero-field limit): 0.942767
+Initial residual field magnitude: 2340.746890 mG
+Final residual field magnitude: 25.373036 mG
+Time-averaged residual field magnitude: 374.822006 mG
 Magnetic width used for PGC suppression: 194.996221 mG
 
 Geometry used:
@@ -39,7 +39,7 @@ Spatial probe used for local field curves:
   points per axis = 121
 
 Local refinement stages:
-  stage 1: x in [-0.083333, 0.083333] A, y in [-0.083333, 0.083333] A, z in [-0.083333, 0.083333] A, best = (-0.004902, -0.004902, -0.004902) A, T = 2.235833 uK
+  stage 1: x in [-0.083333, 0.083333] A, y in [-0.833333, -0.666667] A, z in [-0.166667, 0.000000] A, best = (-0.004902, -0.745098, -0.078431) A, T = 13.332138 uK
 
 Overview figure uses the final refined grid:
   dIx = 0.009804 A, dIy = 0.009804 A, dIz = 0.009804 A

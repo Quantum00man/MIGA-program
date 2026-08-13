@@ -9,7 +9,7 @@
     "initial_temperature_uK": 200.0,
     "zero_field_temperature_uK": 2.0,
     "failure_temperature_uK": 80.0,
-    "molasses_duration_ms": 10.0,
+    "molasses_duration_ms": 6.0,
     "time_step_us": 20.0,
     "zero_field_cooling_time_ms": 1.2,
     "detuning_mhz": -15.0,
@@ -27,15 +27,15 @@
   "fields": {
     "static_stray_field_mG": [
       0.0,
-      0.0,
+      200.0,
       0.0
     ],
     "mot_switch_off_field_mG": [
       0.0,
-      5000.0,
-      5000.0
+      1500.0,
+      1500.0
     ],
-    "mot_decay_tau_ms": 0.5
+    "mot_decay_tau_ms": 1.0
   },
   "coil_geometry": {
     "turns_per_coil": 15,

@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import MaxNLocator
 
 from raman_model import (
@@ -47,9 +48,11 @@ from raman_detuning_model import (
     TRANSITION_F2_TO_F1,
     CalibrationResult,
     DetuningConstants,
+    LightShiftCorrectionResult,
     VelocityInversionResult,
     calibrate_alpha_and_vx_from_scans,
     compute_detuning_khz,
+    compute_light_shift_correction,
     compute_vx_from_detuning_auto,
 )
 
@@ -206,7 +209,9 @@ class RamanCalculatorApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Raman Transition Calculator")
-        self.root.geometry("1440x920")
+        window_width = min(1440, max(1200, self.root.winfo_screenwidth() - 40))
+        window_height = min(920, max(820, self.root.winfo_screenheight() - 80))
+        self.root.geometry(f"{window_width}x{window_height}")
         self.root.minsize(1200, 820)
         self.root.configure(background=APP_BACKGROUND)
 
@@ -256,7 +261,7 @@ class RamanCalculatorApp:
         style = ttk.Style(self.root)
         style.theme_use("clam")
 
-        default_font = ("Aptos", 10)
+        default_font = ("Segoe UI", 10)
         self.root.option_add("*Font", default_font)
         self.root.option_add("*TCombobox*Listbox.font", default_font)
 
@@ -270,13 +275,13 @@ class RamanCalculatorApp:
             "Title.TLabel",
             background=APP_BACKGROUND,
             foreground=INK,
-            font=("Georgia", 20, "bold"),
+            font=("Segoe UI Semibold", 20),
         )
         style.configure(
             "Subtitle.TLabel",
             background=APP_BACKGROUND,
             foreground=MUTED,
-            font=("Aptos", 10),
+            font=("Segoe UI", 10),
         )
         style.configure(
             "Section.TLabelframe",
@@ -290,27 +295,72 @@ class RamanCalculatorApp:
             "Section.TLabelframe.Label",
             background=CARD_BACKGROUND,
             foreground=INK,
-            font=("Georgia", 11, "bold"),
+            font=("Segoe UI Semibold", 11),
+        )
+        style.configure(
+            "Compact.TLabelframe",
+            background=CARD_BACKGROUND,
+            bordercolor=ACCENT_SOFT,
+            relief="solid",
+            borderwidth=1,
+            padding=9,
+        )
+        style.configure(
+            "Compact.TLabelframe.Label",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            font=("Segoe UI Semibold", 10),
         )
         style.configure("Card.TLabel", background=CARD_BACKGROUND, foreground=INK)
         style.configure(
             "Field.TLabel",
             background=CARD_BACKGROUND,
             foreground=INK,
-            font=("Aptos", 10, "bold"),
+            font=("Segoe UI Semibold", 10),
         )
         style.configure(
             "Muted.TLabel",
             background=CARD_BACKGROUND,
             foreground=MUTED,
-            font=("Aptos", 9),
+            font=("Segoe UI", 9),
         )
         style.configure(
             "Status.TLabel",
             background=APP_BACKGROUND,
             foreground=MUTED,
-            font=("Aptos", 9),
+            font=("Segoe UI", 9),
         )
+        style.configure(
+            "ResultTitle.TLabel",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            font=("Segoe UI Semibold", 17),
+        )
+        style.configure(
+            "ResultSymbol.TLabel",
+            background="#f4f8fb",
+            foreground=ACCENT,
+            font=("Segoe UI Semibold", 12),
+        )
+        style.configure(
+            "ResultValue.TLabel",
+            background="#f4f8fb",
+            foreground=INK,
+            font=("Segoe UI Semibold", 13),
+        )
+        style.configure(
+            "ResultCaption.TLabel",
+            background="#f4f8fb",
+            foreground=MUTED,
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "Equation.TLabel",
+            background=CARD_BACKGROUND,
+            foreground=INK,
+            font=("Segoe UI", 12),
+        )
+        style.configure("Metric.TFrame", background="#f4f8fb", relief="solid", borderwidth=1)
         style.configure(
             "Primary.TButton",
             background=ACCENT,
@@ -318,7 +368,7 @@ class RamanCalculatorApp:
             borderwidth=0,
             focuscolor=ACCENT,
             padding=(14, 8),
-            font=("Aptos", 10, "bold"),
+            font=("Segoe UI Semibold", 10),
         )
         style.map(
             "Primary.TButton",
@@ -372,6 +422,8 @@ class RamanCalculatorApp:
                 "Rabi-oscillation prediction and atom-cloud expansion tracking."
             ),
             style="Subtitle.TLabel",
+            wraplength=720,
+            justify="left",
         ).pack(anchor="w", pady=(3, 0))
 
         self._build_header_actions(header)
@@ -500,6 +552,9 @@ class RamanCalculatorApp:
             "calibration_up_khz": tk.StringVar(),
             "calibration_down_khz": tk.StringVar(),
             "calibration_transition": tk.StringVar(value=TRANSITION_F1_TO_F2),
+            "light_shift_delta_plus_khz": tk.StringVar(),
+            "light_shift_delta_minus_khz": tk.StringVar(),
+            "light_shift_transition": tk.StringVar(value=TRANSITION_F1_TO_F2),
             "calculator_result": tk.StringVar(
                 value="Choose a mode, enter the value, and run the detuning calculator."
             ),
@@ -507,6 +562,12 @@ class RamanCalculatorApp:
                 value=(
                     "Enter the signed flying-up and falling-down resonance detunings to "
                     "recover alpha and vx."
+                )
+            ),
+            "light_shift_result": tk.StringVar(
+                value=(
+                    "Enter the measured counter-propagating delta+ and delta- peak "
+                    "centers to extract and remove their common light shift."
                 )
             ),
         }
@@ -533,7 +594,7 @@ class RamanCalculatorApp:
 
         controls_card = ttk.Frame(parent, style="Card.TFrame", padding=18)
         controls_card.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
-        controls_card.configure(width=430)
+        controls_card.configure(width=380)
         controls_card.grid_propagate(False)
         controls_card.rowconfigure(0, weight=1)
         controls_card.columnconfigure(0, weight=1)
@@ -544,6 +605,7 @@ class RamanCalculatorApp:
 
         self._build_detuning_constants_section(controls)
         self._build_detuning_calculator_section(controls)
+        self._build_light_shift_correction_section(controls)
         self._build_detuning_calibration_section(controls)
 
         results_panel = ttk.Frame(parent, style="App.TFrame")
@@ -555,43 +617,21 @@ class RamanCalculatorApp:
         notebook.grid(row=0, column=0, sticky="nsew")
 
         calculator_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
+        light_shift_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
         calibration_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
         notes_tab = ttk.Frame(notebook, style="Card.TFrame", padding=18)
-        notebook.add(calculator_tab, text="Calculator Result")
-        notebook.add(calibration_tab, text="Calibration Result")
-        notebook.add(notes_tab, text="Detuning Notes")
+        notebook.add(calculator_tab, text="Calculator")
+        notebook.add(light_shift_tab, text="Light Shift")
+        notebook.add(calibration_tab, text="Calibration")
+        notebook.add(notes_tab, text="Notes")
 
-        self.detuning_result_text = tk.Text(
-            calculator_tab,
-            wrap="word",
-            background=CARD_BACKGROUND,
-            foreground=INK,
-            relief="flat",
-            font=("Aptos", 10),
-            padx=8,
-            pady=8,
-        )
-        self.detuning_result_text.pack(fill="both", expand=True)
-        self._set_readonly_text(
-            self.detuning_result_text,
-            str(self.detuning_vars["calculator_result"].get()),
-        )
-
-        self.detuning_calibration_text = tk.Text(
-            calibration_tab,
-            wrap="word",
-            background=CARD_BACKGROUND,
-            foreground=INK,
-            relief="flat",
-            font=("Aptos", 10),
-            padx=8,
-            pady=8,
-        )
-        self.detuning_calibration_text.pack(fill="both", expand=True)
-        self._set_readonly_text(
-            self.detuning_calibration_text,
-            str(self.detuning_vars["calibration_result"].get()),
-        )
+        self._build_calculator_result_panel(calculator_tab)
+        self._build_light_shift_result_panel(light_shift_tab)
+        self._build_calibration_result_panel(calibration_tab)
+        self.detuning_results_notebook = notebook
+        self.detuning_calculator_tab = calculator_tab
+        self.detuning_light_shift_tab = light_shift_tab
+        self.detuning_calibration_tab = calibration_tab
 
         notes = tk.Text(
             notes_tab,
@@ -599,7 +639,7 @@ class RamanCalculatorApp:
             background=CARD_BACKGROUND,
             foreground=INK,
             relief="flat",
-            font=("Aptos", 10),
+            font=("Segoe UI", 10),
             padx=8,
             pady=8,
         )
@@ -624,9 +664,523 @@ class RamanCalculatorApp:
                 "falling-down scan for the same transition direction. The tool then reconstructs "
                 "alpha and vx using the same detuning model. The calibrated alpha can be applied "
                 "back to the detuning constants for subsequent calculations.\n"
+                "\nLight-shift correction\n\n"
+                "For a measured counter-propagating delta+ / delta- peak pair, the tool "
+                "uses their mean to extract the common differential light shift after "
+                "subtracting the signed recoil center. Zeeman and frequency-reference "
+                "offsets are intentionally neglected.\n"
             ),
         )
         notes.configure(state="disabled")
+
+    def _make_metric_card(
+        self,
+        parent: ttk.Frame,
+        symbol: str,
+        caption: str,
+        variable: tk.StringVar,
+        row: int,
+        column: int,
+        columnspan: int = 1,
+    ) -> ttk.Frame:
+        card = ttk.Frame(parent, style="Metric.TFrame", padding=(14, 10))
+        card.grid(
+            row=row,
+            column=column,
+            columnspan=columnspan,
+            sticky="nsew",
+            padx=5,
+            pady=5,
+        )
+        card.columnconfigure(1, weight=1)
+        ttk.Label(card, text=symbol, style="ResultSymbol.TLabel").grid(
+            row=0, column=0, rowspan=2, sticky="w", padx=(0, 14)
+        )
+        ttk.Label(card, textvariable=variable, style="ResultValue.TLabel").grid(
+            row=0, column=1, sticky="e"
+        )
+        ttk.Label(card, text=caption, style="ResultCaption.TLabel").grid(
+            row=1, column=1, sticky="e"
+        )
+        return card
+
+    def _result_header(
+        self, parent: ttk.Frame, title: str, subtitle: str
+    ) -> None:
+        ttk.Label(parent, text=title, style="ResultTitle.TLabel").pack(anchor="w")
+        ttk.Label(
+            parent,
+            text=subtitle,
+            style="Muted.TLabel",
+            wraplength=480,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 14))
+
+    def _make_result_row(
+        self,
+        parent: ttk.LabelFrame,
+        row: int,
+        symbol: str,
+        caption: str,
+        variable: tk.StringVar,
+    ) -> None:
+        ttk.Label(parent, text=symbol, style="Field.TLabel", width=6).grid(
+            row=row, column=0, sticky="w", pady=3
+        )
+        ttk.Label(parent, text=caption, style="Muted.TLabel").grid(
+            row=row, column=1, sticky="w", padx=(2, 12), pady=3
+        )
+        ttk.Label(parent, textvariable=variable, style="Card.TLabel").grid(
+            row=row, column=2, sticky="e", pady=3
+        )
+
+    def _build_calculator_result_panel(self, parent: ttk.Frame) -> None:
+        self.calculator_result_vars = {
+            key: tk.StringVar(value="—")
+            for key in (
+                "context",
+                "up_plus",
+                "up_minus",
+                "down_plus",
+                "down_minus",
+                "input_delta",
+                "recovered_vx",
+                "branch",
+                "constants",
+            )
+        }
+        self._result_header(
+            parent,
+            "Raman Detuning Analysis",
+            "Signed branch centers and inverse velocity reconstruction in the current experimental geometry.",
+        )
+        ttk.Label(
+            parent,
+            textvariable=self.calculator_result_vars["context"],
+            style="Equation.TLabel",
+            justify="left",
+        ).pack(anchor="w", pady=(0, 10))
+
+        branches = ttk.LabelFrame(
+            parent, text="Forward model · resonance centers", style="Section.TLabelframe"
+        )
+        branches.pack(fill="x", pady=(0, 12))
+        branches.columnconfigure((0, 1), weight=1)
+        self._make_metric_card(branches, "δ(up,+)", "flying up · Δ > 0", self.calculator_result_vars["up_plus"], 0, 0)
+        self._make_metric_card(branches, "δ(up,−)", "flying up · Δ < 0", self.calculator_result_vars["up_minus"], 0, 1)
+        self._make_metric_card(branches, "δ(down,+)", "falling down · Δ > 0", self.calculator_result_vars["down_plus"], 1, 0)
+        self._make_metric_card(branches, "δ(down,−)", "falling down · Δ < 0", self.calculator_result_vars["down_minus"], 1, 1)
+
+        inverse = ttk.LabelFrame(
+            parent, text="Inverse model · velocity solution", style="Section.TLabelframe"
+        )
+        inverse.pack(fill="x", pady=(0, 12))
+        inverse.columnconfigure((0, 1), weight=1)
+        self._make_metric_card(inverse, "δ(in)", "measured signed detuning", self.calculator_result_vars["input_delta"], 0, 0)
+        self._make_metric_card(inverse, "v_x", "reconstructed transverse velocity", self.calculator_result_vars["recovered_vx"], 0, 1)
+        ttk.Label(inverse, textvariable=self.calculator_result_vars["branch"], style="Muted.TLabel").grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=6, pady=(5, 0)
+        )
+
+        ttk.Label(
+            parent,
+            textvariable=self.calculator_result_vars["constants"],
+            style="Muted.TLabel",
+            wraplength=850,
+        ).pack(anchor="w")
+
+    def _build_light_shift_result_panel(self, parent: ttk.Frame) -> None:
+        self.light_shift_result_vars = {
+            key: tk.StringVar(value="—")
+            for key in (
+                "transition",
+                "measured_plus",
+                "measured_minus",
+                "measured_mean",
+                "recoil",
+                "light_shift",
+                "doppler",
+                "corrected_plus",
+                "corrected_minus",
+                "corrected_mean",
+                "measured_coprop",
+                "corrected_coprop",
+            )
+        }
+        self._result_header(
+            parent,
+            "Differential AC Stark-shift Correction",
+            "Common-mode extraction from the measured ±k_eff counter-propagating Raman pair.",
+        )
+
+        body = ttk.Panedwindow(parent, orient="horizontal")
+        body.pack(fill="both", expand=True)
+
+        analysis = ttk.Frame(body, style="Card.TFrame")
+        body.add(analysis, weight=1)
+        analysis.rowconfigure(0, weight=1)
+        analysis.columnconfigure(0, weight=1)
+        summary_frame = ttk.LabelFrame(
+            analysis, text="Quantitative summary", style="Compact.TLabelframe"
+        )
+        summary_frame.grid(row=0, column=0, sticky="nsew")
+        summary_frame.rowconfigure(0, weight=1)
+        summary_frame.columnconfigure(0, weight=1)
+        summary_figure = Figure(figsize=(4.2, 5.5), dpi=100, facecolor=CARD_BACKGROUND)
+        self.light_shift_summary_ax = summary_figure.add_subplot(111)
+        self.light_shift_summary_figure = summary_figure
+        self.light_shift_summary_canvas = FigureCanvasTkAgg(summary_figure, master=summary_frame)
+        self.light_shift_summary_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+        self._draw_empty_light_shift_summary()
+
+        plot_frame = ttk.LabelFrame(
+            body, text="Normalized counter-pro / co-pro spectrum", style="Compact.TLabelframe"
+        )
+        body.add(plot_frame, weight=2)
+        plot_frame.rowconfigure(0, weight=1)
+        plot_frame.columnconfigure(0, weight=1)
+        figure = Figure(figsize=(2.2, 4.2), dpi=100, facecolor=CARD_BACKGROUND)
+        self.light_shift_ax = figure.add_subplot(111)
+        self.light_shift_figure = figure
+        self.light_shift_canvas = FigureCanvasTkAgg(figure, master=plot_frame)
+        self.light_shift_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+        toolbar_frame = ttk.Frame(plot_frame, style="Card.TFrame")
+        toolbar_frame.grid(row=1, column=0, sticky="ew", pady=(5, 0))
+        self.light_shift_toolbar = NavigationToolbar2Tk(
+            self.light_shift_canvas, toolbar_frame, pack_toolbar=False
+        )
+        self.light_shift_toolbar.update()
+        self.light_shift_toolbar.grid(row=0, column=0, sticky="w")
+        self.light_shift_cursor_var = tk.StringVar(
+            value="Hover over the plot for coordinates · scroll to zoom · use the toolbar to pan, zoom, reset, or save."
+        )
+        ttk.Label(
+            plot_frame,
+            textvariable=self.light_shift_cursor_var,
+            style="Muted.TLabel",
+        ).grid(row=2, column=0, sticky="w", pady=(5, 0))
+        ttk.Label(
+            plot_frame,
+            text="All three peak centers are calculated values; linewidths and relative amplitudes are illustrative.",
+            style="Muted.TLabel",
+        ).grid(row=3, column=0, sticky="w", pady=(2, 0))
+        self.light_shift_canvas.mpl_connect("scroll_event", self._on_light_shift_scroll)
+        self.light_shift_canvas.mpl_connect("motion_notify_event", self._on_light_shift_hover)
+        self._draw_empty_light_shift_spectrum()
+
+    def _build_calibration_result_panel(self, parent: ttk.Frame) -> None:
+        self.calibration_result_vars = {
+            key: tk.StringVar(value="—")
+            for key in ("transition", "up_input", "down_input", "up_branch", "down_branch", "alpha", "vx")
+        }
+        self._result_header(
+            parent,
+            "Geometry and Velocity Calibration",
+            "Joint reconstruction from signed flying-up and falling-down Raman resonance centers.",
+        )
+        observed = ttk.LabelFrame(parent, text="Measured scan centers", style="Section.TLabelframe")
+        observed.pack(fill="x", pady=(0, 12))
+        observed.columnconfigure((0, 1), weight=1)
+        self._make_metric_card(observed, "δ(up)", "flying-up scan", self.calibration_result_vars["up_input"], 0, 0)
+        self._make_metric_card(observed, "δ(down)", "falling-down scan", self.calibration_result_vars["down_input"], 0, 1)
+        ttk.Label(observed, textvariable=self.calibration_result_vars["up_branch"], style="Muted.TLabel").grid(row=1, column=0, sticky="w", padx=6)
+        ttk.Label(observed, textvariable=self.calibration_result_vars["down_branch"], style="Muted.TLabel").grid(row=1, column=1, sticky="w", padx=6)
+
+        reconstructed = ttk.LabelFrame(parent, text="Reconstructed parameters", style="Section.TLabelframe")
+        reconstructed.pack(fill="x", pady=(0, 12))
+        reconstructed.columnconfigure((0, 1), weight=1)
+        self._make_metric_card(reconstructed, "alpha", "Raman-beam angle", self.calibration_result_vars["alpha"], 0, 0)
+        self._make_metric_card(reconstructed, "v_x", "transverse velocity", self.calibration_result_vars["vx"], 0, 1)
+
+        equation = ttk.LabelFrame(parent, text="Reconstruction equations", style="Section.TLabelframe")
+        equation.pack(fill="x")
+        ttk.Label(
+            equation,
+            text="sin(alpha) = (U + D)/(2 k_eff v_z)     ·     v_x = (U − D)/(2 k_eff cos(alpha))",
+            style="Equation.TLabel",
+        ).pack(anchor="w")
+        ttk.Label(
+            equation,
+            textvariable=self.calibration_result_vars["transition"],
+            style="Muted.TLabel",
+        ).pack(anchor="w", pady=(7, 0))
+
+    def _draw_empty_light_shift_summary(self) -> None:
+        ax = self.light_shift_summary_ax
+        ax.clear()
+        ax.set_axis_off()
+        ax.text(
+            0.5,
+            0.54,
+            "Run a light-shift correction\nto populate the quantitative summary.",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            color=MUTED,
+            fontsize=11,
+            linespacing=1.5,
+        )
+        self.light_shift_summary_figure.subplots_adjust(
+            left=0.03, right=0.97, bottom=0.03, top=0.97
+        )
+        self.light_shift_summary_canvas.draw_idle()
+
+    def _draw_light_shift_summary(
+        self,
+        correction: LightShiftCorrectionResult,
+        transition: str,
+    ) -> None:
+        ax = self.light_shift_summary_ax
+        ax.clear()
+        ax.set_axis_off()
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+
+        def section(
+            title: str,
+            lines: list[str],
+            top: float,
+            height: float,
+            accent: bool = False,
+        ) -> None:
+            face = "#eaf3f9" if accent else "#f7f9fb"
+            edge = "#82abc4" if accent else "#d5e0e8"
+            ax.add_patch(
+                FancyBboxPatch(
+                    (0.025, top - height),
+                    0.95,
+                    height,
+                    boxstyle="round,pad=0.012,rounding_size=0.012",
+                    facecolor=face,
+                    edgecolor=edge,
+                    linewidth=1.0,
+                    transform=ax.transAxes,
+                )
+            )
+            ax.text(
+                0.06,
+                top - 0.045,
+                title.upper(),
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                color=ACCENT if accent else MUTED,
+                fontsize=9,
+                fontweight="semibold",
+            )
+            line_y = top - 0.105
+            spacing = (height - 0.13) / max(len(lines), 1)
+            for index, line in enumerate(lines):
+                ax.text(
+                    0.07,
+                    line_y - index * spacing,
+                    line,
+                    transform=ax.transAxes,
+                    ha="left",
+                    va="top",
+                    color=INK,
+                    fontsize=12,
+                )
+
+        measured_lines = [
+            rf"$\delta_+^{{(\mathrm{{meas}})}}/2\pi = {correction.measured_delta_plus_khz:.6f}\ \mathrm{{kHz}}$",
+            rf"$\delta_-^{{(\mathrm{{meas}})}}/2\pi = {correction.measured_delta_minus_khz:.6f}\ \mathrm{{kHz}}$",
+            rf"$\bar{{\delta}}^{{(\mathrm{{meas}})}}/2\pi = {correction.measured_center_khz:.6f}\ \mathrm{{kHz}}$",
+        ]
+        extracted_lines = [
+            rf"$D/2\pi = {correction.doppler_term_khz:+.6f}\ \mathrm{{kHz}}$",
+            rf"$\delta_{{\mathrm{{AC}}}}/2\pi = {correction.light_shift_khz:+.6f}\ \mathrm{{kHz}}$",
+            rf"$\delta_{{\mathrm{{co}}}}^{{(\mathrm{{meas}})}}/2\pi = {correction.measured_coprop_center_khz:+.6f}\ \mathrm{{kHz}}$",
+            rf"$\delta_{{\mathrm{{co}}}}^{{(0)}}/2\pi = {correction.corrected_coprop_center_khz:.6f}\ \mathrm{{kHz}}$",
+        ]
+        corrected_lines = [
+            rf"$\delta_+^{{(0)}}/2\pi = {correction.corrected_delta_plus_khz:.6f}\ \mathrm{{kHz}}$",
+            rf"$\delta_-^{{(0)}}/2\pi = {correction.corrected_delta_minus_khz:.6f}\ \mathrm{{kHz}}$",
+            rf"$s_{{\mathrm{{tr}}}} f_r = {correction.signed_recoil_center_khz:.6f}\ \mathrm{{kHz}}$",
+        ]
+        section("Measured counter-pro peaks", measured_lines, 0.985, 0.245)
+        section("AC shift and co-pro center", extracted_lines, 0.715, 0.265, accent=True)
+        section("Corrected counter-pro peaks", corrected_lines, 0.425, 0.245)
+
+        transition_math = (
+            r"F=1\rightarrow F=2"
+            if transition == TRANSITION_F1_TO_F2
+            else r"F=2\rightarrow F=1"
+        )
+        ax.text(
+            0.04,
+            0.125,
+            rf"$\delta_{{\mathrm{{AC}}}}=\frac{{\delta_+^{{(\mathrm{{meas}})}}+\delta_-^{{(\mathrm{{meas}})}}}}{{2}}-s_{{\mathrm{{tr}}}}\omega_r$",
+            transform=ax.transAxes,
+            ha="left",
+            va="center",
+            color=INK,
+            fontsize=11,
+        )
+        ax.text(
+            0.04,
+            0.045,
+            rf"${transition_math}$   ·   common-shift model   ·   Zeeman/reference offsets neglected",
+            transform=ax.transAxes,
+            ha="left",
+            va="center",
+            color=MUTED,
+            fontsize=8.5,
+        )
+        self.light_shift_summary_figure.subplots_adjust(
+            left=0.02, right=0.98, bottom=0.02, top=0.98
+        )
+        self.light_shift_summary_canvas.draw_idle()
+
+    def _draw_empty_light_shift_spectrum(self) -> None:
+        ax = self.light_shift_ax
+        ax.clear()
+        ax.text(
+            0.5,
+            0.54,
+            r"Enter $\delta_+$ and $\delta_-$, then run the correction",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            color=MUTED,
+            fontsize=11,
+        )
+        ax.text(
+            0.5,
+            0.43,
+            "The measured and light-shift-corrected spectra will be compared here.",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            color=MUTED,
+            fontsize=10,
+        )
+        ax.set_axis_off()
+        self.light_shift_figure.subplots_adjust(left=0.17, right=0.97, bottom=0.14, top=0.92)
+        self.light_shift_canvas.draw_idle()
+
+    def _on_light_shift_scroll(self, event: object) -> None:
+        if getattr(event, "inaxes", None) is not self.light_shift_ax:
+            return
+        xdata = getattr(event, "xdata", None)
+        ydata = getattr(event, "ydata", None)
+        if xdata is None or ydata is None:
+            return
+        scale = 0.8 if getattr(event, "button", None) == "up" else 1.25
+        x_left, x_right = self.light_shift_ax.get_xlim()
+        y_bottom, y_top = self.light_shift_ax.get_ylim()
+        self.light_shift_ax.set_xlim(
+            xdata - (xdata - x_left) * scale,
+            xdata + (x_right - xdata) * scale,
+        )
+        self.light_shift_ax.set_ylim(
+            ydata - (ydata - y_bottom) * scale,
+            ydata + (y_top - ydata) * scale,
+        )
+        self.light_shift_canvas.draw_idle()
+
+    def _on_light_shift_hover(self, event: object) -> None:
+        if getattr(event, "inaxes", None) is not self.light_shift_ax:
+            self.light_shift_cursor_var.set(
+                "Hover for coordinates · scroll to zoom · toolbar: home, pan, box zoom, save."
+            )
+            return
+        xdata = getattr(event, "xdata", None)
+        ydata = getattr(event, "ydata", None)
+        if xdata is None or ydata is None:
+            return
+        self.light_shift_cursor_var.set(
+            f"Cursor   δ / 2π = {xdata:.3f} kHz   ·   normalized probability = {ydata:.4f}"
+        )
+
+    def _draw_light_shift_spectrum(
+        self, correction: LightShiftCorrectionResult
+    ) -> None:
+        measured = np.array(
+            [
+                correction.measured_delta_minus_khz,
+                correction.measured_coprop_center_khz,
+                correction.measured_delta_plus_khz,
+            ],
+            dtype=float,
+        )
+        corrected = np.array(
+            [
+                correction.corrected_delta_minus_khz,
+                correction.corrected_coprop_center_khz,
+                correction.corrected_delta_plus_khz,
+            ],
+            dtype=float,
+        )
+        splitting = max(abs(float(np.diff(np.sort(measured))[0])), 1.0)
+        linewidth = max(0.025 * splitting, 1.0)
+        lower = min(float(np.min(measured)), float(np.min(corrected))) - 5.0 * linewidth
+        upper = max(float(np.max(measured)), float(np.max(corrected))) + 5.0 * linewidth
+        frequency = np.linspace(lower, upper, 1800)
+
+        def normalized_triplet(centers: np.ndarray) -> np.ndarray:
+            relative_amplitudes = np.array([1.0, 0.78, 1.0])
+            signal = sum(
+                amplitude * np.exp(-0.5 * ((frequency - center) / linewidth) ** 2)
+                for center, amplitude in zip(centers, relative_amplitudes, strict=True)
+            )
+            maximum = float(np.max(signal))
+            return signal / maximum if maximum > 0.0 else signal
+
+        measured_signal = normalized_triplet(measured)
+        corrected_signal = normalized_triplet(corrected)
+        ax = self.light_shift_ax
+        ax.clear()
+        ax.plot(
+            frequency,
+            measured_signal,
+            color=CURVE_B,
+            linewidth=2.0,
+            linestyle="--",
+            label="Measured spectrum",
+        )
+        ax.plot(
+            frequency,
+            corrected_signal,
+            color=CURVE_A,
+            linewidth=2.2,
+            label="After light-shift correction",
+        )
+        for center in measured:
+            ax.axvline(center, color=CURVE_B, alpha=0.24, linewidth=1.0, linestyle="--")
+        for center in corrected:
+            ax.axvline(center, color=CURVE_A, alpha=0.24, linewidth=1.0)
+
+        measured_mean = correction.measured_coprop_center_khz
+        corrected_mean = correction.corrected_coprop_center_khz
+        ax.annotate(
+            "",
+            xy=(corrected_mean, 1.075),
+            xytext=(measured_mean, 1.075),
+            arrowprops={"arrowstyle": "<->", "color": ACCENT, "linewidth": 1.4},
+            annotation_clip=False,
+        )
+        ax.text(
+            0.5 * (measured_mean + corrected_mean),
+            1.105,
+            rf"$\delta_{{\mathrm{{AC}}}}={correction.light_shift_khz:+.3f}\ \mathrm{{kHz}}$",
+            ha="center",
+            va="bottom",
+            color=ACCENT,
+            fontsize=9,
+        )
+        ax.set_xlabel(r"Raman detuning, $\delta/2\pi$ (kHz)", fontsize=11)
+        ax.set_ylabel("Normalized transfer probability", fontsize=11)
+        ax.set_ylim(-0.03, 1.18)
+        ax.grid(True, color="#d9e2ea", linewidth=0.7, alpha=0.75)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(loc="upper center", frameon=False, ncol=1, fontsize=10)
+        ax.tick_params(colors=INK, labelsize=10)
+        ax.xaxis.label.set_color(INK)
+        ax.yaxis.label.set_color(INK)
+        self.light_shift_figure.subplots_adjust(left=0.17, right=0.97, bottom=0.14, top=0.92)
+        self.light_shift_canvas.draw_idle()
+        self.light_shift_toolbar.update()
 
     def _build_detuning_constants_section(self, parent: ttk.Frame) -> None:
         section = ttk.LabelFrame(
@@ -802,6 +1356,60 @@ class RamanCalculatorApp:
                 "to the same transition direction. The sign of each entered detuning selects "
                 "the Delta>0 or Delta<0 branch automatically. The current alpha field is not "
                 "used as an input during calibration; it is reconstructed from the scan results."
+            ),
+            style="Muted.TLabel",
+            wraplength=320,
+            justify="left",
+        ).pack(anchor="w", pady=(10, 0))
+
+    def _build_light_shift_correction_section(self, parent: ttk.Frame) -> None:
+        section = ttk.LabelFrame(
+            parent,
+            text="Light-shift Correction",
+            style="Section.TLabelframe",
+        )
+        section.pack(fill="x", padx=4, pady=(0, 14))
+
+        self._add_detuning_numeric_field(
+            section,
+            "light_shift_delta_plus_khz",
+            "Measured delta+ center",
+            "kHz",
+            "Fitted center of the +keff counter-propagating Raman peak.",
+        )
+        self._add_detuning_numeric_field(
+            section,
+            "light_shift_delta_minus_khz",
+            "Measured delta- center",
+            "kHz",
+            "Fitted center of the -keff counter-propagating Raman peak.",
+        )
+
+        transition_frame = ttk.Frame(section, style="Card.TFrame")
+        transition_frame.pack(fill="x", pady=(0, 12))
+        ttk.Label(
+            transition_frame, text="Transition", style="Field.TLabel", width=18
+        ).pack(side="left")
+        ttk.Combobox(
+            transition_frame,
+            textvariable=self.detuning_vars["light_shift_transition"],
+            values=TRANSITION_CHOICES,
+            state="readonly",
+            width=10,
+        ).pack(side="left")
+
+        ttk.Button(
+            section,
+            text="Calculate and Remove Light Shift",
+            style="Primary.TButton",
+            command=self.calculate_light_shift_correction,
+        ).pack(fill="x")
+        ttk.Label(
+            section,
+            text=(
+                "Assumes both peaks have the same differential light shift. The corrected "
+                "centers retain the signed recoil term; Zeeman and frequency-zero offsets "
+                "are ignored."
             ),
             style="Muted.TLabel",
             wraplength=320,
@@ -1276,7 +1884,7 @@ class RamanCalculatorApp:
             background=CARD_BACKGROUND,
             foreground=INK,
             relief="flat",
-            font=("Aptos", 10),
+            font=("Segoe UI", 10),
             padx=8,
             pady=8,
         )
@@ -1297,7 +1905,7 @@ class RamanCalculatorApp:
             background=CARD_BACKGROUND,
             foreground=INK,
             relief="flat",
-            font=("Aptos", 10),
+            font=("Segoe UI", 10),
             padx=8,
             pady=8,
         )
@@ -1836,7 +2444,32 @@ class RamanCalculatorApp:
                 lines.append(f"{label}: {value:.6f} kHz")
             content = "\n".join(lines)
             self.detuning_vars["calculator_result"].set(content)
-            self._set_readonly_text(self.detuning_result_text, content)
+            self.calculator_result_vars["context"].set(
+                f"Forward solution   ·   vₓ = {input_value:.6f} mm/s   ·   {transition}"
+            )
+            self.calculator_result_vars["up_plus"].set(
+                f"{detunings[f'{FLYING_UP}, Δ>0']:.6f} kHz"
+            )
+            self.calculator_result_vars["up_minus"].set(
+                f"{detunings[f'{FLYING_UP}, Δ<0']:.6f} kHz"
+            )
+            self.calculator_result_vars["down_plus"].set(
+                f"{detunings[f'{FALLING_DOWN}, Δ>0']:.6f} kHz"
+            )
+            self.calculator_result_vars["down_minus"].set(
+                f"{detunings[f'{FALLING_DOWN}, Δ<0']:.6f} kHz"
+            )
+            self.calculator_result_vars["input_delta"].set("—")
+            self.calculator_result_vars["recovered_vx"].set("—")
+            self.calculator_result_vars["branch"].set(
+                "Inverse solution is populated when Detuning → vx is selected."
+            )
+            self.calculator_result_vars["constants"].set(
+                f"Model constants   v_z = {constants.vz_m_s:.6f} m/s   ·   "
+                f"α = {constants.alpha_deg:.6f}°   ·   λ = {constants.laser_wavelength_m * 1e9:.3f} nm   ·   "
+                f"fᵣ = {constants.recoil_frequency_khz:.6f} kHz"
+            )
+            self.detuning_results_notebook.select(self.detuning_calculator_tab)
             self.status_var.set("Computed the Raman detuning branches from vx.")
             return
 
@@ -1871,8 +2504,124 @@ class RamanCalculatorApp:
             ]
         )
         self.detuning_vars["calculator_result"].set(content)
-        self._set_readonly_text(self.detuning_result_text, content)
+        self.calculator_result_vars["context"].set(
+            f"Inverse solution   ·   {motion}   ·   {transition}"
+        )
+        self.calculator_result_vars["input_delta"].set(f"{input_value:.6f} kHz")
+        self.calculator_result_vars["recovered_vx"].set(
+            f"{inversion.vx_mm_s:.6f} mm/s"
+        )
+        self.calculator_result_vars["branch"].set(
+            f"Selected physical branch: {inversion.used_case}"
+        )
+        for key in ("up_plus", "up_minus", "down_plus", "down_minus"):
+            self.calculator_result_vars[key].set("—")
+        self.calculator_result_vars["constants"].set(
+            f"Model constants   v_z = {constants.vz_m_s:.6f} m/s   ·   "
+            f"α = {constants.alpha_deg:.6f}°   ·   λ = {constants.laser_wavelength_m * 1e9:.3f} nm   ·   "
+            f"fᵣ = {constants.recoil_frequency_khz:.6f} kHz"
+        )
+        self.detuning_results_notebook.select(self.detuning_calculator_tab)
         self.status_var.set("Recovered vx from the signed Raman detuning.")
+
+    def calculate_light_shift_correction(self) -> None:
+        try:
+            constants = self._read_detuning_constants()
+            measured_delta_plus_khz = float(
+                str(self.detuning_vars["light_shift_delta_plus_khz"].get()).strip()
+            )
+            measured_delta_minus_khz = float(
+                str(self.detuning_vars["light_shift_delta_minus_khz"].get()).strip()
+            )
+            transition = str(self.detuning_vars["light_shift_transition"].get())
+            correction = compute_light_shift_correction(
+                measured_delta_plus_khz,
+                measured_delta_minus_khz,
+                transition,
+                constants,
+            )
+        except Exception as exc:
+            messagebox.showerror(
+                "Light-shift input error",
+                f"Please review the measured peak centers and detuning constants.\n\n{exc}",
+                parent=self.root,
+            )
+            return
+
+        content = "\n".join(
+            [
+                "Light-shift correction result",
+                "",
+                f"Transition: {transition}",
+                f"Measured delta+ center: {correction.measured_delta_plus_khz:.6f} kHz",
+                f"Measured delta- center: {correction.measured_delta_minus_khz:.6f} kHz",
+                f"Measured pair mean: {correction.measured_center_khz:.6f} kHz",
+                f"Signed recoil center: {correction.signed_recoil_center_khz:.6f} kHz",
+                "",
+                f"Extracted light shift: {correction.light_shift_khz:+.6f} kHz",
+                f"Doppler term (half splitting): {correction.doppler_term_khz:+.6f} kHz",
+                f"Measured co-pro center: {correction.measured_coprop_center_khz:+.6f} kHz",
+                "",
+                "Peak centers after removing light shift",
+                f"Corrected delta+: {correction.corrected_delta_plus_khz:.6f} kHz",
+                f"Corrected delta-: {correction.corrected_delta_minus_khz:.6f} kHz",
+                f"Corrected co-pro center: {correction.corrected_coprop_center_khz:.6f} kHz",
+                (
+                    "Corrected pair mean: "
+                    f"{0.5 * (correction.corrected_delta_plus_khz + correction.corrected_delta_minus_khz):.6f} kHz"
+                ),
+                "",
+                "Model used:",
+                "delta+ = +D + signed recoil + light shift",
+                "delta- = -D + signed recoil + light shift",
+                "",
+                (
+                    "This quick correction assumes a common light shift for the two peaks "
+                    "and intentionally neglects Zeeman and frequency-reference offsets."
+                ),
+            ]
+        )
+        self.detuning_vars["light_shift_result"].set(content)
+        self.light_shift_result_vars["transition"].set(
+            f"{transition}   ·   common-shift model   ·   Zeeman/reference offsets neglected"
+        )
+        self.light_shift_result_vars["measured_plus"].set(
+            f"{correction.measured_delta_plus_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["measured_minus"].set(
+            f"{correction.measured_delta_minus_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["measured_mean"].set(
+            f"{correction.measured_center_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["recoil"].set(
+            f"{correction.signed_recoil_center_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["light_shift"].set(
+            f"{correction.light_shift_khz:+.6f} kHz"
+        )
+        self.light_shift_result_vars["doppler"].set(
+            f"{correction.doppler_term_khz:+.6f} kHz"
+        )
+        self.light_shift_result_vars["corrected_plus"].set(
+            f"{correction.corrected_delta_plus_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["corrected_minus"].set(
+            f"{correction.corrected_delta_minus_khz:.6f} kHz"
+        )
+        self.light_shift_result_vars["corrected_mean"].set(
+            f"{0.5 * (correction.corrected_delta_plus_khz + correction.corrected_delta_minus_khz):.6f} kHz"
+        )
+        self.light_shift_result_vars["measured_coprop"].set(
+            f"{correction.measured_coprop_center_khz:+.6f} kHz"
+        )
+        self.light_shift_result_vars["corrected_coprop"].set(
+            f"{correction.corrected_coprop_center_khz:.6f} kHz"
+        )
+        self._draw_light_shift_summary(correction, transition)
+        self._draw_light_shift_spectrum(correction)
+        self.detuning_results_notebook.select(self.detuning_light_shift_tab)
+        self.status_var.set("Extracted and removed the common Raman light shift.")
 
     def run_detuning_calibration(self) -> None:
         try:
@@ -1930,7 +2679,28 @@ class RamanCalculatorApp:
             ]
         )
         self.detuning_vars["calibration_result"].set(content)
-        self._set_readonly_text(self.detuning_calibration_text, content)
+        self.calibration_result_vars["transition"].set(
+            f"Transition: {transition}   ·   branch signs selected automatically from the scan centers"
+        )
+        self.calibration_result_vars["up_input"].set(
+            f"{flying_up_detuning_khz:.6f} kHz"
+        )
+        self.calibration_result_vars["down_input"].set(
+            f"{falling_down_detuning_khz:.6f} kHz"
+        )
+        self.calibration_result_vars["up_branch"].set(
+            f"Branch: {calibration.flying_up_case}"
+        )
+        self.calibration_result_vars["down_branch"].set(
+            f"Branch: {calibration.falling_down_case}"
+        )
+        self.calibration_result_vars["alpha"].set(
+            f"{calibration.alpha_deg:.6f}°"
+        )
+        self.calibration_result_vars["vx"].set(
+            f"{calibration.vx_mm_s:.6f} mm/s"
+        )
+        self.detuning_results_notebook.select(self.detuning_calibration_tab)
         self.status_var.set("Calibrated alpha and vx from flying-up and falling-down scan results.")
 
     def apply_last_detuning_calibration(self) -> None:

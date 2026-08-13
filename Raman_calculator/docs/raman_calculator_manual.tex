@@ -52,6 +52,8 @@ The implementation goals are:
   \item provide direct plots for both transition probability and cloud-size evolution,
   \item provide a dedicated calibration workflow for reconstructing $\alpha$ and $v_x$ from
   flying-up and falling-down detuning scans,
+  \item extract a common differential light shift from a measured counter-propagating Raman
+  peak pair and report the peak centers after removing that shift,
   \item document the assumptions, units, and numerical method in a form suitable for research use.
 \end{itemize}
 
@@ -74,7 +76,8 @@ such as the on-axis Raman Rabi frequency and the estimated $\pi$-pulse time.
 The project now also contains an integrated detuning model in \texttt{raman\_detuning\_model.py}.
 That module preserves the branch logic of the earlier standalone Python detuning calculator and
 adds a calibration routine that recovers the Raman-beam angle $\alpha$ and transverse velocity
-$v_x$ from two signed detuning measurements.
+$v_x$ from two signed detuning measurements. It also provides a quick experimental light-shift
+correction based on the mean of a measured $+k_{\mathrm{eff}}$/$-k_{\mathrm{eff}}$ peak pair.
 
 \section{Default Parameters}
 
@@ -288,6 +291,64 @@ In the GUI these four cases are reported as:
 The sign of the entered or computed detuning therefore matters operationally: it is used to
 identify which branch of the original model is active.
 
+\subsection{Differential Light-shift Extraction and Correction}
+
+For a fixed transition direction and a pair of counter-propagating Raman resonances measured with
+the same Raman pulse and optical-power configuration, let
+$\delta_{+}^{\mathrm{meas}}$ and $\delta_{-}^{\mathrm{meas}}$ denote the fitted centers of the
+$+k_{\mathrm{eff}}$ and $-k_{\mathrm{eff}}$ peaks. The quick correction models them as
+
+\begin{align}
+\delta_{+}^{\mathrm{meas}} &= +D + s_{\mathrm{tr}}\omega_r + \delta_{\mathrm{AC}}, \\
+\delta_{-}^{\mathrm{meas}} &= -D + s_{\mathrm{tr}}\omega_r + \delta_{\mathrm{AC}},
+\end{align}
+
+where $D$ is the signed Doppler term and $\delta_{\mathrm{AC}}$ is the common differential
+AC Stark shift. Adding and subtracting the two equations gives
+
+\begin{equation}
+D = \frac{\delta_{+}^{\mathrm{meas}}-\delta_{-}^{\mathrm{meas}}}{2},
+\end{equation}
+
+\begin{equation}
+\delta_{\mathrm{AC}}
+= \frac{\delta_{+}^{\mathrm{meas}}+\delta_{-}^{\mathrm{meas}}}{2}
+-s_{\mathrm{tr}}\omega_r.
+\end{equation}
+
+The peak centers with this common light shift removed are
+
+\begin{align}
+\delta_{+}^{(0)} &= \delta_{+}^{\mathrm{meas}}-\delta_{\mathrm{AC}}, \\
+\delta_{-}^{(0)} &= \delta_{-}^{\mathrm{meas}}-\delta_{\mathrm{AC}}.
+\end{align}
+
+For the central co-propagating Raman resonance, the effective wave vector is approximated as
+$k_{\mathrm{eff,co}}\simeq 0$. Its Doppler and recoil terms are therefore neglected in this quick
+model, giving
+
+\begin{equation}
+\delta_{\mathrm{co}}^{\mathrm{meas}}=\delta_{\mathrm{AC}},
+\qquad
+\delta_{\mathrm{co}}^{(0)}=0.
+\end{equation}
+
+Their corrected mean provides an immediate consistency check:
+
+\begin{equation}
+\frac{\delta_{+}^{(0)}+\delta_{-}^{(0)}}{2}=s_{\mathrm{tr}}\omega_r.
+\end{equation}
+
+These equations may be used with angular frequencies or ordinary frequencies as long as every
+term uses the same convention. The GUI accepts and reports ordinary-frequency values in kHz, so
+its signed recoil center is $s_{\mathrm{tr}}f_r$.
+
+This feature intentionally neglects Zeeman shifts and frequency-reference or scan-zero offsets.
+It also assumes that the two counter-propagating peaks have the same differential light shift.
+Any neglected common offset is therefore absorbed into the reported $\delta_{\mathrm{AC}}$. For a
+meaningful correction, both input peaks must correspond to the same $m_F$ transition and must be
+recorded with the same Raman pulse, powers, polarization, and retro-reflection configuration.
+
 \subsection{Velocity Inversion}
 
 When the user selects the \texttt{Detuning -> vx} mode, the application keeps the original branch
@@ -363,7 +424,8 @@ detuning workflows remain available in a single application.
   \item \texttt{Simulation}: Raman transition probability, atom-cloud expansion, presets, locked
   overlays, and interactive plotting.
   \item \texttt{Detuning}: Raman detuning forward calculation, inverse $v_x$ recovery, and
-  calibration of $\alpha$ and $v_x$ from scan results.
+  calibration of $\alpha$ and $v_x$ from scan results, together with the measured-pair
+  differential light-shift correction.
 \end{itemize}
 
 \subsection{Preset Library}
@@ -472,6 +534,9 @@ Recoil frequency & kHz & Two-photon recoil-frequency term converted internally t
 Mode selector & --- & Switches between \texttt{vx -> Detuning} and \texttt{Detuning -> vx}. \\
 Input field & mm/s or kHz & Accepts either $v_x$ or a signed detuning, depending on the selected mode. \\
 Motion direction & --- & Specifies \texttt{flying up} or \texttt{falling down} for inverse calculations. \\
+Measured $\delta_+$ center & kHz & Fitted center of the $+k_{\mathrm{eff}}$ counter-propagating Raman peak. \\
+Measured $\delta_-$ center & kHz & Fitted center of the $-k_{\mathrm{eff}}$ counter-propagating Raman peak. \\
+Light-shift transition & --- & Selects the sign of the recoil center used in the correction. \\
 Transition direction & --- & Specifies \texttt{F1→F2} or \texttt{F2→F1}. \\
 Calibration flying-up detuning & kHz & Signed result extracted from the flying-up scan. \\
 Calibration falling-down detuning & kHz & Signed result extracted from the falling-down scan. \\
@@ -563,11 +628,21 @@ parameter sets are computed. When multiple simulations are displayed simultaneou
 
 \subsection{Detuning-page Outputs}
 
-The \texttt{Detuning} page provides three text-based result areas:
+The \texttt{Detuning} page provides four text-based result areas:
 
 \begin{itemize}
   \item \texttt{Calculator Result}: reports either the four detuning branches or the recovered
   $v_x$ and the internally selected branch,
+  \item \texttt{Light-shift Result}: reports the measured pair mean, signed recoil center,
+  extracted differential light shift, half-splitting Doppler term, and both peak centers after
+  removal of the common light shift, together with the predicted measured and corrected centers
+  of the central co-propagating resonance. These quantities use Matplotlib mathematical typesetting
+  rather than platform-dependent Unicode subscript and superscript glyphs. The same tab plots a
+  normalized three-peak spectrum containing the two counter-propagating resonances and the central
+  co-propagating resonance, together with its light-shift-corrected counterpart; the peak centers are calculated exactly, while the
+  displayed linewidth and amplitude are schematic rather than a fit to raw samples. The plot
+  supports coordinate hover, mouse-wheel zoom, toolbar pan and box zoom, Home reset, and figure
+  export. A draggable divider reallocates space between the numerical summary and plot,
   \item \texttt{Calibration Result}: reports the reconstructed $\alpha$, reconstructed $v_x$, and
   the sign branch identified for both the flying-up and falling-down scan inputs,
   \item \texttt{Detuning Notes}: summarizes the model scope and the meaning of the sign

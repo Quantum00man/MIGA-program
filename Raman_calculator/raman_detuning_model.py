@@ -66,6 +66,20 @@ class CalibrationResult:
     falling_down_case: str
 
 
+@dataclass(slots=True)
+class LightShiftCorrectionResult:
+    measured_delta_plus_khz: float
+    measured_delta_minus_khz: float
+    measured_center_khz: float
+    signed_recoil_center_khz: float
+    light_shift_khz: float
+    doppler_term_khz: float
+    corrected_delta_plus_khz: float
+    corrected_delta_minus_khz: float
+    measured_coprop_center_khz: float
+    corrected_coprop_center_khz: float
+
+
 def transition_sign(trans_case: str) -> int:
     if trans_case == TRANSITION_F1_TO_F2:
         return 1
@@ -79,6 +93,57 @@ def detuning_case_label(up_or_down: str, detuning_khz: float) -> str:
     if up_or_down not in {FLYING_UP, FALLING_DOWN}:
         raise ValueError("Mode must be 'flying up' or 'falling down'.")
     return f"{up_or_down}, {sign_label}"
+
+
+def compute_light_shift_correction(
+    measured_delta_plus_khz: float,
+    measured_delta_minus_khz: float,
+    trans_case: str,
+    constants: DetuningConstants | None = None,
+) -> LightShiftCorrectionResult:
+    """Extract a common light shift from a counter-propagating Raman peak pair.
+
+    The two measured centers are modeled as
+
+        delta_plus  = +D + s_tr * recoil + light_shift
+        delta_minus = -D + s_tr * recoil + light_shift
+
+    where D is the signed Doppler term. Zeeman shifts and frequency-reference
+    offsets are intentionally excluded from this correction model. For the co-pro
+    resonance, k_eff, Doppler, and recoil are approximated as zero, so its measured
+    center equals the extracted light shift and its corrected center is zero.
+    """
+    constants = constants or DetuningConstants()
+    constants.validate()
+
+    if not math.isfinite(measured_delta_plus_khz) or not math.isfinite(
+        measured_delta_minus_khz
+    ):
+        raise ValueError("Measured delta+ and delta- must be finite numbers.")
+
+    signed_recoil_center_khz = (
+        transition_sign(trans_case) * constants.recoil_frequency_khz
+    )
+    measured_center_khz = 0.5 * (
+        measured_delta_plus_khz + measured_delta_minus_khz
+    )
+    doppler_term_khz = 0.5 * (
+        measured_delta_plus_khz - measured_delta_minus_khz
+    )
+    light_shift_khz = measured_center_khz - signed_recoil_center_khz
+
+    return LightShiftCorrectionResult(
+        measured_delta_plus_khz=measured_delta_plus_khz,
+        measured_delta_minus_khz=measured_delta_minus_khz,
+        measured_center_khz=measured_center_khz,
+        signed_recoil_center_khz=signed_recoil_center_khz,
+        light_shift_khz=light_shift_khz,
+        doppler_term_khz=doppler_term_khz,
+        corrected_delta_plus_khz=measured_delta_plus_khz - light_shift_khz,
+        corrected_delta_minus_khz=measured_delta_minus_khz - light_shift_khz,
+        measured_coprop_center_khz=light_shift_khz,
+        corrected_coprop_center_khz=0.0,
+    )
 
 
 def compute_detuning_khz(

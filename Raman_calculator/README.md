@@ -12,6 +12,8 @@ The desktop GUI computes:
 2. The atom-cloud transverse root-mean-square size `sigma_r(T)` from `T = 0` to the selected free-expansion time
 3. Raman detuning branches or transverse velocity using the original detuning Python logic
 4. A detuning-based calibration of `alpha` and `vx` from flying-up and falling-down scan results
+5. A quick differential light-shift correction from measured counter-propagating
+   `delta+` and `delta-` Raman peak centers
 
 The application preserves the structure of the original Mathematica model:
 
@@ -27,7 +29,7 @@ The application preserves the structure of the original Mathematica model:
 - `Raman deturning/Raman_deturning_4.0.py`: original standalone Raman detuning calculator retained for reference
 - `Raman deturning/Raman_transition_deturning_4.0.pdf`: original detuning documentation retained for reference
 - `raman_model.py`: translated physics model and numerical solver
-- `raman_detuning_model.py`: integrated Raman detuning and calibration model
+- `raman_detuning_model.py`: integrated Raman detuning, calibration, and light-shift correction model
 - `app.py`: Tkinter + Matplotlib desktop interface
 - `presets.json`: local preset store created or updated when presets are saved from the GUI
 - `tests/test_raman_model.py`: smoke tests for the translated model
@@ -144,7 +146,10 @@ python3 app.py
 The application now has two top-level pages:
 
 - `Simulation`: Raman transition probability, cloud expansion, presets, and locked-curve comparison
-- `Detuning`: Raman detuning calculator, velocity inversion, and calibration of `alpha` and `vx`
+- `Detuning`: Raman detuning calculator, velocity inversion, calibration of `alpha` and
+  `vx`, plus a light-shift correction panel that extracts a common differential shift
+  from measured counter-propagating `delta+` / `delta-` peak centers and reports both
+  centers after removing it (neglecting Zeeman and frequency-reference offsets)
 
 ## Built-in presets
 
@@ -237,6 +242,64 @@ The `Detuning` page preserves the logic of the original `Raman_deturning_4.0.py`
 - `alpha (deg)`: beam angle relative to the `z` axis
 - `Laser wavelength (nm)`: used to construct `k` and `keff`
 - `Recoil frequency (kHz)`: two-photon recoil term
+
+### Light-shift correction workflow
+
+The `Light-shift Correction` panel accepts the two fitted counter-propagating Raman
+peak centers measured with the current `P1` / `P2` configuration:
+
+- `Measured delta+ center (kHz)`: the `+keff` peak center
+- `Measured delta- center (kHz)`: the `-keff` peak center
+- `Transition`: `F1→F2` or `F2→F1`, which selects the recoil sign
+
+The quick correction assumes that both peaks experience the same differential light
+shift. In consistent frequency units, the measured pair is modeled as
+
+```text
+delta+ = +D + signed_recoil + delta_AC
+delta- = -D + signed_recoil + delta_AC
+```
+
+The application calculates
+
+```text
+measured_pair_mean = (delta+ + delta-) / 2
+doppler_term       = (delta+ - delta-) / 2
+delta_AC           = measured_pair_mean - signed_recoil
+corrected_delta+   = delta+ - delta_AC
+corrected_delta-   = delta- - delta_AC
+measured_co-pro    = delta_AC
+corrected_co-pro   = 0 kHz
+```
+
+After correction, the mean of the two reported peak centers is exactly the signed
+recoil center: `+recoil_frequency` for `F1→F2` and `-recoil_frequency` for
+`F2→F1` under the calculator's existing sign convention.
+
+For the central co-propagating resonance, the calculator uses the approximation
+`k_eff,co ≈ 0`, so its Doppler and recoil terms are neglected. Its measured center is
+therefore predicted at `delta_AC`, while removal of the differential AC Stark shift
+returns the center to `0 kHz`.
+
+This is deliberately a fast experimental correction. It neglects Zeeman shifts and
+frequency-reference/scan-zero offsets. Consequently, any such common offset present
+in the measured pair will be interpreted as light shift. The two entered peaks must
+belong to the same `mF` transition and be measured with the same Raman pulse and
+`P1` / `P2` configuration.
+
+The result tab presents the measured quantities, extracted terms, and corrected
+centers with Matplotlib-rendered mathematical notation, avoiding platform-dependent
+Unicode subscript and superscript glyphs. A normalized spectrum compares the measured
+three-peak spectrum (two counter-pro peaks plus the central co-pro peak) with its
+light-shift-corrected counterpart. The plotted
+centers are the calculated values; the displayed linewidth and amplitude are schematic
+and are not a fit to raw experimental samples.
+
+The spectrum is interactive: hover for coordinates, use the mouse wheel to zoom around
+the cursor, drag after selecting the toolbar pan tool, use rectangular zoom, return to
+the full view with Home, and save the current figure from the Matplotlib toolbar. The
+divider between the quantitative summary and spectrum can also be dragged to allocate
+more space to either panel.
 
 ### Calibration workflow
 
