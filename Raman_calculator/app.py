@@ -175,7 +175,21 @@ class ScrollableFrame(ttk.Frame):
             highlightthickness=0,
             background=APP_BACKGROUND,
         )
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        # Use a deliberately visible scrollbar instead of the platform ttk default.
+        # Some desktop themes render the ttk thumb so narrowly that it is effectively
+        # invisible, especially on a compact display.
+        scrollbar = tk.Scrollbar(
+            self,
+            orient="vertical",
+            command=canvas.yview,
+            width=16,
+            borderwidth=0,
+            highlightthickness=0,
+            relief="flat",
+            background=ACCENT,
+            activebackground="#0a4c73",
+            troughcolor=ACCENT_SOFT,
+        )
         self.inner = ttk.Frame(canvas, style="App.TFrame")
 
         self.inner.bind(
@@ -191,28 +205,51 @@ class ScrollableFrame(ttk.Frame):
         )
 
         canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        scrollbar.pack(side="right", fill="y", padx=(8, 0))
 
         self._canvas = canvas
+        self._scrollbar = scrollbar
         self._bind_mousewheel(canvas)
 
     def _bind_mousewheel(self, canvas: tk.Canvas) -> None:
         def on_mousewheel(event: tk.Event[tk.Misc]) -> None:
+            if not self._contains_pointer(event):
+                return
             delta = int(-event.delta / 120) if event.delta else 0
             if delta:
                 canvas.yview_scroll(delta, "units")
 
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        def on_linux_mousewheel(event: tk.Event[tk.Misc]) -> None:
+            if not self._contains_pointer(event):
+                return
+            canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
+
+        # Bind globally so scrolling also works while the pointer is over an Entry,
+        # Label, or Combobox inside the canvas. The pointer check ensures that only
+        # the scrollable panel currently under the mouse handles the event.
+        canvas.bind_all("<MouseWheel>", on_mousewheel, add="+")
+        canvas.bind_all("<Button-4>", on_linux_mousewheel, add="+")
+        canvas.bind_all("<Button-5>", on_linux_mousewheel, add="+")
+
+    def _contains_pointer(self, event: tk.Event[tk.Misc]) -> bool:
+        widget = self.winfo_containing(event.x_root, event.y_root)
+        while widget is not None:
+            if widget is self:
+                return True
+            widget = widget.master
+        return False
 
 
 class RamanCalculatorApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Raman Transition Calculator")
-        window_width = min(1440, max(1200, self.root.winfo_screenwidth() - 40))
-        window_height = min(920, max(820, self.root.winfo_screenheight() - 80))
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        window_width = max(640, min(1440, screen_width - 40))
+        window_height = max(480, min(920, screen_height - 80))
         self.root.geometry(f"{window_width}x{window_height}")
-        self.root.minsize(1200, 820)
+        self.root.minsize(min(960, window_width), min(640, window_height))
         self.root.configure(background=APP_BACKGROUND)
 
         self._configure_style()
