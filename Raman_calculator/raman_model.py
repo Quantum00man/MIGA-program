@@ -18,6 +18,10 @@ FINE_STRUCTURE_SPLITTING_MHZ = 157.0
 NATURAL_LINEWIDTH_MHZ = 6.065
 EFFECTIVE_WAVENUMBER_M_INV = 4.0 * PI / RAMAN_WAVELENGTH_M
 
+RAMAN_TRANSITION = "Raman"
+BRAGG_TRANSITION = "Bragg"
+TRANSITION_KINDS = {RAMAN_TRANSITION, BRAGG_TRANSITION}
+
 DEFAULT_P1_MW = 14.0
 DEFAULT_P2_MW = DEFAULT_P1_MW / 2.6
 DEFAULT_DESACC_MHZ = -1000.0
@@ -43,6 +47,7 @@ DEFAULT_TEMPERATURE_UK = (
 
 @dataclass(slots=True)
 class RamanSimulationParameters:
+    transition_kind: str = RAMAN_TRANSITION
     transverse_temperature_uK: float = DEFAULT_TEMPERATURE_UK
     use_separate_longitudinal_temperature: bool = False
     longitudinal_temperature_uK: float = DEFAULT_TEMPERATURE_UK
@@ -134,6 +139,8 @@ class RamanSimulationParameters:
         )
 
     def validate(self) -> None:
+        if self.transition_kind not in TRANSITION_KINDS:
+            raise ValueError("Transition kind must be Raman or Bragg.")
         if self.transverse_temperature_uK <= 0.0:
             raise ValueError("Transverse atomic temperature must be positive.")
         if self.longitudinal_temperature_uK <= 0.0:
@@ -178,6 +185,8 @@ class RamanSimulationResult:
     cloud_radius_mm: np.ndarray
     on_axis_rabi_khz: float
     pi_pulse_time_us: float
+    ensemble_optimal_pulse_time_us: float
+    ensemble_optimal_probability: float
     longitudinal_sigma_mm_s: float
     transverse_sigma_mm_s: float
     expansion_cloud_sigma_mm: float
@@ -209,6 +218,35 @@ def effective_raman_rabi_frequency(
     return np.abs(omega)
 
 
+def effective_bragg_rabi_frequency(
+    radius_m: np.ndarray, params: RamanSimulationParameters
+) -> np.ndarray:
+    """Effective Bragg coupling translated from the supplied Mathematica model."""
+    intensity_1 = gaussian_intensity(params.p1_w, radius_m, params.w0_m)
+    intensity_2 = gaussian_intensity(params.p2_w, radius_m, params.w0_m)
+    coupling_term = (
+        5.0 / (24.0 * params.desacc_rad_s)
+        + 3.0 / (24.0 * (params.desacc_rad_s + params.delta2_rad_s))
+    ) / 2.0
+    omega = (
+        params.gamma_rad_s**2
+        / params.attenuation
+        * params.gain
+        * np.sqrt(intensity_1 * intensity_2)
+        / (2.0 * SATURATION_INTENSITY_W_M2)
+        * coupling_term
+    )
+    return np.abs(omega)
+
+
+def effective_rabi_frequency(
+    radius_m: np.ndarray, params: RamanSimulationParameters
+) -> np.ndarray:
+    if params.transition_kind == BRAGG_TRANSITION:
+        return effective_bragg_rabi_frequency(radius_m, params)
+    return effective_raman_rabi_frequency(radius_m, params)
+
+
 def longitudinal_velocity_pdf(velocity_m_s: np.ndarray, sigma_m_s: float) -> np.ndarray:
     return np.exp(-0.5 * (velocity_m_s / sigma_m_s) ** 2) / (
         math.sqrt(2.0 * PI) * sigma_m_s
@@ -229,6 +267,38 @@ def choose_display_time_axis(time_s: np.ndarray) -> tuple[np.ndarray, str]:
     if maximum_time_s >= 1e-6:
         return time_s * 1e6, "us"
     return time_s * 1e9, "ns"
+
+
+def first_peak_with_quadratic_refinement(
+    x: np.ndarray, y: np.ndarray
+) -> tuple[float, float]:
+    """Return the first interior local maximum, refined with a parabola.
+
+    If the scan contains no interior maximum, return NaN values rather than
+    labeling a scan boundary as an ensemble-optimal pi pulse.
+    """
+    if x.size < 3 or y.size != x.size:
+        return math.nan, math.nan
+
+    peak_indices = np.flatnonzero(
+        (y[1:-1] > y[:-2]) & (y[1:-1] >= y[2:])
+    )
+    if peak_indices.size == 0:
+        return math.nan, math.nan
+
+    index = int(peak_indices[0] + 1)
+    x_triplet = x[index - 1 : index + 2]
+    y_triplet = y[index - 1 : index + 2]
+    coefficients = np.polyfit(x_triplet, y_triplet, 2)
+    curvature, slope, offset = coefficients
+    if curvature >= 0.0 or not np.all(np.isfinite(coefficients)):
+        return float(x[index]), float(y[index])
+
+    refined_x = float(-slope / (2.0 * curvature))
+    if refined_x < float(x_triplet[0]) or refined_x > float(x_triplet[-1]):
+        return float(x[index]), float(y[index])
+    refined_y = float(curvature * refined_x**2 + slope * refined_x + offset)
+    return refined_x, float(np.clip(refined_y, 0.0, 1.0))
 
 
 def simulate_rabi_oscillation(
@@ -257,7 +327,7 @@ def simulate_rabi_oscillation(
         velocity_grid, params.longitudinal_velocity_sigma_m_s
     )
 
-    omega_r = effective_raman_rabi_frequency(radius_grid[:, None], params)
+    omega_r = effective_rabi_frequency(radius_grid[:, None], params)
     detuning = (
         velocity_grid[None, :] * EFFECTIVE_WAVENUMBER_M_INV
         - params.two_photon_detuning_rad_s
@@ -285,8 +355,11 @@ def simulate_rabi_oscillation(
         )
 
     transition_probability = np.clip(transition_probability, 0.0, 1.0)
+    ensemble_optimal_time_us, ensemble_optimal_probability = (
+        first_peak_with_quadratic_refinement(tau_us, transition_probability)
+    )
 
-    omega_zero = float(effective_raman_rabi_frequency(np.array([0.0]), params)[0])
+    omega_zero = float(effective_rabi_frequency(np.array([0.0]), params)[0])
     if omega_zero > 0.0:
         pi_pulse_time_us = PI / omega_zero * 1e6
     else:
@@ -301,6 +374,8 @@ def simulate_rabi_oscillation(
         cloud_radius_mm=cloud_radius_mm,
         on_axis_rabi_khz=omega_zero / (2.0 * PI * 1e3),
         pi_pulse_time_us=pi_pulse_time_us,
+        ensemble_optimal_pulse_time_us=ensemble_optimal_time_us,
+        ensemble_optimal_probability=ensemble_optimal_probability,
         longitudinal_sigma_mm_s=params.longitudinal_velocity_sigma_m_s * 1e3,
         transverse_sigma_mm_s=params.transverse_velocity_sigma_m_s * 1e3,
         expansion_cloud_sigma_mm=expansion_cloud_sigma_m * 1e3,
