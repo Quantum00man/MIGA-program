@@ -14,6 +14,7 @@ let refreshTimer = null;
 let websocketHeartbeat = null;
 let refreshDebounce = null;
 let lastOverviewAt = 0;
+const dirtyEdfaDevices = new Set();
 const dirtyPsuDevices = new Set();
 
 function showMessage(message, level = "success") {
@@ -382,6 +383,9 @@ function weekdayCheckboxGroup(selectedDays, rolePrefix) {
 
 function renderEdfaDevices(devices) {
     const container = document.getElementById("edfa-device-list");
+    if (dirtyEdfaDevices.size > 0 && container.children.length > 0) {
+        return;
+    }
     if (!devices.length) {
         container.innerHTML = '<div class="empty-state">No EDFA systems are configured yet.</div>';
         return;
@@ -470,6 +474,10 @@ function renderEdfaDevices(devices) {
                             <label><span>Auto-OFF</span><input type="text" data-field="schedule-off-time" value="${escapeHtml(device.schedule.off_time || "")}" placeholder="18:00"></label>
                         </div>
                         <div class="weekday-row">${weekdayCheckboxGroup(scheduleDays, `edfa-weekday-${device.id}`)}</div>
+                        <div class="schedule-apply-row">
+                            <span class="panel-note">Schedule changes take effect after they are applied.</span>
+                            <button class="action-button" data-action="edfa-save-schedule" data-device-id="${device.id}">Apply Schedule</button>
+                        </div>
                     </div>
 
                     <div class="device-card-section">
@@ -952,7 +960,12 @@ async function handleClick(event) {
             showMessage(`${channelKey} relock started.`);
         } else if (action === "edfa-save") {
             await fetchJson(`/api/edfa/devices/${deviceId}`, { method: "PUT", body: readEdfaCardPayload(card) });
+            dirtyEdfaDevices.delete(deviceId);
             showMessage("EDFA configuration saved.");
+        } else if (action === "edfa-save-schedule") {
+            await fetchJson(`/api/edfa/devices/${deviceId}`, { method: "PUT", body: readEdfaCardPayload(card) });
+            dirtyEdfaDevices.delete(deviceId);
+            showMessage("EDFA schedule applied.");
         } else if (action === "edfa-probe") {
             await fetchJson(`/api/edfa/devices/${deviceId}/probe`, { method: "POST" });
             showMessage("EDFA probe completed.");
@@ -1025,14 +1038,18 @@ function bindFormsAndButtons() {
         handleClick(event).catch((error) => showMessage(error.message, "error"));
     });
     document.body.addEventListener("input", (event) => {
-        const card = event.target.closest('.device-card[data-device-type="psu"]');
-        if (card) {
+        const card = event.target.closest(".device-card");
+        if (card?.dataset.deviceType === "edfa") {
+            dirtyEdfaDevices.add(card.dataset.deviceId);
+        } else if (card?.dataset.deviceType === "psu") {
             dirtyPsuDevices.add(card.dataset.deviceId);
         }
     });
     document.body.addEventListener("change", (event) => {
-        const card = event.target.closest('.device-card[data-device-type="psu"]');
-        if (card) {
+        const card = event.target.closest(".device-card");
+        if (card?.dataset.deviceType === "edfa") {
+            dirtyEdfaDevices.add(card.dataset.deviceId);
+        } else if (card?.dataset.deviceType === "psu") {
             dirtyPsuDevices.add(card.dataset.deviceId);
         }
     });
