@@ -1,6 +1,6 @@
-# Raman Transition Calculator
+# Raman and Bragg Transition Calculator
 
-This project converts the original Mathematica script `Raman.txt` into a Python application for simulating Raman-driven Rabi oscillations in an atomic interferometer and tracking the atom-cloud size over the selected free-expansion interval.
+This project converts the Mathematica transition models into a Python application for simulating Raman- and Bragg-driven Rabi oscillations in an atomic interferometer and tracking the atom-cloud size over the selected free-expansion interval.
 
 The interface is written in English and is designed for experimental use: clear units, explicit parameter meanings, a direct translation of the original model, and immediate access to both the Raman simulation page and the Raman detuning page.
 
@@ -10,9 +10,10 @@ The desktop GUI computes:
 
 1. The Raman transition probability as a function of pulse duration `tau`
 2. The atom-cloud transverse root-mean-square size `sigma_r(T)` from `T = 0` to the selected free-expansion time
-3. Raman detuning branches or transverse velocity using the original detuning Python logic
-4. A detuning-based calibration of `alpha` and `vx` from flying-up and falling-down scan results
-5. A quick differential light-shift correction from measured counter-propagating
+3. Bragg transition probabilities using the supplied effective-coupling expression and the same thermal-cloud integration controls
+4. Raman detuning branches or transverse velocity using the original detuning Python logic
+5. A detuning-based calibration of `alpha` and `vx` from flying-up and falling-down scan results
+6. A quick differential light-shift correction from measured counter-propagating
    `delta+` and `delta-` Raman peak centers
 
 The application preserves the structure of the original Mathematica model:
@@ -53,6 +54,11 @@ The Python translation preserves the default numerical values from the original 
 | `T` in `Ptrans[T, tau, d, w0, attn]` | `56 ms` |
 | `attn` | `1` |
 | `G` | `1` |
+
+The bundled `Bragg` preset uses `P1 = P2 = 60 mW`, `w0 = 12 mm`,
+`T = 430 ms`, `desacc / 2pi = -1200 MHz`, `tau = 0–150 us`, and `G = 1`.
+It reuses the Raman temperature inputs, initial cloud size, thermal expansion,
+two-photon detuning, and numerical integration controls.
 
 ### Temperature defaults
 
@@ -145,7 +151,7 @@ python3 app.py
 
 The application now has two top-level pages:
 
-- `Simulation`: Raman transition probability, cloud expansion, presets, and locked-curve comparison
+- `Simulation`: Raman/Bragg transition probability, cloud expansion, presets, and locked-curve comparison
 - `Detuning`: Raman detuning calculator, velocity inversion, calibration of `alpha` and
   `vx`, plus a light-shift correction panel that extracts a common differential shift
   from measured counter-propagating `delta+` / `delta-` peak centers and reports both
@@ -161,6 +167,7 @@ The GUI now includes bundled presets that can be applied, edited, and saved loca
 | `Raman Down` | `P1 = 14 mW`, `P2 = 7 mW`, `w0 = 11.5 mm`, `T = 56 ms`, `desacc / 2pi = -1300 MHz` |
 | `Raman Up` | `P1 = 150 mW`, `P2 = 70 mW`, `w0 = 30 mm`, `T = 78 ms` |
 | `Raman Labeling` | `P1 = 150 mW`, `P2 = 70 mW`, `w0 = 30 mm`, `T = 780 ms` |
+| `Bragg` | `P1 = P2 = 60 mW`, `w0 = 12 mm`, `T = 430 ms`, `desacc / 2pi = -1200 MHz`, `tau = 0–150 us`, `G = 1` |
 
 Important note:
 
@@ -172,9 +179,9 @@ Important note:
 
 - `Transverse temperature (uK)`: controls the transverse velocity spread used in cloud expansion and radial averaging
 - `Use a separate longitudinal temperature`: unlocks an independent longitudinal thermal input
-- `Longitudinal temperature (uK)`: controls the longitudinal velocity spread used in the Raman velocity-selection term
-- `Large Raman detuning desacc / 2pi (MHz)`: one-photon detuning
-- `Beam power P1, P2 (mW)`: Raman beam optical powers
+- `Longitudinal temperature (uK)`: controls the longitudinal velocity spread used in the transition probability integral
+- `Large detuning desacc / 2pi (MHz)`: one-photon detuning
+- `Beam power P1, P2 (mW)`: transition-beam optical powers
 - `Beam waist w0 (mm)`: Gaussian waist shared by both beams
 - `tau minimum, tau maximum (us)`: pulse-duration sweep range
 - `Number of tau samples`: plot resolution
@@ -214,6 +221,8 @@ Important note:
 The GUI provides:
 
 - A Rabi-oscillation plot `P(T, tau)` versus `tau`
+- Separate markers for the on-axis theoretical `pi`-pulse time and the first
+  ensemble-averaged probability maximum
 - A cloud-expansion plot `sigma_r(T)` from `0` to the selected expansion time `T`
 - Locked-result overlays and automatic legends when multiple simulations are displayed at once
 - Interactive plot inspection:
@@ -223,8 +232,9 @@ The GUI provides:
 - A derived-values panel listing:
   - velocity spreads
   - peak beam intensities
-  - on-axis Raman Rabi frequency
-  - estimated `pi`-pulse duration
+  - on-axis Raman or Bragg Rabi frequency
+  - on-axis theoretical and ensemble-optimal `pi`-pulse durations
+  - transition probability at the ensemble optimum
   - numerical integration settings
 
 ## Detuning page

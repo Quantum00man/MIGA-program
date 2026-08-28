@@ -15,6 +15,7 @@ from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import MaxNLocator
 
 from raman_model import (
+    BRAGG_TRANSITION,
     DEFAULT_ATTENUATION,
     DEFAULT_DESACC_MHZ,
     DEFAULT_EXPANSION_TIME_MS,
@@ -32,6 +33,7 @@ from raman_model import (
     DEFAULT_VELOCITY_CUTOFF_SIGMA,
     DEFAULT_VELOCITY_POINTS,
     DEFAULT_W0_MM,
+    RAMAN_TRANSITION,
     RamanSimulationParameters,
     RamanSimulationResult,
     choose_display_time_axis,
@@ -83,8 +85,10 @@ MOTION_CHOICES = [FLYING_UP, FALLING_DOWN]
 PRESET_FILE = Path(__file__).with_name("presets.json")
 BOOLEAN_FIELDS = {"use_separate_longitudinal_temperature"}
 INTEGER_FIELDS = {"tau_points", "radial_points", "velocity_points"}
+STRING_FIELDS = {"transition_kind"}
 
 DEFAULT_FIELD_VALUES: dict[str, object] = {
+    "transition_kind": RAMAN_TRANSITION,
     "transverse_temperature_uK": DEFAULT_TEMPERATURE_UK,
     "use_separate_longitudinal_temperature": False,
     "longitudinal_temperature_uK": DEFAULT_TEMPERATURE_UK,
@@ -127,6 +131,17 @@ BUNDLED_PRESETS: dict[str, dict[str, object]] = {
         "w0_mm": 30.0,
         "expansion_time_ms": 780.0,
     },
+    "Bragg": {
+        "transition_kind": BRAGG_TRANSITION,
+        "p1_mw": 60.0,
+        "p2_mw": 60.0,
+        "w0_mm": 12.0,
+        "expansion_time_ms": 430.0,
+        "desacc_mhz": -1200.0,
+        "tau_min_us": 0.0,
+        "tau_max_us": 150.0,
+        "gain": 1.0,
+    },
 }
 
 BUNDLED_PRESET_NOTES: dict[str, str] = {
@@ -144,6 +159,12 @@ BUNDLED_PRESET_NOTES: dict[str, str] = {
     "Raman Labeling": (
         "Preset for Raman labeling: P1 = 150 mW, P2 = 70 mW, w0 = 30 mm, "
         "T = 780 ms, all other values inherited from the default set."
+    ),
+    "Bragg": (
+        "Bragg transition translated from the supplied Mathematica model: "
+        "P1 = P2 = 60 mW, w0 = 12 mm, T = 430 ms, "
+        "desacc / 2pi = -1200 MHz, and G = 1. Temperature and cloud-size "
+        "inputs use the same thermal model as Raman."
     ),
 }
 
@@ -243,7 +264,7 @@ class ScrollableFrame(ttk.Frame):
 class RamanCalculatorApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Raman Transition Calculator")
+        self.root.title("Raman and Bragg Transition Calculator")
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         window_width = max(640, min(1440, screen_width - 40))
@@ -255,6 +276,7 @@ class RamanCalculatorApp:
         self._configure_style()
 
         self.variables: dict[str, tk.Variable] = {}
+        self.variables["transition_kind"] = tk.StringVar(value=RAMAN_TRANSITION)
         self.field_entries: dict[str, ttk.Entry] = {}
         self.last_result: RamanSimulationResult | None = None
         self.last_params: RamanSimulationParameters | None = None
@@ -449,14 +471,14 @@ class RamanCalculatorApp:
         title_block.grid(row=0, column=0, sticky="w")
         ttk.Label(
             title_block,
-            text="Raman Transition Calculator",
+            text="Raman and Bragg Transition Calculator",
             style="Title.TLabel",
         ).pack(anchor="w")
         ttk.Label(
             title_block,
             text=(
-                "Python translation of Raman.txt with an experimental interface for "
-                "Rabi-oscillation prediction and atom-cloud expansion tracking."
+                "Raman and Bragg Rabi-oscillation prediction with shared thermal-cloud "
+                "and atom-cloud expansion modeling."
             ),
             style="Subtitle.TLabel",
             wraplength=720,
@@ -1605,7 +1627,7 @@ class RamanCalculatorApp:
             unit="uK",
             description=(
                 "Temperature associated with the transverse velocity spread sigma_v,T. "
-                "This quantity drives the cloud expansion and the radial convolution with the Raman beams."
+                "This quantity drives the cloud expansion and the radial convolution with the transition beams."
             ),
         )
         self._add_boolean_field(
@@ -1630,7 +1652,7 @@ class RamanCalculatorApp:
         self._add_numeric_field(
             section,
             key="desacc_mhz",
-            label="Large Raman detuning desacc / 2pi",
+            label="Large detuning desacc / 2pi",
             unit="MHz",
             description=(
                 "Single-photon detuning measured from the excited-state manifold. "
@@ -1642,14 +1664,14 @@ class RamanCalculatorApp:
             key="p1_mw",
             label="Beam power P1",
             unit="mW",
-            description="Optical power of Raman beam P1 entering the Gaussian intensity model.",
+            description="Optical power of beam P1 entering the Gaussian intensity model.",
         )
         self._add_numeric_field(
             section,
             key="p2_mw",
             label="Beam power P2",
             unit="mW",
-            description="Optical power of Raman beam P2 entering the Gaussian intensity model.",
+            description="Optical power of beam P2 entering the Gaussian intensity model.",
         )
         self._add_numeric_field(
             section,
@@ -1657,7 +1679,7 @@ class RamanCalculatorApp:
             label="Beam waist w0",
             unit="mm",
             description=(
-                "1/e^2 Gaussian beam radius used for both Raman beams in the translated model."
+                "1/e^2 Gaussian beam radius used for both beams in the translated model."
             ),
         )
         self._add_numeric_field(
@@ -1665,7 +1687,7 @@ class RamanCalculatorApp:
             key="tau_min_us",
             label="tau minimum",
             unit="us",
-            description="Lower bound of the Raman pulse-duration sweep displayed in the Rabi plot.",
+            description="Lower bound of the pulse-duration sweep displayed in the Rabi plot.",
         )
         self._add_numeric_field(
             section,
@@ -1673,7 +1695,7 @@ class RamanCalculatorApp:
             label="tau maximum",
             unit="us",
             description=(
-                "Upper bound of the Raman pulse-duration sweep displayed in the Rabi plot."
+                "Upper bound of the pulse-duration sweep displayed in the Rabi plot."
             ),
         )
         self._add_integer_field(
@@ -1697,10 +1719,10 @@ class RamanCalculatorApp:
         self._add_numeric_field(
             section,
             key="expansion_time_ms",
-            label="Expansion time T before Raman pulse",
+            label="Expansion time T before pulse",
             unit="ms",
             description=(
-                "Free-expansion time used inside the Raman integral, corresponding to T in Ptrans[T, tau, d, w0, attn]."
+                "Free-expansion time used inside the transition integral, corresponding to T in Ptrans[T, tau, d, w0, attn]."
             ),
         )
         self._add_numeric_field(
@@ -1718,7 +1740,7 @@ class RamanCalculatorApp:
             label="Two-photon detuning d / 2pi",
             unit="kHz",
             description=(
-                "Residual Raman detuning used in delta = k_eff * v_L - d. Keep zero to match the original plot."
+                "Residual two-photon detuning used in delta = k_eff * v_L - d. Keep zero to match the original plot."
             ),
         )
         self._add_numeric_field(
@@ -1727,7 +1749,7 @@ class RamanCalculatorApp:
             label="Attenuation factor",
             unit="a.u.",
             description=(
-                "Multiplicative attenuation applied to the effective Raman Rabi frequency as in the Mathematica model."
+                "Multiplicative attenuation applied to the effective Rabi frequency as in the Mathematica model."
             ),
         )
         self._add_numeric_field(
@@ -1952,8 +1974,8 @@ class RamanCalculatorApp:
             (
                 "Model scope\n"
                 "\n"
-                "This application translates the Mathematica script Raman.txt into a "
-                "Python model for two-photon Raman transitions in an atomic interferometer. "
+                "This application translates the supplied Mathematica models into a "
+                "Python model for Raman and Bragg transitions in an atomic interferometer. "
                 "The transition probability follows the same structure as Ptrans[T, tau, d, w0, attn] in the original file.\n"
                 "\n"
                 "Key assumptions\n"
@@ -1972,6 +1994,8 @@ class RamanCalculatorApp:
                 "Omega_R(r, v) = sqrt(Omega_eff(r)^2 + (k_eff v - d)^2)\n"
                 "P(T, tau) = integral integral 2 pi r f(v) h(r, T) "
                 "[Omega_eff / Omega_R * sin(Omega_R tau / 2)]^2 dv dr\n"
+                "The Bragg preset uses the supplied Bragg Omega_eff expression and shares "
+                "the temperature, cloud expansion, detuning, and pulse-sweep controls with Raman.\n"
                 "\n"
                 "Default behavior inherited from Raman.txt\n"
                 "\n"
@@ -2101,6 +2125,13 @@ class RamanCalculatorApp:
 
     def _normalize_field_value(self, key: str, value: object) -> object | None:
         try:
+            if key in STRING_FIELDS:
+                normalized = str(value)
+                return (
+                    normalized
+                    if normalized in {RAMAN_TRANSITION, BRAGG_TRANSITION}
+                    else None
+                )
             if key in BOOLEAN_FIELDS:
                 return bool(value)
             if key in INTEGER_FIELDS:
@@ -2114,6 +2145,8 @@ class RamanCalculatorApp:
             raise ValueError(f"Boolean field {key} should not be formatted as text.")
         if key in INTEGER_FIELDS:
             return str(int(value))
+        if key in STRING_FIELDS:
+            return str(value)
         return f"{float(value):.6f}"
 
     def _apply_field_values(self, values: dict[str, object]) -> None:
@@ -2145,6 +2178,7 @@ class RamanCalculatorApp:
         note = BUNDLED_PRESET_NOTES.get(name, "Custom preset.")
         return (
             f"{self._preset_source_label(name)} {note} "
+            f"Model = {values['transition_kind']}. "
             f"P1 = {float(values['p1_mw']):.3f} mW, "
             f"P2 = {float(values['p2_mw']):.3f} mW, "
             f"w0 = {float(values['w0_mm']):.3f} mm, "
@@ -2175,6 +2209,7 @@ class RamanCalculatorApp:
         params = self._read_parameters()
         params.validate()
         return {
+            "transition_kind": params.transition_kind,
             "transverse_temperature_uK": params.transverse_temperature_uK,
             "use_separate_longitudinal_temperature": (
                 params.use_separate_longitudinal_temperature
@@ -2297,6 +2332,7 @@ class RamanCalculatorApp:
                 f"Temp {self._format_compact_number(params.transverse_temperature_uK)} uK"
             )
         return {
+            "model": params.transition_kind,
             "power": (
                 "P "
                 f"{self._format_compact_number(params.p1_mw)}/"
@@ -2317,7 +2353,9 @@ class RamanCalculatorApp:
         return all(
             (
                 getattr(first, key) == getattr(second, key)
-                if key in BOOLEAN_FIELDS or key in INTEGER_FIELDS
+                if key in BOOLEAN_FIELDS
+                or key in INTEGER_FIELDS
+                or key in STRING_FIELDS
                 else np.isclose(
                     float(getattr(first, key)),
                     float(getattr(second, key)),
@@ -2367,7 +2405,15 @@ class RamanCalculatorApp:
             )
         )
 
-        field_order = ["power", "waist", "time", "detuning", "temperature", "two_photon"]
+        field_order = [
+            "model",
+            "power",
+            "waist",
+            "time",
+            "detuning",
+            "temperature",
+            "two_photon",
+        ]
         formatted_fields = [self._parameter_label_fields(run.params) for run in runs]
         varying_fields = [
             field
@@ -2771,10 +2817,17 @@ class RamanCalculatorApp:
             return
 
         destination = filedialog.asksaveasfilename(
-            title="Export Raman simulation data",
+            title=(
+                "Export "
+                f"{self.last_params.transition_kind if self.last_params else 'transition'} "
+                "simulation data"
+            ),
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-            initialfile="raman_simulation.csv",
+            initialfile=(
+                f"{(self.last_params.transition_kind if self.last_params else 'transition').lower()}"
+                "_simulation.csv"
+            ),
         )
         if not destination:
             return
@@ -2805,6 +2858,7 @@ class RamanCalculatorApp:
 
     def _read_parameters(self) -> RamanSimulationParameters:
         return RamanSimulationParameters(
+            transition_kind=str(self.variables["transition_kind"].get()),
             transverse_temperature_uK=self._as_float("transverse_temperature_uK"),
             use_separate_longitudinal_temperature=self._as_bool(
                 "use_separate_longitudinal_temperature"
@@ -2856,7 +2910,9 @@ class RamanCalculatorApp:
             self.status_var.set("Could not parse the current input fields.")
             return
 
-        self.status_var.set("Running Raman integral and cloud-expansion calculation...")
+        self.status_var.set(
+            f"Running {params.transition_kind} integral and cloud-expansion calculation..."
+        )
         self._set_running_state(True)
 
         worker = threading.Thread(
@@ -2892,7 +2948,7 @@ class RamanCalculatorApp:
         self._update_plots(params, result)
         self._update_derived_text(params, result)
         self.status_var.set(
-            "Simulation complete. Curves and derived quantities have been updated."
+            f"{params.transition_kind} simulation complete. Curves and derived quantities have been updated."
         )
 
     def _set_running_state(self, running: bool) -> None:
@@ -3225,7 +3281,7 @@ class RamanCalculatorApp:
                     zorder=1,
                 )
         self.ax_rabi.set_title(
-            "Raman Rabi Oscillation",
+            f"{params.transition_kind} Rabi Oscillation",
             color=INK,
             fontsize=13,
             fontfamily=PLOT_TITLE_FONT,
@@ -3249,11 +3305,43 @@ class RamanCalculatorApp:
             self.ax_rabi.text(
                 result.pi_pulse_time_us,
                 y_top - 0.04 * (self.ax_rabi.get_ylim()[1] - self.ax_rabi.get_ylim()[0]),
-                "estimated pi pulse",
+                "on-axis theoretical π pulse",
                 rotation=90,
                 va="top",
                 ha="right",
                 color="#59758d",
+                fontsize=9,
+            )
+        if (
+            np.isfinite(result.ensemble_optimal_pulse_time_us)
+            and self.ax_rabi.get_xlim()[0]
+            <= result.ensemble_optimal_pulse_time_us
+            <= self.ax_rabi.get_xlim()[1]
+        ):
+            y_bottom, y_top = self.ax_rabi.get_ylim()
+            self.ax_rabi.axvline(
+                result.ensemble_optimal_pulse_time_us,
+                color="#af5a2a",
+                linestyle=":",
+                linewidth=1.7,
+                alpha=0.95,
+            )
+            self.ax_rabi.plot(
+                result.ensemble_optimal_pulse_time_us,
+                result.ensemble_optimal_probability,
+                marker="o",
+                markersize=5.5,
+                color="#af5a2a",
+                zorder=6,
+            )
+            self.ax_rabi.text(
+                result.ensemble_optimal_pulse_time_us,
+                y_bottom + 0.04 * (y_top - y_bottom),
+                "ensemble-optimal π pulse",
+                rotation=90,
+                va="bottom",
+                ha="left",
+                color="#8d451b",
                 fontsize=9,
             )
         if show_legend:
@@ -3325,9 +3413,21 @@ class RamanCalculatorApp:
     def _update_derived_text(
         self, params: RamanSimulationParameters, result: RamanSimulationResult
     ) -> None:
+        if np.isfinite(result.ensemble_optimal_pulse_time_us):
+            ensemble_time_text = (
+                f"{result.ensemble_optimal_pulse_time_us:,.4f} us"
+            )
+            ensemble_probability_text = (
+                f"{result.ensemble_optimal_probability:,.6f}"
+            )
+        else:
+            ensemble_time_text = "not found within the pulse-duration scan"
+            ensemble_probability_text = "not available"
+
         summary = (
             "Current simulation summary\n"
             "\n"
+            f"Transition model: {params.transition_kind}\n"
             f"Locked reference curves: {len(self.locked_results)}\n"
             f"Transverse temperature: {params.transverse_temperature_uK:,.6f} uK\n"
             f"Separate longitudinal temperature enabled: {params.use_separate_longitudinal_temperature}\n"
@@ -3335,13 +3435,15 @@ class RamanCalculatorApp:
             f"Transverse velocity sigma: {result.transverse_sigma_mm_s:,.4f} mm/s\n"
             f"Longitudinal velocity sigma: {result.longitudinal_sigma_mm_s:,.4f} mm/s\n"
             f"Initial cloud sigma_r(0): {params.initial_cloud_sigma_mm:,.4f} mm\n"
-            f"Cloud sigma_r(T) at the Raman interaction time: {result.expansion_cloud_sigma_mm:,.4f} mm\n"
+            f"Cloud sigma_r(T) at the {params.transition_kind} interaction time: {result.expansion_cloud_sigma_mm:,.4f} mm\n"
             f"Expansion time used in P(T, tau): {params.expansion_time_ms:,.4f} ms\n"
             "\n"
             f"On-axis P1 peak intensity: {result.p1_peak_intensity_w_m2:,.4f} W/m^2\n"
             f"On-axis P2 peak intensity: {result.p2_peak_intensity_w_m2:,.4f} W/m^2\n"
-            f"On-axis effective Raman Rabi frequency Omega_eff(0) / 2pi: {result.on_axis_rabi_khz:,.4f} kHz\n"
-            f"Estimated on-axis pi-pulse time: {result.pi_pulse_time_us:,.4f} us\n"
+            f"On-axis effective {params.transition_kind} Rabi frequency Omega_eff(0) / 2pi: {result.on_axis_rabi_khz:,.4f} kHz\n"
+            f"On-axis theoretical pi-pulse time: {result.pi_pulse_time_us:,.4f} us\n"
+            f"Ensemble-optimal pi-pulse time: {ensemble_time_text}\n"
+            f"Transition probability at ensemble optimum: {ensemble_probability_text}\n"
             "\n"
             f"Large detuning desacc / 2pi: {params.desacc_mhz:,.4f} MHz\n"
             f"Two-photon detuning d / 2pi: {params.two_photon_detuning_khz:,.4f} kHz\n"
