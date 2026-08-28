@@ -10,7 +10,7 @@ DOCS_DIR = BASE_DIR / "docs"
 STATE_FILE_PATH = DATA_DIR / "controller_state.json"
 
 APP_TITLE = "MIGA Hardware Controller"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8050
 

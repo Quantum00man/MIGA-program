@@ -8,6 +8,11 @@ from uuid import uuid4
 import config
 from app.core.scheduler import HardwareScheduler
 from app.core.state_store import StateStore
+from app.drivers.bragg_edfa import (
+    BraggEdfaClient,
+    BraggEdfaCommunicationError,
+    available_ports as available_bragg_ports,
+)
 from app.drivers.edfa import EdfaCommunicationError, probe_device as probe_edfa_device, send_commands
 from app.drivers.laser_lock import (
     LASER_CHANNELS,
@@ -50,6 +55,7 @@ class ControllerManager:
         self._event_log = deque(maxlen=config.MAX_EVENT_LOG)
         self._io_lock = RLock()
         self._psu_clients: dict[str, PsuClient] = {}
+        self._bragg_clients: dict[str, BraggEdfaClient] = {}
         self._laser_sessions = {
             key: LaserLockSession(key, max_output_lines=config.LASER_LOCK_OUTPUT_LINES)
             for key in LASER_CHANNELS
@@ -64,6 +70,9 @@ class ControllerManager:
         for session in self._laser_sessions.values():
             session.stop(send_interrupt=False)
         with self._io_lock:
+            for client in self._bragg_clients.values():
+                client.close()
+            self._bragg_clients.clear()
             for client in self._psu_clients.values():
                 client.close()
             self._psu_clients.clear()
@@ -162,6 +171,11 @@ class ControllerManager:
 
     def _build_edfa_device(self, payload: dict, existing: dict | None = None) -> dict:
         existing = deepcopy(existing or {})
+        device_type = str(payload.get("device_type") or existing.get("device_type") or "network_edfa")
+        if device_type == "bragg_cefa":
+            return self._build_bragg_edfa_device(payload, existing)
+        if device_type != "network_edfa":
+            raise ValueError(f"Unknown EDFA device type {device_type}.")
         name = str(payload.get("name") or existing.get("name") or self.store.next_device_name("edfa")).strip()
         ip = str(payload.get("ip") or existing.get("ip") or "").strip()
         if not ip:
@@ -228,6 +242,7 @@ class ControllerManager:
 
         return {
             "id": str(payload.get("id") or existing.get("id") or uuid4().hex[:8]),
+            "device_type": "network_edfa",
             "name": name,
             "ip": ip,
             "port": port,
@@ -303,6 +318,67 @@ class ControllerManager:
                 "1": str((existing.get("channel_states") or {}).get("1") or "unknown"),
                 "2": str((existing.get("channel_states") or {}).get("2") or "unknown"),
             },
+            "last_action": existing.get("last_action", "No action yet"),
+            "last_error": existing.get("last_error", ""),
+            "last_contact_at": existing.get("last_contact_at", ""),
+        }
+
+    def _build_bragg_edfa_device(self, payload: dict, existing: dict) -> dict:
+        name = str(payload.get("name") or existing.get("name") or "Bragg CEFA EDFA").strip()
+        serial_port = str(payload.get("serial_port") or existing.get("serial_port") or "").strip()
+        timeout_sec = self._coerce_float(
+            payload.get("timeout_sec"),
+            existing.get("timeout_sec", 0.8),
+            "Timeout",
+            minimum=0.1,
+        )
+        setpoint = self._coerce_float(
+            payload.get("apc_setpoint_dbm"),
+            existing.get("apc_setpoint_dbm", 33.0),
+            "APC setpoint",
+            minimum=0.0,
+        )
+        if setpoint > 33.0:
+            raise ValueError("APC setpoint must not exceed 33 dBm.")
+        existing_schedule = existing.get("schedule") if isinstance(existing.get("schedule"), dict) else {}
+        schedule_input = payload.get("schedule") if isinstance(payload.get("schedule"), dict) else {}
+        schedule = {
+            "enabled": bool(schedule_input.get("enabled", existing_schedule.get("enabled", False))),
+            "days": _normalize_days(
+                schedule_input.get("days", existing_schedule.get("days", config.DEFAULT_WEEKDAYS)),
+                config.DEFAULT_WEEKDAYS,
+            ),
+            "on_time": self.normalize_time_text(
+                schedule_input.get("on_time", existing_schedule.get("on_time", "08:00")),
+                allow_blank=True,
+            ),
+            "off_time": self.normalize_time_text(
+                schedule_input.get("off_time", existing_schedule.get("off_time", "18:00")),
+                allow_blank=True,
+            ),
+        }
+        if schedule["enabled"] and not schedule["on_time"] and not schedule["off_time"]:
+            raise ValueError("An enabled Bragg EDFA schedule requires at least one ON or OFF time.")
+        return {
+            "id": str(payload.get("id") or existing.get("id") or uuid4().hex[:8]),
+            "device_type": "bragg_cefa",
+            "name": name or "Bragg CEFA EDFA",
+            "ip": "",
+            "serial_port": serial_port,
+            "port": config.EDFA_DEFAULT_PORT,
+            "timeout_sec": timeout_sec,
+            "command_delay_sec": 0.0,
+            "apc_setpoint_dbm": setpoint,
+            "channels": [],
+            "schedule": schedule,
+            "notes": str(payload.get("notes") or existing.get("notes") or "").strip(),
+            "connected": bool(existing.get("connected", False)),
+            "reachable": existing.get("reachable"),
+            "serial_number": str(existing.get("serial_number") or ""),
+            "input_power": deepcopy(existing.get("input_power") or {}),
+            "output_power": deepcopy(existing.get("output_power") or {}),
+            "output_mode": str(existing.get("output_mode") or ""),
+            "output_state": str(existing.get("output_state") or "UNKNOWN"),
             "last_action": existing.get("last_action", "No action yet"),
             "last_error": existing.get("last_error", ""),
             "last_contact_at": existing.get("last_contact_at", ""),
@@ -438,6 +514,11 @@ class ControllerManager:
         state = self.store.get_state()
         existing = _find_in_collection(state["edfa_devices"], device_id)
         device = self._build_edfa_device({**payload, "id": device_id}, existing=existing)
+        bragg_connection_changed = existing.get("device_type") == "bragg_cefa" and (
+            existing.get("serial_port"), existing.get("timeout_sec")
+        ) != (device.get("serial_port"), device.get("timeout_sec"))
+        if bragg_connection_changed:
+            device["connected"] = False
 
         def mutator(state_mut: dict):
             target = _find_in_collection(state_mut["edfa_devices"], device_id)
@@ -445,17 +526,129 @@ class ControllerManager:
             target.update(device)
 
         self.store.update(mutator)
+        if bragg_connection_changed:
+            self._close_bragg_client(device_id)
         self.publish_event("info", f"Updated EDFA device {device['name']}.", category="edfa", device_id=device_id)
         self.notify_state_changed()
         return device
 
     def delete_edfa_device(self, device_id: str):
+        self._close_bragg_client(device_id)
+
         def mutator(state: dict):
             state["edfa_devices"] = [device for device in state["edfa_devices"] if device.get("id") != device_id]
 
         self.store.update(mutator)
         self.publish_event("warning", f"Removed EDFA device {device_id}.", category="edfa", device_id=device_id)
         self.notify_state_changed()
+
+    def _close_bragg_client(self, device_id: str):
+        with self._io_lock:
+            client = self._bragg_clients.pop(device_id, None)
+            if client:
+                client.close()
+
+    def _get_bragg_client(self, device: dict) -> BraggEdfaClient:
+        if device.get("device_type") != "bragg_cefa":
+            raise ValueError("This action is only available for Bragg/CEFA EDFA devices.")
+        if not device.get("serial_port"):
+            raise ValueError("Select and save a COM port first.")
+        device_id = device["id"]
+        client = self._bragg_clients.get(device_id)
+        if client and (
+            client.port_name != device["serial_port"]
+            or client.timeout_sec != device["timeout_sec"]
+        ):
+            client.close()
+            client = None
+            self._bragg_clients.pop(device_id, None)
+        if client is None:
+            client = BraggEdfaClient(device["serial_port"], device["timeout_sec"])
+            self._bragg_clients[device_id] = client
+        return client
+
+    def list_bragg_edfa_ports(self) -> list[dict]:
+        return available_bragg_ports()
+
+    def connect_bragg_edfa(self, device_id: str):
+        device = _find_in_collection(self.store.get_state()["edfa_devices"], device_id)
+        try:
+            with self._io_lock:
+                client = self._get_bragg_client(device)
+                serial_number = client.connect()
+                readings = client.read_state()
+            self._update_edfa_runtime(
+                device_id,
+                lambda target: target.update({
+                    "connected": True, "reachable": True, "serial_number": serial_number,
+                    **readings, "last_error": "", "last_contact_at": _now_iso(),
+                    "last_action": "Serial connection established and state refreshed",
+                }),
+            )
+            self.publish_event("info", f"{device['name']}: connected on {device['serial_port']} (SN {serial_number}).", category="edfa", device_id=device_id)
+        except BraggEdfaCommunicationError as exc:
+            self._close_bragg_client(device_id)
+            self._update_edfa_runtime(device_id, lambda target: target.update({
+                "connected": False, "reachable": False, "last_error": str(exc),
+                "last_contact_at": _now_iso(), "last_action": "Serial connection failed",
+            }))
+            raise
+
+    def disconnect_bragg_edfa(self, device_id: str):
+        device = _find_in_collection(self.store.get_state()["edfa_devices"], device_id)
+        if device.get("device_type") != "bragg_cefa":
+            raise ValueError("This is not a Bragg/CEFA EDFA device.")
+        self._close_bragg_client(device_id)
+        self._update_edfa_runtime(device_id, lambda target: target.update({
+            "connected": False, "last_action": "Serial connection closed", "last_error": "",
+        }))
+
+    def refresh_bragg_edfa(self, device_id: str):
+        device = _find_in_collection(self.store.get_state()["edfa_devices"], device_id)
+        try:
+            with self._io_lock:
+                client = self._get_bragg_client(device)
+                if not client.connected:
+                    raise BraggEdfaCommunicationError("Connect the Bragg EDFA before refreshing it.")
+                readings = client.read_state()
+            self._update_edfa_runtime(device_id, lambda target: target.update({
+                "connected": True, "reachable": True, **readings, "last_error": "",
+                "last_contact_at": _now_iso(), "last_action": "Power and output state refreshed",
+            }))
+        except BraggEdfaCommunicationError as exc:
+            self._update_edfa_runtime(device_id, lambda target: target.update({
+                "connected": False, "reachable": False, "last_error": str(exc),
+                "last_contact_at": _now_iso(), "last_action": "State refresh failed",
+            }))
+            raise
+
+    def set_bragg_edfa_setpoint(self, device_id: str, value_dbm: float):
+        device = _find_in_collection(self.store.get_state()["edfa_devices"], device_id)
+        with self._io_lock:
+            client = self._get_bragg_client(device)
+            client.set_apc_setpoint(float(value_dbm))
+        self._update_edfa_runtime(device_id, lambda target: target.update({
+            "apc_setpoint_dbm": float(value_dbm), "reachable": True, "last_error": "",
+            "last_contact_at": _now_iso(), "last_action": f"APC setpoint changed to {float(value_dbm):.1f} dBm",
+        }))
+        self.publish_event("warning", f"{device['name']}: APC setpoint changed to {float(value_dbm):.1f} dBm.", category="edfa", device_id=device_id)
+
+    def set_bragg_edfa_output(self, device_id: str, turn_on: bool, source: str = "manual"):
+        device = _find_in_collection(self.store.get_state()["edfa_devices"], device_id)
+        with self._io_lock:
+            client = self._get_bragg_client(device)
+            serial_number = device.get("serial_number", "")
+            if not client.connected:
+                serial_number = client.connect()
+            client.set_output(turn_on)
+            readings = client.read_state()
+        action = "ON in APC mode" if turn_on else "OFF"
+        self._update_edfa_runtime(device_id, lambda target: target.update({
+            "connected": True, "reachable": True, **readings, "last_error": "",
+            "serial_number": serial_number,
+            "last_contact_at": _now_iso(), "last_action": f"Optical output switched {action} ({source})",
+        }))
+        self.publish_event("warning", f"{device['name']}: optical output switched {action} ({source}).", category="edfa", device_id=device_id)
 
     def add_psu_device(self, payload: dict) -> dict:
         device = self._build_psu_device(payload)
@@ -539,6 +732,9 @@ class ControllerManager:
     def probe_edfa_device(self, device_id: str):
         state = self.store.get_state()
         device = _find_in_collection(state["edfa_devices"], device_id)
+        if device.get("device_type") == "bragg_cefa":
+            self.connect_bragg_edfa(device_id)
+            return
         try:
             with self._io_lock:
                 probe_edfa_device(device["ip"], device["port"], device["timeout_sec"])
@@ -582,6 +778,8 @@ class ControllerManager:
     def set_edfa_channel_on(self, device_id: str, channel_key: str, power: str | None = None, source: str = "manual"):
         state = self.store.get_state()
         device = _find_in_collection(state["edfa_devices"], device_id)
+        if device.get("device_type", "network_edfa") != "network_edfa":
+            raise ValueError("Use the confirmed Bragg/CEFA output controls for this device.")
         channel_map = {item["key"]: item for item in device["channels"]}
         if channel_key not in channel_map:
             raise ValueError(f"Unknown EDFA channel {channel_key}.")
@@ -627,6 +825,8 @@ class ControllerManager:
     def set_edfa_channel_off(self, device_id: str, channel_key: str, source: str = "manual"):
         state = self.store.get_state()
         device = _find_in_collection(state["edfa_devices"], device_id)
+        if device.get("device_type", "network_edfa") != "network_edfa":
+            raise ValueError("Use the confirmed Bragg/CEFA output controls for this device.")
         channel_map = {item["key"]: item for item in device["channels"]}
         if channel_key not in channel_map:
             raise ValueError(f"Unknown EDFA channel {channel_key}.")
@@ -685,6 +885,8 @@ class ControllerManager:
     def turn_edfa_device_on(self, device_id: str, source: str = "manual"):
         state = self.store.get_state()
         device = _find_in_collection(state["edfa_devices"], device_id)
+        if device.get("device_type", "network_edfa") != "network_edfa":
+            raise ValueError("Bragg/CEFA output cannot be enabled through network EDFA batch controls.")
         commands = [
             f"driver_edfa_tool ctrl_phdout {channel['key']} {channel['power']}"
             for channel in device["channels"]
@@ -725,6 +927,8 @@ class ControllerManager:
     def turn_edfa_device_off(self, device_id: str, source: str = "manual"):
         state = self.store.get_state()
         device = _find_in_collection(state["edfa_devices"], device_id)
+        if device.get("device_type", "network_edfa") != "network_edfa":
+            raise ValueError("Use the confirmed Bragg/CEFA OUTPUT OFF control for this device.")
         commands = [
             f"driver_edfa_tool ctrl_phdout {channel['key']} 0"
             for channel in device["channels"]
@@ -769,7 +973,11 @@ class ControllerManager:
         state = self.store.get_state()
         devices = state["edfa_devices"]
         selected_ids = set(device_ids or [])
-        targets = [device for device in devices if not selected_ids or device["id"] in selected_ids]
+        targets = [
+            device for device in devices
+            if device.get("device_type", "network_edfa") == "network_edfa"
+            and (not selected_ids or device["id"] in selected_ids)
+        ]
         if not targets:
             raise ValueError("No EDFA devices are available for the batch action.")
 

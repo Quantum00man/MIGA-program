@@ -71,13 +71,19 @@ class HardwareScheduler:
             if self._matches(now, on_time):
                 key = ("edfa", device["id"], "on")
                 if self._last_trigger.get(key) != today_key:
-                    self.controller_manager.turn_edfa_device_on(device["id"], source="schedule")
+                    if device.get("device_type") == "bragg_cefa":
+                        self.controller_manager.set_bragg_edfa_output(device["id"], True, source="schedule")
+                    else:
+                        self.controller_manager.turn_edfa_device_on(device["id"], source="schedule")
                     self._last_trigger[key] = today_key
 
             if self._matches(now, off_time):
                 key = ("edfa", device["id"], "off")
                 if self._last_trigger.get(key) != today_key:
-                    self.controller_manager.turn_edfa_device_off(device["id"], source="schedule")
+                    if device.get("device_type") == "bragg_cefa":
+                        self.controller_manager.set_bragg_edfa_output(device["id"], False, source="schedule")
+                    else:
+                        self.controller_manager.turn_edfa_device_off(device["id"], source="schedule")
                     self._last_trigger[key] = today_key
 
     def _tick_psu(self, now: datetime, devices: list[dict]):

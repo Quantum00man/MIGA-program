@@ -29,6 +29,10 @@ class ChannelPowerOverrideRequest(BaseModel):
     power: str | None = None
 
 
+class BraggSetpointRequest(BaseModel):
+    value_dbm: float
+
+
 class BatchActionRequest(BaseModel):
     device_ids: list[str] = Field(default_factory=list)
 
@@ -47,8 +51,11 @@ class EdfaSchedulePayload(IgnoreExtraBaseModel):
 
 
 class EdfaDevicePayload(IgnoreExtraBaseModel):
+    device_type: str = "network_edfa"
     name: str | None = None
-    ip: str
+    ip: str = ""
+    serial_port: str = ""
+    apc_setpoint_dbm: float = 33.0
     port: int = config.EDFA_DEFAULT_PORT
     timeout_sec: float = config.NETWORK_TIMEOUT_SEC
     command_delay_sec: float = config.EDFA_COMMAND_DELAY_SEC

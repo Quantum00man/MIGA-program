@@ -68,10 +68,14 @@ def _default_laser_lock_system():
 
 
 def _normalize_edfa_device(device: dict, index: int) -> dict:
+    device_type = str(device.get("device_type") or "network_edfa").strip()
     normalized = {
         "id": str(device.get("id") or uuid4().hex[:8]),
+        "device_type": device_type if device_type in {"network_edfa", "bragg_cefa"} else "network_edfa",
         "name": str(device.get("name") or f"EDFA System {index}").strip() or f"EDFA System {index}",
         "ip": str(device.get("ip") or "").strip(),
+        "serial_port": str(device.get("serial_port") or "").strip(),
+        "apc_setpoint_dbm": float(device.get("apc_setpoint_dbm", 33.0)),
         "port": int(device.get("port") or config.EDFA_DEFAULT_PORT),
         "timeout_sec": float(device.get("timeout_sec") or config.NETWORK_TIMEOUT_SEC),
         "command_delay_sec": float(device.get("command_delay_sec") or config.EDFA_COMMAND_DELAY_SEC),
@@ -83,6 +87,18 @@ def _normalize_edfa_device(device: dict, index: int) -> dict:
         "last_error": str(device.get("last_error") or ""),
         "last_contact_at": str(device.get("last_contact_at") or ""),
     }
+
+    if normalized["device_type"] == "bragg_cefa":
+        normalized.update(
+            {
+                "connected": False,
+                "serial_number": str(device.get("serial_number") or ""),
+                "input_power": device.get("input_power") if isinstance(device.get("input_power"), dict) else {},
+                "output_power": device.get("output_power") if isinstance(device.get("output_power"), dict) else {},
+                "output_mode": str(device.get("output_mode") or ""),
+                "output_state": str(device.get("output_state") or "UNKNOWN"),
+            }
+        )
 
     incoming_channels = device.get("channels") if isinstance(device.get("channels"), list) else []
     incoming_map = {str(item.get("key") or ""): item for item in incoming_channels if isinstance(item, dict)}

@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 import config
 from app.models.schemas import (
     BatchActionRequest,
+    BraggSetpointRequest,
     ChannelPowerOverrideRequest,
     EdfaDevicePayload,
     EdfaTemplateApplyRequest,
@@ -208,6 +209,48 @@ def apply_edfa_template(payload: EdfaTemplateApplyRequest, request: Request):
     controller = _controller(request)
     _run_action(controller.apply_edfa_template_to_all, _model_to_dict(payload))
     return _ok("EDFA template applied.")
+
+
+@router.get("/api/edfa/bragg/ports", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def list_bragg_edfa_ports(request: Request):
+    ports = _run_action(_controller(request).list_bragg_edfa_ports)
+    return _ok("Serial ports loaded.", ports)
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/connect", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def connect_bragg_edfa(device_id: str, request: Request):
+    _run_action(_controller(request).connect_bragg_edfa, device_id)
+    return _ok("Bragg EDFA connected.")
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/disconnect", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def disconnect_bragg_edfa(device_id: str, request: Request):
+    _run_action(_controller(request).disconnect_bragg_edfa, device_id)
+    return _ok("Bragg EDFA disconnected.")
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/refresh", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def refresh_bragg_edfa(device_id: str, request: Request):
+    _run_action(_controller(request).refresh_bragg_edfa, device_id)
+    return _ok("Bragg EDFA state refreshed.")
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/setpoint", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def set_bragg_edfa_setpoint(device_id: str, payload: BraggSetpointRequest, request: Request):
+    _run_action(_controller(request).set_bragg_edfa_setpoint, device_id, payload.value_dbm)
+    return _ok("Bragg EDFA APC setpoint applied.")
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/output/on", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def turn_bragg_edfa_on(device_id: str, request: Request):
+    _run_action(_controller(request).set_bragg_edfa_output, device_id, True)
+    return _ok("Bragg EDFA optical output switched ON in APC mode.")
+
+
+@router.post("/api/edfa/devices/{device_id}/bragg/output/off", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def turn_bragg_edfa_off(device_id: str, request: Request):
+    _run_action(_controller(request).set_bragg_edfa_output, device_id, False)
+    return _ok("Bragg EDFA optical output switched OFF.")
 
 
 @router.post("/api/psu/devices", response_model=MessageResponse, dependencies=[Depends(require_auth)])

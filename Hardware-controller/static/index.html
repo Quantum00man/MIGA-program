@@ -112,17 +112,22 @@
                         <section class="subpanel">
                             <div class="panel-title-row">
                                 <h3>Add EDFA Device</h3>
-                                <span class="panel-note">Use the same command protocol as the legacy EDFA tool.</span>
+                                <span class="panel-note">Add either a network EDFA or a Bragg/CEFA serial EDFA.</span>
                             </div>
                             <form id="add-edfa-form" class="stack">
                                 <div class="form-grid">
+                                    <label><span>Device Type</span><select name="device_type" id="add-edfa-device-type"><option value="network_edfa">Network EDFA</option><option value="bragg_cefa">Bragg / CEFA EDFA</option></select></label>
                                     <label><span>Name</span><input type="text" name="name" placeholder="EDFA System 1"></label>
-                                    <label><span>IP Address</span><input type="text" name="ip" placeholder="10.0.1.133" required></label>
-                                    <label><span>Port</span><input type="number" name="port" value="23" required></label>
+                                    <label data-add-edfa-network><span>IP Address</span><input type="text" name="ip" placeholder="10.0.1.133"></label>
+                                    <label data-add-edfa-network><span>Port</span><input type="number" name="port" value="23"></label>
+                                    <label data-add-edfa-bragg hidden><span>COM Port</span><input type="text" name="serial_port" list="bragg-serial-port-options" placeholder="COM5"></label>
                                     <label><span>Timeout (s)</span><input type="number" name="timeout_sec" value="3" step="0.1" required></label>
-                                    <label><span>Command Delay (s)</span><input type="number" name="command_delay_sec" value="1" step="0.1" required></label>
+                                    <label data-add-edfa-network><span>Command Delay (s)</span><input type="number" name="command_delay_sec" value="1" step="0.1"></label>
+                                    <label data-add-edfa-bragg hidden><span>APC Setpoint (dBm)</span><input type="number" name="apc_setpoint_dbm" value="33.0" min="0" max="33" step="0.1"></label>
                                     <label><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
                                 </div>
+                                <datalist id="bragg-serial-port-options"></datalist>
+                                <button class="ghost-button" type="button" id="refresh-bragg-ports">Refresh COM Ports</button>
                                 <button class="action-button" type="submit">Add EDFA Device</button>
                             </form>
                         </section>

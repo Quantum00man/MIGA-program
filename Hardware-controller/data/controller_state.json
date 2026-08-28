@@ -12,8 +12,11 @@
   "edfa_devices": [
     {
       "id": "45be5d85",
+      "device_type": "network_edfa",
       "name": "MIGA22",
       "ip": "10.0.1.133",
+      "serial_port": "",
+      "apc_setpoint_dbm": 33.0,
       "port": 23,
       "timeout_sec": 3.0,
       "command_delay_sec": 1.0,
@@ -53,7 +56,7 @@
           4
         ],
         "on_time": "08:00",
-        "off_time": ""
+        "off_time": "18:00"
       },
       "notes": "",
       "reachable": true,
@@ -63,8 +66,11 @@
     },
     {
       "id": "8863a41d",
+      "device_type": "network_edfa",
       "name": "MIGA21",
       "ip": "10.0.1.135",
+      "serial_port": "",
+      "apc_setpoint_dbm": 33.0,
       "port": 23,
       "timeout_sec": 3.0,
       "command_delay_sec": 1.0,
@@ -104,13 +110,56 @@
           4
         ],
         "on_time": "08:00",
-        "off_time": ""
+        "off_time": "18:00"
       },
       "notes": "",
       "reachable": true,
       "last_action": "Schedule START ALL EDFA",
       "last_error": "",
       "last_contact_at": "2026-08-28T08:00:08+02:00"
+    },
+    {
+      "id": "fde2fec9",
+      "device_type": "bragg_cefa",
+      "name": "Bragg CEFA EDFA",
+      "ip": "",
+      "serial_port": "COM5",
+      "port": 23,
+      "timeout_sec": 3.0,
+      "command_delay_sec": 0.0,
+      "apc_setpoint_dbm": 30.0,
+      "channels": [],
+      "schedule": {
+        "enabled": false,
+        "days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "on_time": "08:00",
+        "off_time": "20:00"
+      },
+      "notes": "",
+      "connected": false,
+      "reachable": true,
+      "serial_number": "1301539",
+      "input_power": {
+        "raw": "245",
+        "microwatts": 245.0,
+        "dbm": -6.108339156354675
+      },
+      "output_power": {
+        "raw": "3001",
+        "milliwatts": 3001.0,
+        "dbm": 34.772659954248525
+      },
+      "output_mode": "2",
+      "output_state": "ON · APC",
+      "last_action": "Serial connection established and state refreshed",
+      "last_error": "",
+      "last_contact_at": "2026-08-28T18:06:24+02:00"
     }
   ],
   "psu_devices": [
@@ -171,6 +220,6 @@
   },
   "metadata": {
     "created_at": "2026-07-27T14:13:56+02:00",
-    "updated_at": "2026-08-28T08:00:08+02:00"
+    "updated_at": "2026-08-28T18:09:35+02:00"
   }
 }

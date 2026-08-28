@@ -164,7 +164,9 @@ function summarizeDevices(devices, predicate) {
 }
 
 function getEdfaRuntimeStatus(device) {
-    const outputActive = (device.channels || []).some((channel) => channel.assumed_on);
+    const outputActive = device.device_type === "bragg_cefa"
+        ? ["1", "2"].includes(String(device.output_mode || ""))
+        : (device.channels || []).some((channel) => channel.assumed_on);
     return {
         online: device.reachable,
         outputActive,
@@ -381,6 +383,53 @@ function weekdayCheckboxGroup(selectedDays, rolePrefix) {
         .join("");
 }
 
+function formatPowerReading(reading, unit) {
+    if (!reading || reading.raw === undefined) return "—";
+    const nativeValue = unit === "µW" ? reading.microwatts : reading.milliwatts;
+    const dbm = reading.dbm === null || reading.dbm === undefined ? "—" : Number(reading.dbm).toFixed(2);
+    return `${escapeHtml(nativeValue)} ${unit} (${dbm} dBm)`;
+}
+
+function renderBraggEdfaCard(device) {
+    const connected = Boolean(device.connected);
+    const outputActive = ["1", "2"].includes(String(device.output_mode || ""));
+    const schedule = device.schedule || { enabled: false, days: [], on_time: "08:00", off_time: "18:00" };
+    return `
+        <article class="device-card" data-device-type="edfa" data-edfa-kind="bragg_cefa" data-device-id="${device.id}">
+            <div class="device-header"><div><div class="device-title-row"><span class="status-dot ${statusDotClass(outputActive)}"></span><h3>${escapeHtml(device.name)}</h3></div><div class="device-subtitle">Bragg / CEFA · ${escapeHtml(device.serial_port || "No COM port selected")}</div></div>
+                <div class="info-badges">${badgeClassFromBoolean(connected, "Serial Connected", "Serial Disconnected")}${outputActive ? '<span class="device-badge success">Output Active</span>' : '<span class="device-badge danger">Output Off</span>'}</div>
+            </div>
+            <div class="device-card-body">
+                <div class="device-card-section">
+                    <div class="panel-title-row"><h4>Serial Connection</h4><span class="panel-note">19200 baud, 8N1. Connecting does not change optical output.</span></div>
+                    <div class="detail-grid">
+                        <label><span>Name</span><input type="text" data-field="name" value="${escapeHtml(device.name)}"></label>
+                        <label><span>COM Port</span><input type="text" list="bragg-serial-port-options" data-field="serial_port" value="${escapeHtml(device.serial_port || "")}" placeholder="COM5"></label>
+                        <label><span>Timeout (s)</span><input type="number" min="0.1" step="0.1" data-field="timeout_sec" value="${escapeHtml(device.timeout_sec || 0.8)}"></label>
+                        <label><span>Notes</span><input type="text" data-field="notes" value="${escapeHtml(device.notes || "")}"></label>
+                    </div>
+                    <div class="device-actions"><button class="inline-button" data-action="edfa-save" data-device-id="${device.id}">Save Configuration</button><button class="inline-button" data-action="bragg-connect" data-device-id="${device.id}">Connect</button><button class="inline-button" data-action="bragg-refresh" data-device-id="${device.id}">Refresh Readings</button><button class="inline-button" data-action="bragg-disconnect" data-device-id="${device.id}">Disconnect</button><button class="inline-button inline-danger" data-action="edfa-delete" data-device-id="${device.id}">Delete</button></div>
+                </div>
+                <div class="device-card-section">
+                    <div class="panel-title-row"><h4>Live Optical Power</h4><span class="panel-note">Serial number: ${escapeHtml(device.serial_number || "—")}</span></div>
+                    <div class="compact-summary-grid"><div class="summary-card"><span>Input Power</span><strong>${formatPowerReading(device.input_power, "µW")}</strong></div><div class="summary-card"><span>Output Power</span><strong>${formatPowerReading(device.output_power, "mW")}</strong></div><div class="summary-card"><span>Output State</span><strong>${escapeHtml(device.output_state || "UNKNOWN")}</strong></div></div>
+                </div>
+                <div class="device-card-section">
+                    <div class="panel-title-row"><h4>APC Output Control</h4><span class="panel-note">Every change requires explicit confirmation.</span></div>
+                    <div class="form-grid"><label><span>Output Setpoint (dBm)</span><input type="number" min="0" max="33" step="0.1" data-field="apc_setpoint_dbm" value="${escapeHtml(device.apc_setpoint_dbm ?? 33)}"></label></div>
+                    <div class="device-actions"><button class="inline-button" data-action="bragg-setpoint" data-device-id="${device.id}">Apply Setpoint</button><button class="inline-button" data-action="bragg-output-on" data-device-id="${device.id}">OUTPUT ON (APC)</button><button class="inline-button inline-danger" data-action="bragg-output-off" data-device-id="${device.id}">OUTPUT OFF</button></div>
+                </div>
+                <div class="device-card-section">
+                    <div class="panel-title-row"><h4>Weekly Schedule</h4><label class="selection-row"><input type="checkbox" data-field="schedule-enabled" ${schedule.enabled ? "checked" : ""}><span>Enable schedule</span></label></div>
+                    <div class="form-grid"><label><span>Auto-ON (APC)</span><input type="text" data-field="schedule-on-time" value="${escapeHtml(schedule.on_time || "")}" placeholder="08:00"></label><label><span>Auto-OFF</span><input type="text" data-field="schedule-off-time" value="${escapeHtml(schedule.off_time || "")}" placeholder="18:00"></label></div>
+                    <div class="weekday-row">${weekdayCheckboxGroup(schedule.days || [], `edfa-weekday-${device.id}`)}</div>
+                    <div class="schedule-apply-row"><span class="panel-note">Applying an enabled schedule authorizes unattended optical output changes.</span><button class="action-button" data-action="edfa-save-schedule" data-device-id="${device.id}">Apply Bragg Schedule</button></div>
+                </div>
+                <div class="device-card-section"><div class="detail-grid"><div><span class="meta-label">Last Action</span><div class="device-meta">${escapeHtml(device.last_action || "--")}</div></div><div><span class="meta-label">Last Contact</span><div class="device-meta">${escapeHtml(device.last_contact_at || "--")}</div></div><div><span class="meta-label">Last Error</span><div class="device-meta">${escapeHtml(device.last_error || "None")}</div></div></div></div>
+            </div>
+        </article>`;
+}
+
 function renderEdfaDevices(devices) {
     const container = document.getElementById("edfa-device-list");
     if (dirtyEdfaDevices.size > 0 && container.children.length > 0) {
@@ -392,6 +441,7 @@ function renderEdfaDevices(devices) {
     }
 
     container.innerHTML = devices.map((device) => {
+        if (device.device_type === "bragg_cefa") return renderBraggEdfaCard(device);
         const runtime = getEdfaRuntimeStatus(device);
         const scheduleDays = device.schedule.days || [];
         const channelTiles = (device.channels || []).map((channel) => {
@@ -630,6 +680,23 @@ function scheduleOverviewRefresh() {
 }
 
 function readEdfaCardPayload(card) {
+    if (card.dataset.edfaKind === "bragg_cefa") {
+        const deviceId = card.dataset.deviceId;
+        return {
+            device_type: "bragg_cefa",
+            name: card.querySelector('[data-field="name"]').value.trim(),
+            serial_port: card.querySelector('[data-field="serial_port"]').value.trim(),
+            timeout_sec: Number(card.querySelector('[data-field="timeout_sec"]').value),
+            apc_setpoint_dbm: Number(card.querySelector('[data-field="apc_setpoint_dbm"]').value),
+            notes: card.querySelector('[data-field="notes"]').value.trim(),
+            schedule: {
+                enabled: card.querySelector('[data-field="schedule-enabled"]').checked,
+                days: Array.from(card.querySelectorAll(`[data-role="edfa-weekday-${deviceId}"]:checked`)).map((node) => Number(node.value)),
+                on_time: card.querySelector('[data-field="schedule-on-time"]').value.trim(),
+                off_time: card.querySelector('[data-field="schedule-off-time"]').value.trim(),
+            },
+        };
+    }
     const deviceId = card.dataset.deviceId;
     const scheduleDays = Array.from(card.querySelectorAll(`[data-role="edfa-weekday-${deviceId}"]:checked`)).map((node) => Number(node.value));
     const channels = Array.from(card.querySelectorAll('[data-field="channel-power"]')).map((node) => ({
@@ -638,6 +705,7 @@ function readEdfaCardPayload(card) {
     }));
 
     return {
+        device_type: "network_edfa",
         name: card.querySelector('[data-field="name"]').value.trim(),
         ip: card.querySelector('[data-field="ip"]').value.trim(),
         port: Number(card.querySelector('[data-field="port"]').value),
@@ -770,20 +838,38 @@ async function runPsuBatch(turnOn) {
     }
 }
 
+function updateAddEdfaFields() {
+    const isBragg = document.getElementById("add-edfa-device-type").value === "bragg_cefa";
+    document.querySelectorAll("[data-add-edfa-network]").forEach((node) => { node.hidden = isBragg; });
+    document.querySelectorAll("[data-add-edfa-bragg]").forEach((node) => { node.hidden = !isBragg; });
+}
+
+async function refreshBraggPorts() {
+    const result = await fetchJson("/api/edfa/bragg/ports");
+    document.getElementById("bragg-serial-port-options").innerHTML = (result.data || [])
+        .map((port) => `<option value="${escapeHtml(port.device)}">${escapeHtml(port.description)}</option>`)
+        .join("");
+    showMessage(`${(result.data || []).length} serial port(s) found.`);
+}
+
 async function handleFormSubmit(event) {
     event.preventDefault();
     const form = event.currentTarget;
 
     if (form.id === "add-edfa-form") {
         const formData = new FormData(form);
+        const deviceType = formData.get("device_type");
         await fetchJson("/api/edfa/devices", {
             method: "POST",
             body: {
+                device_type: deviceType,
                 name: formData.get("name"),
                 ip: formData.get("ip"),
+                serial_port: formData.get("serial_port"),
                 port: Number(formData.get("port")),
                 timeout_sec: Number(formData.get("timeout_sec")),
                 command_delay_sec: Number(formData.get("command_delay_sec")),
+                apc_setpoint_dbm: Number(formData.get("apc_setpoint_dbm")),
                 notes: formData.get("notes"),
                 channels: Object.entries(defaultEdfaTemplatePowers).map(([key, power]) => ({ key, power })),
             },
@@ -792,6 +878,8 @@ async function handleFormSubmit(event) {
         form.querySelector('[name="port"]').value = "23";
         form.querySelector('[name="timeout_sec"]').value = "3";
         form.querySelector('[name="command_delay_sec"]').value = "1";
+        form.querySelector('[name="apc_setpoint_dbm"]').value = "33.0";
+        updateAddEdfaFields();
         showMessage("EDFA device added.");
         await loadOverview();
         return;
@@ -849,6 +937,11 @@ async function handleFormSubmit(event) {
     }
 
     if (form.id === "edfa-template-form") {
+        const enablesSchedule = document.getElementById("template-schedule-enabled").checked;
+        const includesBragg = (overviewPayload?.state?.edfa_devices || []).some((device) => device.device_type === "bragg_cefa");
+        if (enablesSchedule && includesBragg && !window.confirm(
+            "Apply this enabled schedule to Bragg EDFA devices too?\n\nThis authorizes unattended high-power optical output ON/OFF through the configured COM ports."
+        )) return;
         await fetchJson("/api/edfa/template/apply", {
             method: "POST",
             body: {
@@ -911,6 +1004,11 @@ async function handleClick(event) {
             return;
         }
 
+        if (target.id === "refresh-bragg-ports") {
+            await refreshBraggPorts();
+            return;
+        }
+
         if (target.id === "edfa-batch-on") {
             await fetchJson("/api/edfa/batch/on", { method: "POST", body: { device_ids: [] } });
             showMessage("All EDFA devices received the ON command.");
@@ -962,7 +1060,33 @@ async function handleClick(event) {
             await fetchJson(`/api/edfa/devices/${deviceId}`, { method: "PUT", body: readEdfaCardPayload(card) });
             dirtyEdfaDevices.delete(deviceId);
             showMessage("EDFA configuration saved.");
+        } else if (action === "bragg-connect") {
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/connect`, { method: "POST" });
+            showMessage("Bragg EDFA connected. Optical output was not changed.");
+        } else if (action === "bragg-disconnect") {
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/disconnect`, { method: "POST" });
+            showMessage("Bragg EDFA disconnected.");
+        } else if (action === "bragg-refresh") {
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/refresh`, { method: "POST" });
+            showMessage("Bragg EDFA readings refreshed.");
+        } else if (action === "bragg-setpoint") {
+            const value = Number(card.querySelector('[data-field="apc_setpoint_dbm"]').value);
+            if (!window.confirm(`Set the Bragg EDFA APC output power to ${value.toFixed(1)} dBm?`)) return;
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/setpoint`, { method: "POST", body: { value_dbm: value } });
+            dirtyEdfaDevices.delete(deviceId);
+            showMessage(`Bragg EDFA setpoint changed to ${value.toFixed(1)} dBm.`);
+        } else if (action === "bragg-output-on") {
+            if (!window.confirm("Turn the Bragg EDFA optical output ON in APC mode?\n\nHigh-power laser radiation may be emitted. Confirm that the optical path, interlock, and laser safety measures are ready.")) return;
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/output/on`, { method: "POST" });
+            showMessage("Bragg EDFA optical output switched ON in APC mode.");
+        } else if (action === "bragg-output-off") {
+            if (!window.confirm("Turn the Bragg EDFA optical output OFF?")) return;
+            await fetchJson(`/api/edfa/devices/${deviceId}/bragg/output/off`, { method: "POST" });
+            showMessage("Bragg EDFA optical output switched OFF.");
         } else if (action === "edfa-save-schedule") {
+            if (card.dataset.edfaKind === "bragg_cefa" && card.querySelector('[data-field="schedule-enabled"]').checked) {
+                if (!window.confirm("Enable this Bragg EDFA schedule?\n\nThe controller will automatically connect to the COM port and switch high-power optical output ON/OFF at the configured times without another confirmation.")) return;
+            }
             await fetchJson(`/api/edfa/devices/${deviceId}`, { method: "PUT", body: readEdfaCardPayload(card) });
             dirtyEdfaDevices.delete(deviceId);
             showMessage("EDFA schedule applied.");
@@ -1034,6 +1158,8 @@ function bindFormsAndButtons() {
     document.getElementById("laser-lock-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.getElementById("password-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
     document.getElementById("edfa-template-form").addEventListener("submit", (event) => handleFormSubmit(event).catch((error) => showMessage(error.message, "error")));
+    document.getElementById("add-edfa-device-type").addEventListener("change", updateAddEdfaFields);
+    updateAddEdfaFields();
     document.body.addEventListener("click", (event) => {
         handleClick(event).catch((error) => showMessage(error.message, "error"));
     });
