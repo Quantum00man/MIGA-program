@@ -1,0 +1,10 @@
+# Local LaTeX build products
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+
+# Local literature reference; do not redistribute in this repository
+Exploring gravity with MIGA.pdf

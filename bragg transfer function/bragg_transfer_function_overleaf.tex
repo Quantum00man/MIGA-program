@@ -1,0 +1,752 @@
+
+% Overleaf 编译建议：
+% Menu -> Settings -> Compiler -> XeLaTeX
+% 本文使用 Overleaf/TeX Live 自带的 Fandol 中文字体，无需上传任何字体文件。
+\documentclass[UTF8,12pt,a4paper,fontset=fandol]{ctexart}
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\hypersetup{
+    unicode=true,
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+\usepackage{enumitem}
+
+\geometry{left=2.4cm,right=2.4cm,top=2.5cm,bottom=2.5cm}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.4em}
+
+\title{有限脉冲一阶 Bragg 原子干涉仪传递函数计算\\
+\large 平面波、无光学谐振腔情形}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{问题设定}
+
+本文讨论一个三脉冲 Mach--Zehnder 型 Bragg 原子干涉仪，采用两束反向传播平面波，不考虑光学谐振腔，只考虑一阶 Bragg 衍射，并考虑有限脉冲宽度。
+
+脉冲序列为
+\[
+\frac{\pi}{2}-\pi-\frac{\pi}{2}.
+\]
+
+记 Bragg 有效 Rabi 频率为
+\[
+f_{\rm R},
+\]
+若其单位为 Hz，则对应的角 Rabi 频率为
+\[
+\boxed{\Omega_{\rm R}=2\pi f_{\rm R}}.
+\]
+
+本文的目标是计算光学相位扰动
+\[
+\delta\varphi(t)
+\]
+到原子干涉仪输出相位
+\[
+\delta\Phi_{\rm AI}(t)
+\]
+之间的频域传递函数。
+
+MIGA 文章采用 sensitivity function 形式写原子干涉仪响应：
+\[
+\Delta\phi_{\rm AT}(t)
+=
+n\,\Delta\varphi(t)*\frac{ds(t)}{dt},
+\]
+其中 $s(t)$ 是三脉冲原子干涉仪的 sensitivity function，$*$ 表示卷积。对于本文的一阶 Bragg，取
+\[
+n=1.
+\]
+
+因此
+\[
+\boxed{
+\Delta\Phi_{\rm AI}(t)
+=
+\Delta\varphi(t)*\frac{ds(t)}{dt}
+}.
+\]
+
+需要说明：MIGA 文章本身没有给出本文所用有限脉冲 $s(t)$ 的显式分段表达式，而是引用 sensitivity-function 文献。下文是在该 formalism 下，将一阶 Bragg 近似为共振两能级 Rabi 演化得到的有限脉冲结果。
+
+\section{脉冲宽度与时间轴}
+
+对共振方波脉冲，脉冲面积满足
+\[
+\theta=\Omega_{\rm R}\tau.
+\]
+
+对于 $\pi/2$ 脉冲：
+\[
+\Omega_{\rm R}\tau=\frac{\pi}{2},
+\]
+所以
+\[
+\boxed{
+\tau=\frac{\pi}{2\Omega_{\rm R}}
+=\frac{1}{4f_{\rm R}}
+}.
+\]
+
+因此 $\pi$ 脉冲持续时间为
+\[
+\boxed{
+\tau_\pi=2\tau=\frac{1}{2f_{\rm R}}
+}.
+\]
+
+本文采用如下时间定义：
+
+\begin{itemize}[leftmargin=2em]
+\item 第一束 $\pi/2$ 脉冲：
+\[
+0\le t<\tau;
+\]
+\item 第一段自由演化：
+\[
+\tau\le t<T+\tau;
+\]
+\item 第二束 $\pi$ 脉冲：
+\[
+T+\tau\le t<T+3\tau;
+\]
+\item 第二段自由演化：
+\[
+T+3\tau\le t<2T+3\tau;
+\]
+\item 第三束 $\pi/2$ 脉冲：
+\[
+2T+3\tau\le t<2T+4\tau.
+\]
+\end{itemize}
+
+在这个定义中，$T$ 是两段自由演化时间，因此整个脉冲序列持续时间为
+\[
+\boxed{
+T_{\rm total}=2T+4\tau
+}.
+\]
+
+如果实验中把 $T$ 定义为相邻脉冲中心之间的时间，则只需要重新平移各脉冲的起止时刻，计算方法不变。
+
+\section{有限脉冲 sensitivity function}
+
+对于理想瞬时脉冲，$s(t)$ 是分段常数；对于有限脉冲，原子在脉冲内部发生连续 Rabi rotation，因此 $s(t)$ 在脉冲期间连续变化。
+
+在本文的共振两能级近似下，可写为
+\[
+\boxed{
+s(t)=
+\begin{cases}
+0,
+&t<0,
+\\[2mm]
+\sin(\Omega_{\rm R}t),
+&0\le t<\tau,
+\\[2mm]
+1,
+&\tau\le t<T+\tau,
+\\[2mm]
+\cos\!\left[\Omega_{\rm R}(t-T-\tau)\right],
+&T+\tau\le t<T+3\tau,
+\\[2mm]
+-1,
+&T+3\tau\le t<2T+3\tau,
+\\[2mm]
+-\cos\!\left[\Omega_{\rm R}(t-2T-3\tau)\right],
+&2T+3\tau\le t<2T+4\tau,
+\\[2mm]
+0,
+&t\ge 2T+4\tau.
+\end{cases}
+}
+\]
+
+该表达式满足正确的边界条件：
+
+\[
+s(0)=0,
+\qquad
+s(\tau)=1,
+\]
+第二个 $\pi$ 脉冲使
+\[
+1\rightarrow -1,
+\]
+最后一个 $\pi/2$ 脉冲使
+\[
+-1\rightarrow 0.
+\]
+
+\section{由 sensitivity function 定义传递函数}
+
+定义 $s(t)$ 的 Fourier transform 为
+\[
+\boxed{
+G(\omega)
+=
+\int_{-\infty}^{+\infty}
+s(t)e^{-i\omega t}\,dt
+}.
+\]
+
+由于
+\[
+\Delta\Phi_{\rm AI}(t)
+=
+\Delta\varphi(t)*\frac{ds(t)}{dt},
+\]
+对其做 Fourier transform：
+\[
+\Delta\Phi_{\rm AI}(\omega)
+=
+\Delta\varphi(\omega)\,
+\mathcal{F}
+\left[
+\frac{ds}{dt}
+\right].
+\]
+
+利用
+\[
+\mathcal{F}
+\left[
+\frac{ds}{dt}
+\right]
+=
+i\omega G(\omega),
+\]
+得到
+\[
+\boxed{
+\Delta\Phi_{\rm AI}(\omega)
+=
+H_\varphi(\omega)
+\Delta\varphi(\omega)
+}
+\]
+其中
+\[
+\boxed{
+H_\varphi(\omega)
+=
+i\omega G(\omega)
+}.
+\]
+
+因此相位传递函数的幅值为
+\[
+\boxed{
+|H_\varphi(\omega)|
+=
+|\omega G(\omega)|
+}
+\]
+而功率谱传递因子为
+\[
+\boxed{
+|H_\varphi(\omega)|^2
+=
+|\omega G(\omega)|^2
+}.
+\]
+
+\section{直接计算 $\dot s(t)$}
+
+数值上，比起先计算 $G(\omega)$ 再乘 $i\omega$，更方便的方法是直接对
+\[
+\dot s(t)=\frac{ds}{dt}
+\]
+做 Fourier transform。
+
+由上面的 $s(t)$ 可得
+\[
+\boxed{
+\dot s(t)=
+\begin{cases}
+\Omega_{\rm R}\cos(\Omega_{\rm R}t),
+&0<t<\tau,
+\\[2mm]
+0,
+&\tau<t<T+\tau,
+\\[2mm]
+-\Omega_{\rm R}
+\sin\!\left[\Omega_{\rm R}(t-T-\tau)\right],
+&T+\tau<t<T+3\tau,
+\\[2mm]
+0,
+&T+3\tau<t<2T+3\tau,
+\\[2mm]
+\Omega_{\rm R}
+\sin\!\left[\Omega_{\rm R}(t-2T-3\tau)\right],
+&2T+3\tau<t<2T+4\tau,
+\\[2mm]
+0,
+&\text{其他时刻}.
+\end{cases}
+}
+\]
+
+于是可以直接写
+\[
+\boxed{
+H_\varphi(\omega)
+=
+\int_{-\infty}^{+\infty}
+\dot s(t)e^{-i\omega t}\,dt
+}.
+\]
+
+这就是有限脉冲一阶 Bragg 干涉仪的相位传递函数。
+
+\section{分段 Fourier 积分}
+
+若希望解析计算，则可以写
+\[
+G(\omega)=G_1+G_2+G_3+G_4+G_5,
+\]
+其中
+
+\subsection*{第一束 $\pi/2$ 脉冲}
+\[
+G_1
+=
+\int_0^\tau
+\sin(\Omega_{\rm R}t)e^{-i\omega t}\,dt.
+\]
+
+\subsection*{第一段自由演化}
+\[
+G_2
+=
+\int_\tau^{T+\tau}
+e^{-i\omega t}\,dt
+=
+\frac{
+e^{-i\omega\tau}
+-
+e^{-i\omega(T+\tau)}
+}{
+i\omega
+}.
+\]
+
+\subsection*{第二束 $\pi$ 脉冲}
+\[
+G_3
+=
+\int_{T+\tau}^{T+3\tau}
+\cos\!\left[\Omega_{\rm R}(t-T-\tau)\right]
+e^{-i\omega t}\,dt.
+\]
+
+令
+\[
+u=t-(T+\tau),
+\]
+则
+\[
+G_3
+=
+e^{-i\omega(T+\tau)}
+\int_0^{2\tau}
+\cos(\Omega_{\rm R}u)e^{-i\omega u}\,du.
+\]
+
+\subsection*{第二段自由演化}
+\[
+G_4
+=
+-\int_{T+3\tau}^{2T+3\tau}
+e^{-i\omega t}\,dt.
+\]
+
+\subsection*{第三束 $\pi/2$ 脉冲}
+\[
+G_5
+=
+-\int_{2T+3\tau}^{2T+4\tau}
+\cos\!\left[\Omega_{\rm R}(t-2T-3\tau)\right]
+e^{-i\omega t}\,dt.
+\]
+
+最后
+\[
+\boxed{
+H_\varphi(\omega)
+=
+i\omega
+\left(
+G_1+G_2+G_3+G_4+G_5
+\right)
+}.
+\]
+
+实际做数据分析或仿真时，更推荐直接数值积分，而不是手工化简上面的解析式。
+
+\section{推荐的数值计算流程}
+
+给定
+\[
+f_{\rm R},\qquad T,
+\]
+首先计算
+\[
+\Omega_{\rm R}=2\pi f_{\rm R},
+\qquad
+\tau=\frac{1}{4f_{\rm R}}.
+\]
+
+然后构造时间数组 $t_j$，根据前述分段公式计算 $s(t_j)$ 或 $\dot s(t_j)$。
+
+对于每一个目标频率
+\[
+f,
+\qquad
+\omega=2\pi f,
+\]
+直接做
+\[
+\boxed{
+H_\varphi(\omega)
+=
+\int
+\dot s(t)e^{-i\omega t}dt
+}.
+\]
+
+离散形式可写为
+\[
+H_\varphi(\omega)
+\approx
+\sum_j
+\dot s(t_j)e^{-i\omega t_j}\Delta t.
+\]
+
+最终画出
+\[
+|H_\varphi(f)|
+\]
+或
+\[
+|H_\varphi(f)|^2.
+\]
+
+\section{两个必须满足的校验条件}
+
+\subsection{零频响应}
+
+因为
+\[
+H_\varphi(0)
+=
+\int_{-\infty}^{+\infty}
+\dot s(t)\,dt
+=
+s(+\infty)-s(-\infty),
+\]
+而序列前后均有
+\[
+s=0,
+\]
+所以
+\[
+\boxed{
+H_\varphi(0)=0
+}.
+\]
+
+这表示一个恒定的整体激光相位偏移不会被 Mach--Zehnder 原子干涉仪检测到。
+
+\subsection{瞬时脉冲极限}
+
+令
+\[
+f_{\rm R}\rightarrow\infty,
+\qquad
+\tau\rightarrow0.
+\]
+
+此时
+\[
+s(t)
+\rightarrow
+\begin{cases}
+1,&0<t<T,\\
+-1,&T<t<2T,\\
+0,&\text{其他}.
+\end{cases}
+\]
+
+因此
+\[
+\dot s(t)
+=
+\delta(t)-2\delta(t-T)+\delta(t-2T).
+\]
+
+于是
+\[
+H_\varphi(\omega)
+=
+1-2e^{-i\omega T}+e^{-i2\omega T}.
+\]
+
+可写为
+\[
+H_\varphi(\omega)
+=
+(1-e^{-i\omega T})^2.
+\]
+
+所以其幅值为
+\[
+\boxed{
+|H_\varphi(\omega)|
+=
+4\sin^2\left(\frac{\omega T}{2}\right)
+}.
+\]
+
+功率谱传递函数为
+\[
+\boxed{
+|H_\varphi(\omega)|^2
+=
+16\sin^4\left(\frac{\omega T}{2}\right)
+}.
+\]
+
+因此，当
+\[
+\omega\ll\Omega_{\rm R}
+\]
+且脉冲足够短时，有限脉冲数值结果应逐渐逼近该表达式。
+
+\section{一阶 Bragg 的有效波矢}
+
+对于一阶两光子 Bragg 过程，
+\[
+\boxed{
+k_{\rm eff}\simeq 2k
+}
+\]
+其中
+\[
+k=\frac{2\pi}{\lambda}.
+\]
+
+因此
+\[
+\boxed{
+k_{\rm eff}
+=
+\frac{4\pi}{\lambda}
+}.
+\]
+
+若一个位移扰动 $x(t)$ 引起的光学相位扰动可写成
+\[
+\delta\varphi(t)
+=
+k_{\rm eff}x(t),
+\]
+则
+\[
+\Delta\Phi_{\rm AI}(\omega)
+=
+k_{\rm eff}
+H_\varphi(\omega)
+x(\omega).
+\]
+
+所以位移到原子相位的传递函数为
+\[
+\boxed{
+H_{x\rightarrow\Phi}(\omega)
+=
+k_{\rm eff}H_\varphi(\omega)
+=
+k_{\rm eff}i\omega G(\omega)
+}.
+\]
+
+\section{加速度输入}
+
+若输入为沿 Bragg 轴方向的加速度 $a(t)$，则在频域有
+\[
+a(\omega)
+=
+-\omega^2x(\omega),
+\]
+即
+\[
+x(\omega)
+=
+-\frac{a(\omega)}{\omega^2}.
+\]
+
+因此
+\[
+\Delta\Phi_{\rm AI}(\omega)
+=
+-k_{\rm eff}
+\frac{i\omega G(\omega)}{\omega^2}
+a(\omega).
+\]
+
+于是加速度到原子相位的传递函数为
+\[
+\boxed{
+H_{a\rightarrow\Phi}(\omega)
+=
+-k_{\rm eff}
+\frac{i\omega G(\omega)}{\omega^2}
+}.
+\]
+
+在低频极限，
+\[
+\sin\left(\frac{\omega T}{2}\right)
+\simeq
+\frac{\omega T}{2},
+\]
+所以瞬时脉冲近似下
+\[
+|H_{a\rightarrow\Phi}|
+\rightarrow
+k_{\rm eff}T^2.
+\]
+
+这恢复了原子干涉仪的经典结果
+\[
+\boxed{
+\Delta\Phi
+=
+k_{\rm eff}aT^2
+}.
+\]
+
+\section{物理理解}
+
+有限脉冲的作用可以理解为：原子不再在三个无限短时刻 ``采样'' 激光相位，而是在每个 Bragg pulse 持续期间对激光相位进行带权平均。
+
+因此：
+
+\begin{itemize}[leftmargin=2em]
+\item 当扰动频率满足
+\[
+\omega\ll\Omega_{\rm R},
+\]
+有限脉冲结果接近瞬时脉冲结果；
+\item 当
+\[
+\omega\sim\Omega_{\rm R},
+\]
+有限脉冲效应开始明显；
+\item Rabi 频率越高，脉冲越短，原子干涉仪越接近理想瞬时采样。
+\end{itemize}
+
+因此，有限 Rabi frequency 实际上给原子干涉仪引入了一个额外的高频响应尺度。
+
+\section{最终计算公式总结}
+
+给定
+\[
+f_{\rm R},\quad T,\quad \lambda,
+\]
+按以下顺序计算：
+
+\[
+\boxed{
+\Omega_{\rm R}=2\pi f_{\rm R}
+}
+\]
+
+\[
+\boxed{
+\tau=\frac{1}{4f_{\rm R}}
+}
+\]
+
+\[
+\boxed{
+s(t)
+\quad\Longrightarrow\quad
+G(\omega)=\int s(t)e^{-i\omega t}dt
+}
+\]
+
+\[
+\boxed{
+H_\varphi(\omega)=i\omega G(\omega)
+}
+\]
+
+\[
+\boxed{
+|H_\varphi(\omega)|
+=
+|\omega G(\omega)|
+}
+\]
+
+一阶 Bragg：
+\[
+\boxed{
+k_{\rm eff}=2k=\frac{4\pi}{\lambda}
+}
+\]
+
+位移输入：
+\[
+\boxed{
+H_{x\rightarrow\Phi}
+=
+k_{\rm eff}i\omega G(\omega)
+}
+\]
+
+加速度输入：
+\[
+\boxed{
+H_{a\rightarrow\Phi}
+=
+-k_{\rm eff}
+\frac{i\omega G(\omega)}{\omega^2}
+}
+\]
+
+瞬时脉冲极限校验：
+\[
+\boxed{
+|H_\varphi|
+\rightarrow
+4\sin^2\left(\frac{\omega T}{2}\right)
+}
+\]
+
+以及
+\[
+\boxed{
+|H_\varphi|^2
+\rightarrow
+16\sin^4\left(\frac{\omega T}{2}\right)
+}.
+\]
+
+\section*{备注}
+
+本文只讨论无光学谐振腔、两束反向传播平面波、一阶 Bragg、共振、方波脉冲以及两能级近似。若进一步考虑失谐、速度分布、多动量态、高阶 Bragg、Gaussian pulse、AC Stark shift 或 cavity pulse filtering，则需要从完整的 Bragg Hamiltonian 数值求解原子态演化，并据此重新计算 sensitivity function。
+
+\end{document}
