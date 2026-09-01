@@ -10,7 +10,6 @@
 \graphicspath{{figures/}}
 \usepackage{xcolor}
 \usepackage{caption}
-\usepackage{subcaption}
 \usepackage{float}
 \usepackage{placeins}
 \usepackage{enumitem}
@@ -38,20 +37,21 @@
   linkcolor=NatureBlue,
   citecolor=NatureBlue,
   urlcolor=NatureBlue,
-  pdftitle={Propagation-Aware Bragg Transfer-Function Calculator Manual},
+  pdftitle={Model-A Propagation-Aware Bragg Transfer-Function Manual},
   pdfauthor={MIGA programme}
 }
 
 \captionsetup{font=small,labelfont=bf,labelsep=period}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.55em}
+\setlength{\emergencystretch}{1em}
 \setlist{nosep,leftmargin=1.6em}
 \sisetup{detect-all,per-mode=symbol}
 
 \pagestyle{fancy}
 \setlength{\headheight}{14pt}
 \fancyhf{}
-\fancyhead[L]{Propagation-aware Bragg transfer function}
+\fancyhead[L]{Model-A propagation-aware Bragg transfer function}
 \fancyhead[R]{User and theory manual}
 \fancyfoot[C]{\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
@@ -87,10 +87,10 @@
 \newcommand{\Oeff}{\Omega_{\mathrm{eff}}}
 \input{case_values.tex}
 
-\title{\vspace{-1.3cm}\textbf{Propagation-Aware Bragg Transfer-Function Calculator}\\[0.35em]
-\large Theory, numerical implementation and worked \SI{150}{\metre} case}
+\title{\vspace{-1.3cm}\textbf{Model-A Propagation-Aware Bragg Transfer Function}\\[0.35em]
+\large Square and Gaussian pulses with a worked \SI{150}{\metre} case}
 \author{MIGA programme}
-\date{Version 1.0 \textbullet{} 1 September 2026}
+\date{Version 1.1 \textbullet{} 1 September 2026}
 
 \begin{document}
 
@@ -98,11 +98,11 @@
 \begin{center}\rule{0.92\textwidth}{0.6pt}\end{center}
 
 \begin{abstract}
-This manual documents \texttt{bragg\_transfer\_function\_propagation\_ui.py}, a propagation-aware extension of the finite-pulse Bragg transfer-function calculator. In a single-frequency retroreflected geometry, the two fields seen by an atom carry optical envelopes separated by the round-trip time $\taud=2L/c$. Their incomplete temporal overlap changes the effective two-photon Rabi envelope and, if the pulse is not recalibrated, its area. The program implements two complementary limits: Model A restores every nominal pulse area after the overlap loss, whereas Model B keeps the incident setting fixed and propagates the resulting nonideal two-level rotations. The manual derives both models, distinguishes the atomic, delay and combined transfer functions, documents the numerical procedure and interface, and presents a reproducible first-order square-pulse example for $L=\SI{150}{\metre}$, $\tau_{\pi}=\SI{50}{\micro\second}$ and $\tau_{\pi/2}=\SI{25}{\micro\second}$.
+This manual documents the area-compensated propagation model implemented in the propagation-aware Python calculator. In a single-frequency retroreflected geometry, the forward optical envelope and its reflected copy reach the atoms with the round-trip separation $\taud=2L/c$. Their overlap determines the effective two-photon Rabi envelope. Model A rescales every overlapped pulse to restore the nominal $\pi/2$--$\pi$--$\pi/2$ areas, representing an experiment in which pulse areas are recalibrated after propagation is included. The manual derives the result for square and Gaussian optical-intensity pulses, explains the sensitivity and transfer functions, documents the numerical implementation, and gives a reproducible first-order example for $L=\SI{150}{\metre}$, $T=\SI{250}{\milli\second}$, $\tau_{\pi}=\SI{50}{\micro\second}$ and $\tau_{\pi/2}=\SI{25}{\micro\second}$. For the Gaussian case, these two widths are intensity FWHM values.
 \end{abstract}
 
-\begin{keybox}[The central distinction]
-$\Hatom$ maps the \emph{local counter-propagating Bragg phase} at the atoms to interferometer phase and is dimensionless. The propagation factor $D_d$ maps source phase to that local phase difference and is also dimensionless. Their product $\Hsrc=\Hatom D_d$ maps source phase to atom phase. Only after converting source frequency noise in hertz into phase does one obtain $\Hnu=\Hsrc/(\ii f)$, whose unit is rad/Hz.
+\begin{keybox}[Main result]
+Area compensation affects square and Gaussian pulses differently. A delayed square pulse becomes shorter and must become higher, which changes the high-frequency envelope of $\Hatom$. An untruncated Gaussian remains a Gaussian of the same width; Model-A normalization exactly cancels its overlap attenuation, leaving only a shift by $\taud/2$. Consequently, the magnitude $|\Hatom|$ is essentially unchanged for the Gaussian case, apart from negligible effects of numerical tail truncation.
 \end{keybox}
 
 \tableofcontents
@@ -110,9 +110,9 @@ $\Hatom$ maps the \emph{local counter-propagating Bragg phase} at the atoms to i
 
 \section{Purpose and model boundary}
 
-The calculator describes a resonant three-pulse Mach--Zehnder sequence with nominal areas $\pi/2$--$\pi$--$\pi/2$. It extends the sensitivity-function treatment of finite laser pulses used by Cheinet \textit{et al.}\cite{Cheinet2008}, the MIGA phase-noise analysis\cite{Canuel2018}, and pulse-shaping calculations based on the time-dependent pulse area\cite{Fang2018}. The extension considered here is deliberately specific: a forward pulse envelope and its retroreflected copy arrive at the atoms at different times.
+The calculator describes a resonant three-pulse Mach--Zehnder sequence with nominal areas $\pi/2$--$\pi$--$\pi/2$. It extends the finite-pulse sensitivity-function treatment of Cheinet \textit{et al.}\cite{Cheinet2008}, the MIGA phase-noise analysis\cite{Canuel2018}, and the pulse-shaping description based on accumulated Rabi area\cite{Fang2018}. This manual considers only the area-compensated setting labelled \texttt{A: area compensated} in the interface.
 
-The dynamics backend is an effective resonant two-level model. The Bragg order $n$ is an external phase-gain multiplier. The software therefore captures propagation-induced envelope overlap, pulse-area loss, finite-pulse filtering and laser phase/frequency-noise conversion, but it does not predict the momentum-state ladder, velocity selectivity, diffraction phase, AC Stark shift, Doppler detuning, spontaneous emission, parasitic interferometers or optical-cavity dynamics. Those effects require a multi-state Bragg Hamiltonian such as the treatments discussed in Refs.~\cite{Siemss2020,Jenewein2022}.
+The backend is an effective resonant two-level model. The Bragg order $n$ multiplies the phase response but does not alter the normalized pulse dynamics. The calculation includes delayed envelope overlap, pulse-area recalibration, finite-pulse filtering and laser phase/frequency-noise conversion. It does not include the momentum-state ladder, velocity selectivity, diffraction phase, AC Stark shifts, Doppler detuning, spontaneous emission, parasitic interferometers or cavity dynamics. These effects require a multi-state Bragg treatment such as Refs.~\cite{Siemss2020,Jenewein2022}.
 
 \begin{figure}[H]
 \centering
@@ -123,118 +123,130 @@ The dynamics backend is an effective resonant two-level model. The Bragg order $
 ]
 \node[block] (input) {User input\\$\tau_{\pi/2},\tau_\pi,T,L$};
 \node[block,right=of input] (overlap) {Delayed overlap\\$\sqrt{I(t)I(t-\taud)}$};
-\node[block,right=of overlap] (model) {Model A or B\\$\Oeff(t)$};
-\node[block,right=of model] (sens) {Sensitivity\\$s(t)$};
+\node[block,right=of overlap] (area) {Area restoration\\$\Oeff=\alpha\Oraw$};
+\node[block,right=of area] (sens) {Sensitivity\\$s(t)$};
 \node[block,right=of sens] (out) {Responses\\$\Hatom,D_d,\Hsrc,\Hnu$};
 \draw[arrow] (input)--(overlap);
-\draw[arrow] (overlap)--(model);
-\draw[arrow] (model)--(sens);
+\draw[arrow] (overlap)--(area);
+\draw[arrow] (area)--(sens);
 \draw[arrow] (sens)--(out);
 \end{tikzpicture}
-\caption{Calculation chain. Propagation first changes the local Rabi envelope; the chosen pulse-area model then determines the sensitivity function and the atomic response. A separate delay filter converts source laser noise into the local counter-propagating phase.}
+\caption{Model-A calculation chain. The delayed optical overlap determines a raw Rabi envelope. Its area is restored before the sensitivity and transfer functions are evaluated.}
 \label{fig:workflow}
 \end{figure}
 
 \section{Quick start}
 
-From the project directory, launch the graphical interface with
-
+Launch the interface from the project directory with
 \begin{lstlisting}[language=bash]
 python3 bragg_transfer_function_propagation_ui.py
 \end{lstlisting}
-
-Run the built-in consistency checks with
-
+Select \texttt{A: area compensated} in the propagation-model menu. Choose \texttt{Square} or \texttt{Gaussian}, enter the $\pi/2$ and $\pi$ widths in microseconds, and enter the centre-to-centre pulse separation $T$ and one-way atom-to-retroreflector distance $L$. A square width is a command duration. A Gaussian width is the FWHM of the optical-intensity envelope. Run the built-in validation suite with
 \begin{lstlisting}[language=bash]
 python3 bragg_transfer_function_propagation_ui.py --self-test
 \end{lstlisting}
 
-The input widths are always entered in microseconds. For a square pulse they are its command durations; for a Gaussian they are optical-intensity FWHM values. The program converts them to the nominal peak two-photon Rabi rates required to obtain the target areas before propagation is applied. The pulse separation $T$ is centre-to-centre for both pulse shapes. The mirror distance $L$ is the one-way atom-to-retroreflector distance.
+\section{Geometry and delayed two-photon coupling}
 
-The recommended workflow is to calculate Model A and Model B with the same inputs. Model A answers ``what remains after the experimenter recalibrates each pulse area?'' Model B answers ``what happens if the original pulse setting is left unchanged?'' Neither model is universally more correct; they represent different experimental control assumptions.
-
-\section{Geometry and propagation delay}
-
-Let the source-side phase and intensity envelope be $\phi(t)$ and $I(t)$. At the atoms, choose the forward field as the time reference. The retroreflected field contains an earlier source sample delayed by the round-trip propagation time
+Let $I(t)$ and $\phi(t)$ denote the source-side intensity envelope and optical phase. Taking the forward field at the atoms as the time reference, the reflected field samples the source a round-trip time earlier,
 \begin{equation}
   \taud=\frac{2L}{c}.
   \label{eq:delay}
 \end{equation}
-Ignoring constant propagation phases and using a common spatial mode, the complex two-photon coupling can be written
+After removing constant propagation phases and assuming identical spatial modes, the complex two-photon coupling is
 \begin{equation}
-  \widetilde{\Omega}(t)=\Omega_{\mathrm{in}}
-  \frac{\sqrt{I(t)I(t-\taud)}}{I_{\mathrm{pk}}}
-  \exp\!\left\{\ii[\phi(t)-\phi(t-\taud)]\right\}.
-  \label{eq:complex-rabi}
+ \widetilde{\Omega}(t)=\Omega_{\mathrm{in}}
+ \frac{\sqrt{I(t)I(t-\taud)}}{I_{\mathrm{pk}}}
+ \exp\!\left\{\ii[\phi(t)-\phi(t-\taud)]\right\}.
+ \label{eq:complex-rabi}
 \end{equation}
-The modulus of \cref{eq:complex-rabi} gives the raw Rabi envelope used to construct the pulses,
+Its modulus gives the raw envelope
 \begin{equation}
-  \Oraw(t)=\Omega_{\mathrm{in}}
-  \frac{\sqrt{I(t)I(t-\taud)}}{I_{\mathrm{pk}}},
-  \label{eq:raw-rabi}
+ \Oraw(t)=\Omega_{\mathrm{in}}
+ \frac{\sqrt{I(t)I(t-\taud)}}{I_{\mathrm{pk}}},
+ \label{eq:raw-rabi}
 \end{equation}
-whereas the argument gives the local phase difference that drives the interferometer. These two propagation effects must not be conflated: envelope overlap modifies $s(t)$ and hence $\Hatom$; phase differencing supplies the independent factor $D_d$ introduced in \cref{sec:transfer}.
+while its argument gives the local counter-propagating phase. Envelope overlap modifies the pulse shape and therefore $\Hatom$. Phase differencing produces the separate delay filter $D_d$ derived in \cref{sec:transfer}. The two effects enter at different stages of the calculation.
 
 \begin{warningbox}[Definition of $L$]
-The software uses $\taud=2L/c$. Entering an optical path length that already includes the round trip would count the factor of two twice. Any additional fibre, free-space or electronic delay must be added explicitly if it is part of the physical comparison.
+The software uses $\taud=2L/c$, where $L$ is one way. Entering a path length that already includes the round trip counts the factor of two twice. Additional fibre, electronic or cavity delays are not included automatically.
 \end{warningbox}
 
-\section{Effective pulse envelopes}
+\section{Square and Gaussian overlap}
 
-\subsection{Square pulses}
+\subsection{Square pulse}
 
-For a square command of duration $\tau$ centred on $t_c$, the two unit-height envelopes overlap for
+For a unit-height square command of duration $\tau$ centred on $t_c$, the common interval has duration
 \begin{equation}
-  \tau_{\mathrm{ov}}=\tau-\taud,
-  \qquad \tau>\taud,
-  \label{eq:square-overlap}
+ \tau_{\mathrm{ov}}=\tau-\taud,
+ \qquad \tau>\taud,
+ \label{eq:square-overlap}
 \end{equation}
-and the overlap is centred at $t_c+\taud/2$. The raw Rabi rate is unchanged inside that shorter interval, so
+and is centred at $t_c+\taud/2$. The raw rate is $\Omega_{\mathrm{in}}$ inside that interval, so the area ratio is
 \begin{equation}
-  A_{\mathrm{raw}}=\int\Oraw(t)\dd t
-  =\Omega_{\mathrm{in}}(\tau-\taud),
-  \qquad
-  \frac{A_{\mathrm{raw}}}{A_0}=1-\frac{\taud}{\tau}.
-  \label{eq:square-area}
+ \frac{A_{\mathrm{raw}}}{A_0}=1-\frac{\taud}{\tau}.
+ \label{eq:square-area-ratio}
 \end{equation}
-If $\taud\geq\tau$, the two envelopes do not overlap and the code stops with an explanatory error rather than returning a fictitious pulse.
+If $\taud\geq\tau$, there is no common support and the software stops with an error.
 
-\subsection{Gaussian pulses}
+\subsection{Gaussian pulse}
 
 The Gaussian input convention is
 \begin{equation}
  I(t)=I_{\mathrm{pk}}\exp\!\left[-\frac{(t-t_c)^2}{2\sigma^2}\right],
  \qquad \tau_{\mathrm{FWHM}}=2\sqrt{2\ln2}\,\sigma.
+ \label{eq:gaussian-input}
 \end{equation}
-Taking the geometric mean in \cref{eq:raw-rabi} gives
+Substitution into \cref{eq:raw-rabi} gives
 \begin{equation}
  \Oraw(t)=\Omega_{\mathrm{in}}
  \exp\!\left[-\frac{\taud^2}{8\sigma^2}\right]
  \exp\!\left[-\frac{(t-t_c-\taud/2)^2}{2\sigma^2}\right].
  \label{eq:gaussian-overlap}
 \end{equation}
-Thus an untruncated Gaussian keeps the same $\sigma$ and shifts by $\taud/2$. Its peak is attenuated by the first exponential in \cref{eq:gaussian-overlap}. Numerically, the program truncates each input at $\pm6\sigma$; the common support and its error-function area are retained exactly when constructing the pulse.
+The overlap is therefore a Gaussian of the same width, shifted by $\taud/2$. Its peak attenuation is the first exponential in \cref{eq:gaussian-overlap}. The calculation truncates each input envelope at $\pm6\sigma$. The common numerical support then has total duration $12\sigma-\taud$, and its small missing-tail correction is retained through the error function.
 
-\section{Two propagation models}
+\section{Model A: pulse-area restoration}
 
-\subsection{Model A: area compensated}
-
-Model A multiplies every raw envelope by
+For every interaction $j$, Model A defines
 \begin{equation}
-  \alpha_j=\frac{A_j^{\mathrm{target}}}{A_j^{\mathrm{raw}}},
-  \qquad
-  {\Oeff}_j(t)=\alpha_j{\Oraw}_j(t),
-  \label{eq:model-a}
+ \alpha_j=\frac{A_j^{\mathrm{target}}}{A_j^{\mathrm{raw}}},
+ \qquad
+ {\Oeff}_j(t)=\alpha_j{\Oraw}_j(t),
+ \qquad
+ A_j^{\mathrm{target}}\in\{\pi/2,\pi,\pi/2\}.
+ \label{eq:model-a}
 \end{equation}
-where $A_j^{\mathrm{target}}\in\{\pi/2,\pi,\pi/2\}$. It represents an experiment in which the delayed pulse is recalibrated by increasing optical power or Rabi rate. Propagation can still change the pulse duration, centre and spectral envelope, even though the integrated areas are ideal.
+It represents an experimental recalibration of the local pulse area after propagation has been included.
 
-For ideal pulse areas, define the accumulated pulse area
+For a square pulse, \cref{eq:square-area-ratio} gives
 \begin{equation}
-  \Theta_j(t)=\int_{t_{j,\mathrm{s}}}^{t}{\Oeff}_j(t')\dd t'.
+ \alpha_{\mathrm{sq}}=\frac{\tau}{\tau-\taud},
+ \qquad
+ \Omega_{\mathrm{eff,pk}}=\Omega_{\mathrm{in}}\alpha_{\mathrm{sq}}.
+ \label{eq:square-compensation}
 \end{equation}
-The usual MIGA/Cheinet sign convention gives the sensitivity function
+The compensated pulse is shorter and higher than the no-delay pulse, so its Fourier envelope changes.
+
+For an untruncated Gaussian, the area attenuation is exactly the peak attenuation. Hence
 \begin{equation}
-s_A(t)=
+ \alpha_{\mathrm{G}}=\exp\!\left[\frac{\taud^2}{8\sigma^2}\right],
+ \qquad
+ {\Oeff}_{\mathrm{G}}(t)=\Omega_{\mathrm{in}}
+ \exp\!\left[-\frac{(t-t_c-\taud/2)^2}{2\sigma^2}\right].
+ \label{eq:gaussian-compensation}
+\end{equation}
+Thus Model A restores the original Gaussian exactly, except for the common time shift. In the implemented $\pm6\sigma$ representation, the normalization also includes the ratio of the nominal and common-support error functions. Because the removed tails are extremely small in the present example, the numerical result is indistinguishable from \cref{eq:gaussian-compensation} at the plotted precision.
+
+\section{Sensitivity function}
+
+Define the accumulated area of interaction $j$ as
+\begin{equation}
+ \Theta_j(t)=\int_{t_{j,\mathrm{s}}}^{t}{\Oeff}_j(t')\dd t'.
+\end{equation}
+Because Model A restores ideal areas, the MIGA/Cheinet sign convention gives
+\begin{equation}
+s(t)=
 \begin{cases}
  \sin\Theta_1(t), & t\text{ in the first }\pi/2\text{ pulse},\\
  +1, & \text{between pulses 1 and 2},\\
@@ -243,234 +255,186 @@ s_A(t)=
  -\cos\Theta_3(t), & t\text{ in the last }\pi/2\text{ pulse},\\
  0, & \text{otherwise}.
 \end{cases}
-\label{eq:ideal-sensitivity}
+\label{eq:sensitivity}
 \end{equation}
-The code evaluates the same physical response through the common two-level phase-step routine, ensuring that Models A and B use one sign and timing convention.
+The program evaluates the equivalent resonant two-level phase-step response. The two constructions agree for the restored $\pi/2$--$\pi$--$\pi/2$ areas.
 
-\subsection{Model B: fixed input}
+\section{Transfer functions}\label{sec:transfer}
 
-Model B sets $\alpha_j=1$. The areas are generally not exactly $\pi/2$, $\pi$ and $\pi/2$, so inserting them into the ideal piecewise formula would be inconsistent. Instead, the program propagates the resonant two-level state with the rotation
-\begin{equation}
- R(A,\varphi)=
- \begin{pmatrix}
-  \cos(A/2)&-\ii e^{-\ii\varphi}\sin(A/2)\\
-  -\ii e^{\ii\varphi}\sin(A/2)&\cos(A/2)
- \end{pmatrix}.
- \label{eq:rotation}
-\end{equation}
-To evaluate the sensitivity at time $t$, an infinitesimal phase step $\epsilon$ is inserted: the part of the active pulse before $t$ uses phase $\varphi$, and all subsequent evolution uses $\varphi+\epsilon$. A symmetric finite difference gives $\partial P/\partial\epsilon$. The result is normalized by the output fringe slope at the operating point,
-\begin{equation}
- s_B(t)=-\frac{\partial P(t)/\partial\epsilon}
- {\partial P/\partial\varphi_{3}},
- \label{eq:model-b-sensitivity}
-\end{equation}
-where the minus sign enforces the convention that the first plateau is positive. This normalization expresses the response as inferred atom phase. If the fringe slope becomes nearly zero, that inferred phase is ill-conditioned; the program reports an error.
-
-\begin{keybox}[What Model B includes]
-Model B includes reduced pulse area and fringe contrast within a resonant effective two-level system. It does not turn the calculation into a full Bragg diffraction simulation. In particular, loss into unwanted momentum orders and diffraction phase are absent.
-\end{keybox}
-
-\section{Sensitivity and transfer functions}\label{sec:transfer}
-
-The Fourier convention used throughout is
+Using
 \begin{equation}
  \mathcal{F}[x](\omega)=\int_{-\infty}^{\infty}x(t)e^{-\ii\omega t}\dd t,
- \qquad \omega=2\pi f.
- \label{eq:fourier}
+ \qquad \omega=2\pi f,
 \end{equation}
-The atomic phase response to the local Bragg phase is
+the atomic response to local Bragg phase is
 \begin{equation}
  \Hatom(f)=n\int_{-\infty}^{\infty}\dot{s}(t)e^{-\ii2\pi ft}\dd t
  =n\,\ii2\pi f\int_{-\infty}^{\infty}s(t)e^{-\ii2\pi ft}\dd t.
  \label{eq:hai}
 \end{equation}
-The second equality follows by integration by parts because $s(t)$ vanishes outside the interferometer sequence. This is the same integral written in two numerically equivalent ways; the code uses the right-hand form because $s(t)$ is smooth inside each pulse and constant during free evolution. At $f=0$, $\Hatom(0)=0$.
-
-The local counter-propagating phase in \cref{eq:complex-rabi} is $\phi(t)-\phi(t-\taud)$. Its frequency-domain filter is therefore
+The second form follows by integration by parts because $s(t)$ vanishes outside the sequence. The code uses this second, numerically stable form. The delay between the two source-phase samples gives
 \begin{equation}
- D_d(f)=1-e^{-\ii2\pi f\taud}
- =2\ii e^{-\ii\pi f\taud}\sin(\pi f\taud),
+ D_d(f)=1-e^{-\ii2\pi f\taud},
  \qquad |D_d|=2|\sin(\pi f\taud)|.
  \label{eq:delay-filter}
 \end{equation}
-The total response to source laser phase is
+The source-phase and source-frequency responses are
 \begin{equation}
- \Hsrc(f)=\Hatom(f)D_d(f).
- \label{eq:hsrc}
-\end{equation}
-If frequency noise is specified as $\delta\nu(f)$ in hertz, then $\delta\phi(f)=\delta\nu(f)/(\ii f)$ under the convention of \cref{eq:fourier}. Consequently,
-\begin{equation}
+ \Hsrc(f)=\Hatom(f)D_d(f),
+ \qquad
  \Hnu(f)=\frac{\Hsrc(f)}{\ii f}.
- \label{eq:hnu}
+ \label{eq:combined}
 \end{equation}
-The apparent missing $2\pi$ is intentional: $\dot\phi=2\pi\delta\nu$ and the angular Fourier denominator is $\ii2\pi f$, so the factors cancel.
+The factor $2\pi$ cancels when frequency noise is specified in hertz because $\dot{\phi}=2\pi\delta\nu$.
 
 \begin{table}[H]
 \centering
-\caption{Meaning and units of the four displayed responses.}
-\label{tab:units}
+\caption{Inputs, outputs and units of the displayed responses.}
 \begin{tabularx}{\textwidth}{@{}lllX@{}}
 \toprule
 Quantity & Input $\rightarrow$ output & Unit & Interpretation \\
 \midrule
-$\Hatom$ & local Bragg phase $\rightarrow$ atom phase & dimensionless & Atomic sequence and finite-pulse filtering \\
-$D_d$ & source phase $\rightarrow$ local phase difference & dimensionless & Pure round-trip delay differencer \\
+$\Hatom$ & local Bragg phase $\rightarrow$ atom phase & dimensionless & Atomic sequence and pulse-shape filtering \\
+$D_d$ & source phase $\rightarrow$ local phase difference & dimensionless & Round-trip delay differencer \\
 $\Hsrc$ & source phase $\rightarrow$ atom phase & dimensionless & Product $\Hatom D_d$ \\
 $\Hnu$ & source frequency in Hz $\rightarrow$ atom phase & rad/Hz & Product $\Hsrc/(\ii f)$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-For a one-sided input power spectral density $S_x(f)$, the output is
+For a one-sided input PSD $S_x(f)$, the output PSD and variance are
 \begin{equation}
  S_{\Phi}(f)=|H_x(f)|^2S_x(f),
  \qquad
  \sigma_\Phi^2=\int_0^\infty S_\Phi(f)\dd f.
- \label{eq:psd}
 \end{equation}
-For amplitude spectral densities, use $\sqrt{S_\Phi}=|H_x|\sqrt{S_x}$. Do not multiply an ASD by $|H|^2$.
+An amplitude spectral density is multiplied by $|H_x|$, not by $|H_x|^2$.
 
 \section{Numerical implementation}
 
-The schedule builder first converts the entered widths to nominal peak Rabi rates. For square pulses, $\Omega_{\pi/2}=(\pi/2)/\tau_{\pi/2}$ and $\Omega_\pi=\pi/\tau_\pi$. For Gaussian pulses, the same target areas are divided by the truncated Gaussian integral. Each delayed effective pulse then stores its support, shifted centre, raw and effective areas, raw and compensated peak rates, and the cumulative-area function.
+The schedule builder converts entered widths to nominal peak Rabi rates. For square pulses, $\Omega_{\pi/2}=(\pi/2)/\tau_{\pi/2}$ and $\Omega_\pi=\pi/\tau_\pi$. For Gaussian pulses, the target area is divided by $\sigma\sqrt{2\pi}\operatorname{erf}(6/\sqrt{2})$. The delayed overlap, raw area and Model-A scaling are then calculated separately for each interaction.
 
-The transfer-function routine computes $\int s(t)e^{-\ii\omega t}\dd t$. Inside pulses, Gauss--Legendre quadrature samples the phase-step sensitivity. The long constant plateaus are integrated analytically with the stable identity
+The transfer routine evaluates $\int s(t)e^{-\ii\omega t}\dd t$. It uses Gauss--Legendre quadrature inside the pulses and integrates the long constant plateaus analytically with
 \begin{equation}
- \int_0^d e^{\ii q t}\dd t
+ \int_0^d e^{\ii qt}\dd t
  =d\,e^{\ii qd/2}\operatorname{sinc}\!\left(\frac{qd}{2}\right),
  \qquad \operatorname{sinc}(x)=\frac{\sin x}{x}.
- \label{eq:stable-integral}
 \end{equation}
-NumPy defines \texttt{sinc(x)} as $\sin(\pi x)/(\pi x)$, so the implementation passes $qd/(2\pi)$. This avoids the removable singularity at $q=0$. Frequencies are processed in chunks to limit memory use. The quadrature order grows with the product of maximum frequency and pulse duration and is capped at 4096 nodes so that an unreasonable request fails transparently.
+NumPy uses $\operatorname{sinc}(x)=\sin(\pi x)/(\pi x)$, so the implementation passes $qd/(2\pi)$. Frequencies are processed in chunks and the quadrature order grows with the product of maximum frequency and pulse support.
 
-\begin{checkbox}[Internal checks]
-The command-line self-test verifies the zero-delay limit, the square overlap formula, Model A area restoration, Model B area loss, the analytic delay factor and the relationship $\Hsrc=\Hatom D_d$. It also checks that $\Hnu=\Hsrc/(\ii f)$ away from DC.
+\begin{checkbox}[Validation]
+The built-in self-test verifies the zero-delay limit, the square overlap formula, Model-A area restoration, the analytic delay factor, $\Hsrc=\Hatom D_d$, and $\Hnu=\Hsrc/(\ii f)$ away from DC.
 \end{checkbox}
 
-\section{Graphical interface and plot reading}
+\section{Worked case: square and Gaussian pulses}\label{sec:case}
 
-The interface accepts Bragg order, $\pi/2$ and $\pi$ widths in microseconds, centre separation $T$, mirror distance $L$, pulse shape, propagation model and frequency grid. Its panels separate the calculation into physical layers: pulse overlap and effective Rabi envelope; sensitivity function; atomic response; delay filter; combined source-phase response; and frequency-noise response. Saving as PDF or SVG preserves vector curves.
+\subsection{Common inputs}
 
-Rapid fringes in $|\Hatom|$ arise from the long separation $T$, while the broad high-frequency roll-off is controlled by the finite pulse widths. A curve evaluated at a single frequency can land arbitrarily close to an interference zero. For envelope comparisons in this manual, the plotted ``local RMS'' averages $|H|^2$ over a small neighbourhood before taking the square root. It is a visualization aid, not a different transfer function and not a physical noise integration bandwidth.
-
-\section{Worked case: \texorpdfstring{$L=\SI{150}{\metre}$}{L=150 m}}\label{sec:case}
-
-\subsection{Inputs and immediate consequences}
-
-The reproducible case uses first-order Bragg diffraction, square pulses, $\tau_{\pi/2}=\SI{25}{\micro\second}$, $\tau_\pi=\SI{50}{\micro\second}$ and $T=\SI{250}{\milli\second}$. Both nominal Rabi rates are therefore $\Omega/(2\pi)=\SI{10}{\kilo\hertz}$. The frequency plots cover \SI{0.1}{\hertz}--\SI{100}{\kilo\hertz}.
+The example uses $n=1$, $L=\SI{150}{\metre}$, $T=\SI{250}{\milli\second}$, a \SI{25}{\micro\second} $\pi/2$ width and a \SI{50}{\micro\second} $\pi$ width. For square pulses, these are command durations and both nominal rates are $\Omega/(2\pi)=\SI{10}{\kilo\hertz}$. For Gaussian pulses, they are intensity FWHM values; the corresponding $\sigma$ values and area-normalized peaks are different. The frequency range is \SI{0.1}{\hertz}--\SI{100}{\kilo\hertz}. The common round-trip delay is
+\begin{equation}
+ \taud=\SI{\CaseDelayUs}{\micro\second}.
+\end{equation}
 
 \begin{table}[H]
 \centering
-\caption{Propagation quantities calculated directly from the case inputs.}
-\label{tab:case-values}
-\begin{tabularx}{\textwidth}{@{}lcccX@{}}
+\caption{Model-A pulse properties for the \SI{150}{\metre} example. ``Support'' denotes the numerical common support; for Gaussian pulses it extends over the retained $\pm6\sigma$ tails and is not a FWHM.}
+\label{tab:case-pulses}
+\begin{tabularx}{\textwidth}{@{}lcccc>{\raggedright\arraybackslash}X@{}}
 \toprule
-Quantity & No delay & Model A & Model B & Meaning \\
+Shape and pulse & Input width ($\si{\micro\second}$) & $\sigma$ ($\si{\micro\second}$) & Common support ($\si{\micro\second}$) & $\alpha$ & Effective peak $\Omega/(2\pi)$ \\
 \midrule
-Round-trip delay $\taud$ ($\si{\micro\second}$) & 0 & \CaseDelayUs & \CaseDelayUs & $2L/c$ \\
-$\pi/2$ effective duration ($\si{\micro\second}$) & 25 & \CaseHalfOverlapUs & \CaseHalfOverlapUs & $25-\taud$ \\
-$\pi$ effective duration ($\si{\micro\second}$) & 50 & \CasePiOverlapUs & \CasePiOverlapUs & $50-\taud$ \\
-$\pi/2$ area / target area & 1 & 1 & \CaseHalfAreaRatio & fixed-input loss \\
-$\pi$ area / target area & 1 & 1 & \CasePiAreaRatio & fixed-input loss \\
-$\pi/2$ compensation $\alpha$ & 1 & \CaseHalfScale & 1 & Rabi-rate multiplier \\
-$\pi$ compensation $\alpha$ & 1 & \CasePiScale & 1 & Rabi-rate multiplier \\
-Fringe contrast & 1 & 1 & \CaseContrastB & two-level Model B \\
+Square $\pi/2$ & 25 & --- & \CaseSquareHalfOverlapUs & \CaseSquareHalfScale & \SI{\CaseSquareHalfPeak}{\kilo\hertz} \\
+Square $\pi$ & 50 & --- & \CaseSquarePiOverlapUs & \CaseSquarePiScale & \SI{\CaseSquarePiPeak}{\kilo\hertz} \\
+Gaussian $\pi/2$ & 25 FWHM & \CaseGaussHalfSigmaUs & \CaseGaussHalfSupportUs & \CaseGaussHalfScale & \SI{\CaseGaussHalfEffectivePeak}{\kilo\hertz} \\
+Gaussian $\pi$ & 50 FWHM & \CaseGaussPiSigmaUs & \CaseGaussPiSupportUs & \CaseGaussPiScale & \SI{\CaseGaussPiEffectivePeak}{\kilo\hertz} \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The delay is \SI{\CaseDelayUs}{\micro\second}, about 4.00\% of a $\pi/2$ command and 2.00\% of a $\pi$ command. Model A restores the areas by raising the effective peaks from \SI{10}{\kilo\hertz} to \SI{\CaseHalfPeakA}{\kilo\hertz} and \SI{\CasePiPeakA}{\kilo\hertz}, respectively. Model B retains the \SI{10}{\kilo\hertz} peak and loses the same fractions of area. Its predicted contrast remains high, \CaseContrastB, but is not exactly unity.
+The square overlap loses 4.00\% of the $\pi/2$ duration and 2.00\% of the $\pi$ duration. Model A compensates by raising the peaks to \SI{\CaseSquareHalfPeak}{\kilo\hertz} and \SI{\CaseSquarePiPeak}{\kilo\hertz}. For the Gaussian $\pi/2$ and $\pi$ pulses, the raw peak ratios are \CaseGaussHalfRawPeakRatio{} and \CaseGaussPiRawPeakRatio{}. The corresponding scale factors, \CaseGaussHalfScale{} and \CaseGaussPiScale{}, cancel those attenuations to the shown precision. Both effective Gaussian peaks are therefore \SI{\CaseGaussHalfEffectivePeak}{\kilo\hertz}, equal to the nominal area-normalized input peak within rounding.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_overlap_sensitivity.pdf}
-\caption{Delayed overlap and sensitivity function for the \SI{150}{\metre} case. (a) The reflected square envelope is shifted by $\taud$, leaving only the green common interval. (b) Model B retains the nominal peak over a shorter interval; Model A compensates the area with a larger peak. (c) The full sensitivity functions are visually close because $\taud\ll T$, although their pulse-edge details differ. Blue shading marks the effective interaction windows.}
+\caption{Model-A overlap and sensitivity functions. (a) The square envelopes have a visibly shortened common interval; area restoration raises the effective Rabi rate. (b) The delayed Gaussian overlap has the same width as the input Gaussian and is shifted by $\taud/2$; compensation restores its height. (c,d) On the full \SI{500}{\milli\second} sequence, both sensitivity functions have the same plateaus, while their pulse-edge shapes differ on a microsecond scale.}
 \label{fig:case-overlap}
 \end{figure}
 
-\subsection{Change of the atomic response}
+\subsection{Atomic transfer function}
 
-At frequencies of order $1/T$, propagation has almost no visible influence on $\Hatom$: it changes microsecond pulse edges while the free evolution lasts hundreds of milliseconds. The low-frequency fringe positions therefore remain governed by $T$. The change becomes clearer near and above the nominal Rabi rate, where the pulse-edge Fourier content is important. Model A has shorter, slightly stronger rotations; Model B has shorter, under-area rotations and a small contrast reduction.
+At frequencies of order $1/T$, square and Gaussian responses are almost indistinguishable because the long free evolution dominates the microsecond pulse edges. At higher frequency, the envelope depends strongly on pulse shape. The square response develops sinc-like lobes and retains more high-frequency content. The smooth Gaussian response decays much more rapidly.
+
+For the propagated square pulse, the shorter compensated duration shifts the high-frequency lobes relative to the no-delay calculation. For the Gaussian pulse, \cref{eq:gaussian-compensation} implies
+\begin{equation}
+ H_{\mathrm{AI,G}}^{(L)}(f)
+ =e^{-\ii2\pi f\taud/2}H_{\mathrm{AI,G}}^{(0)}(f)
+\end{equation}
+in the untruncated limit. The propagation changes its complex phase but not its magnitude.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_atomic_transfer.pdf}
-\caption{Atomic transfer function for the case. (a) Resolved low-frequency fringes are almost indistinguishable. (b) A local RMS reveals the finite-pulse envelope up to \SI{100}{\kilo\hertz}. (c) Relative changes grow near high-frequency lobes and zeros. Ratios near a zero of the no-delay response must be interpreted cautiously because a small displacement of the zero can produce a large ratio.}
+\caption{Atomic transfer functions under Model A. (a) The resolved low-frequency fringes coincide. (b) Square-pulse propagation modestly changes the finite-pulse envelope. (c) The delayed and no-delay Gaussian magnitudes overlap because area compensation restores the Gaussian shape. (d) The relative change confirms that the Gaussian magnitude is essentially invariant, whereas the square difference becomes appreciable near high-frequency lobes and zeros. Local RMS is used only to display the envelope without sensitivity to isolated fringe zeros.}
 \label{fig:case-atomic}
 \end{figure}
 
-For a quantitative but zero-insensitive comparison, a $\pm\SI{2}{\hertz}$ local RMS gives the values in \cref{tab:transfer-case}. This window averages several neighbouring samples only; the underlying code always returns the complex pointwise transfer function.
-
 \begin{table}[H]
 \centering
-\caption{Selected local-RMS atomic responses and delay factors.}
-\label{tab:transfer-case}
-\begin{tabular}{@{}lccc@{}}
+\caption{Selected $\pm\SI{2}{\hertz}$ local-RMS values of $|\Hatom|$. The RMS window is a plotting diagnostic, not an additional physical filter.}
+\label{tab:case-transfer}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-Frequency & No-delay $|\Hatom|$ & Model A $|\Hatom|$ & Model B $|\Hatom|$ \\
+Frequency & Square, $L=0$ & Square, $L=\SI{150}{\metre}$ & Gaussian, $L=0$ & Gaussian, $L=\SI{150}{\metre}$ \\
 \midrule
-\SI{10}{\kilo\hertz} & \CaseHZeroTenK & \CaseHATenK & \CaseHBTenK \\
-\SI{100}{\kilo\hertz} & --- & \CaseHAHundredK & \CaseHBHundredK \\
-\bottomrule
-\end{tabular}
-\qquad
-\begin{tabular}{@{}lc@{}}
-\toprule
-Frequency & $|D_d|$ \\
-\midrule
-\SI{10}{\kilo\hertz} & \CaseDTenK \\
-\SI{100}{\kilo\hertz} & \CaseDHundredK \\
+\SI{10}{\kilo\hertz} & \CaseSquareZeroTenK & \CaseSquareDelayTenK & \CaseGaussZeroTenK & \CaseGaussDelayTenK \\
+\SI{100}{\kilo\hertz} & \num{\CaseSquareZeroHundredK} & \num{\CaseSquareDelayHundredK} & \num{\CaseGaussZeroHundredK} & \num{\CaseGaussDelayHundredK} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Propagation filter and total response}
+At \SI{10}{\kilo\hertz}, the square local RMS changes from \CaseSquareZeroTenK{} to \CaseSquareDelayTenK{}, while the Gaussian value remains \CaseGaussDelayTenK{} to six decimal places. At \SI{100}{\kilo\hertz}, the propagated square value is \num{\CaseSquareDelayHundredK}, whereas the Gaussian has already fallen to \num{\CaseGaussDelayHundredK}. This large difference is pulse-shape filtering, not an extra propagation penalty on the Gaussian.
 
-For this distance, the first exact zero of $D_d$ above DC is $1/\taud\simeq\SI{999.3}{\kilo\hertz}$, outside the plotted range. Below that zero, $|D_d|$ grows approximately as $2\pi f\taud$. Thus the source-phase response is much smaller than the local-phase atomic response at low frequency, not because the atom interferometer has changed units, but because common source phase is rejected by two nearly simultaneous optical samples.
+\subsection{Delay filter and total response}
+
+The phase-delay factor is common to both pulse shapes because $L$ is the same. Its magnitude is \CaseDTenK{} at \SI{10}{\kilo\hertz} and \CaseDHundredK{} at \SI{100}{\kilo\hertz}. The first non-DC zero occurs at $1/\taud\simeq\SI{999.3}{\kilo\hertz}$, outside the plotted range. Below it, $|D_d|\simeq2\pi f\taud$.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_total_transfer.pdf}
-\caption{Propagation and combined responses. (a) Exact delay filter and its low-frequency approximation. (b) Combined source-phase response $|\Hsrc|=|\Hatom D_d|$. (c) Source-frequency-noise response $|\Hnu|=|\Hsrc|/f$ in rad/Hz. The dotted low-frequency level is the ideal-pulse local-RMS limit $2\pi\taud\sqrt{6}$ for $n=1$ and the present RMS convention.}
+\caption{Combined propagation responses. (a) The delay differencer is identical for square and Gaussian pulses. (b) The source-phase response is $|\Hsrc|=|\Hatom D_d|$; its high-frequency difference is inherited from the atomic pulse-shape filter. (c) The frequency-noise response is $|\Hnu|=|\Hsrc|/f$ in rad/Hz. The dotted level is the ideal-pulse low-frequency local-RMS limit $2\pi\taud\sqrt{6}$ for $n=1$.}
 \label{fig:case-total}
 \end{figure}
 
-At \SI{10}{\kilo\hertz}, the delay factor is only \CaseDTenK; at \SI{100}{\kilo\hertz} it reaches \CaseDHundredK. The total transfer is the pointwise complex product, so its phase as well as its magnitude must be retained when combining several noise paths. Model A and Model B remain close in this example because the delay occupies only a few percent of each pulse, but their difference would increase for shorter pulses, larger $L$, or a sequence operated near a fringe-slope minimum.
-
-\begin{keybox}[Case conclusion]
-For $L=\SI{150}{\metre}$ and 25/\SI{50}{\micro\second} square pulses, propagation has a modest effect on $\Hatom$ itself and a much more conspicuous effect through the source-phase differencer $D_d$. The distinction is experimentally important: calibrating the pulse area addresses the envelope-overlap effect (Model A), but it cannot remove the delayed sampling of source phase.
+\begin{keybox}[Interpretation of the \SI{150}{\metre} case]
+Under area compensation, propagation changes the square-pulse $|\Hatom|$ because it shortens the interaction. It does not materially change the Gaussian $|\Hatom|$ because the overlapped Gaussian has the same width and normalization restores its height. Nevertheless, both shapes acquire the same source-phase differencer $D_d$. Pulse-area calibration can restore the local Rabi envelope, but it cannot remove the delayed sampling of source laser phase.
 \end{keybox}
 
-\section{Reproducing the case figures}
+\section{Reproducing the figures}
 
-The manual directory contains a deterministic plotting script. From that directory run
+From this manual directory, run
 \begin{lstlisting}[language=bash]
 python3 manual_figures_propagation.py
 pdflatex -interaction=nonstopmode bragg_transfer_function_propagation_manual.tex
 pdflatex -interaction=nonstopmode bragg_transfer_function_propagation_manual.tex
 \end{lstlisting}
-The script imports the same calculation functions as the GUI, writes vector PDF and preview PNG figures, and regenerates \texttt{case\_values.tex}. The latter prevents hand-copied numbers in the prose from drifting away from the code. Running \LaTeX{} twice resolves the table of contents and cross-references. The source is compatible with Overleaf when the source file, \texttt{case\_values.tex}, and the \texttt{figures} folder are uploaded together.
+The plotting script imports the same numerical functions as the GUI, writes vector PDF and preview PNG figures, and regenerates \texttt{case\_values.tex}. Upload the \LaTeX{} source, \texttt{case\_values.tex}, and the \texttt{figures} folder together when compiling on Overleaf.
 
-\section{Troubleshooting and interpretation}
+\section{Troubleshooting and limitations}
 
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.27\textwidth}>{\raggedright\arraybackslash}p{0.67\textwidth}@{}}
 \toprule
 Observation & Explanation and action \\
 \midrule
 \endhead
-No square-pulse overlap & $\taud\geq\tau$ for at least one pulse. Reduce $L$, lengthen the pulse, or use a model that represents a different optical timing protocol. \\
-Model B reports a small fringe slope & The chosen nonideal areas place the readout near an insensitive operating point. An inferred phase transfer function is then ill-conditioned; inspect transition probability and retune the sequence. \\
-$\Hatom$ has no unit but $\Hnu$ does & They have different inputs. $\Hatom$ is phase/phase; $\Hnu$ is phase/frequency and therefore has unit rad/Hz. \\
-Large relative-change spikes & The no-delay denominator is near an interference zero. Compare complex responses or a local envelope instead of relying on a ratio. \\
-Model A peak exceeds the nominal value & This is the area-restoring factor in \cref{eq:model-a}. Confirm that the required optical power is experimentally available. \\
-Gaussian result differs from a square estimate & Gaussian overlap reduces the peak exponentially rather than simply subtracting a duration; use \cref{eq:gaussian-overlap}. \\
-Result disagrees with a multi-order Bragg simulation & The present backend is an effective two-level model. Include the momentum ladder, detuning and diffraction phases before treating the discrepancy as a numerical error. \\
+No square-pulse overlap & $\taud\geq\tau$ for at least one pulse. Reduce $L$ or lengthen the pulse. \\
+Gaussian support looks much longer than its entered width & The entered width is FWHM; the numerical support retains the tails out to $\pm6\sigma$. \\
+Gaussian propagation curves overlap exactly & This is the expected Model-A result in \cref{eq:gaussian-compensation}, not a missing calculation. Inspect complex phase to observe the $\taud/2$ shift. \\
+Square relative-change spikes & The no-delay response is near a lobe zero. Compare complex responses or a local envelope rather than a pointwise ratio. \\
+$\Hatom$ is dimensionless but $\Hnu$ is rad/Hz & They have different inputs: phase/phase versus phase/frequency. \\
+Required square peak is too high & The area-restoring factor grows as $\tau/(\tau-\taud)$. The assumed compensation may exceed available optical power. \\
+Result differs from a multi-order simulation & The present backend is an effective resonant two-level model and excludes unwanted momentum orders and diffraction phases. \\
 \bottomrule
 \end{longtable}
-
-\section{Extensions}
-
-The most useful next extension is to allow distinct phase and group delays. The optical carrier phase difference and pulse-envelope overlap need not experience identical propagation in a dispersive fibre or cavity. A second extension is a full momentum-state Hamiltonian, in which Model B naturally predicts unwanted diffraction orders and diffraction phase. Other practical additions include unequal forward/reflected intensities, mirror motion, frequency-dependent optical transfer, independently timed pulses and measured pulse envelopes imported from data.
 
 \section{File map}
 
@@ -478,10 +442,10 @@ The most useful next extension is to allow distinct phase and group delays. The 
 \toprule
 File & Role \\
 \midrule
-\texttt{bragg\_transfer\_function\_propagation\_ui.py} & GUI, pulse construction, two-level sensitivity and all transfer functions. \\
+\texttt{bragg\_transfer\_function\_propagation\_ui.py} & GUI, delayed pulse construction, sensitivity function and transfer functions. \\
 \texttt{PROPAGATION\_MODEL.md} & Concise model definition and launch instructions. \\
-\texttt{docs/Bragg transfer function propagation/} & This manual, generated values and reproducible case figures. \\
-\texttt{manual\_figures\_propagation.py} & Deterministic generator for the three case figures and numerical macros. \\
+\texttt{bragg\_transfer\_function\_propagation\_manual.tex} & This Model-A square/Gaussian manual. \\
+\texttt{manual\_figures\_propagation.py} & Deterministic generator for the case figures and numerical macros. \\
 \bottomrule
 \end{tabularx}
 
