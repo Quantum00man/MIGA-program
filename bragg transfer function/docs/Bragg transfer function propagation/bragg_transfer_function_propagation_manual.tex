@@ -88,9 +88,9 @@
 \input{case_values.tex}
 
 \title{\vspace{-1.3cm}\textbf{Model-A Propagation-Aware Bragg Transfer Function}\\[0.35em]
-\large Square and Gaussian pulses with a worked \SI{150}{\metre} case}
+\large Square and Gaussian pulses at $L=0$, \SI{150}{\metre} and \SI{2000}{\metre}}
 \author{MIGA programme}
-\date{Version 1.1 \textbullet{} 1 September 2026}
+\date{Version 1.2 \textbullet{} 1 September 2026}
 
 \begin{document}
 
@@ -98,7 +98,7 @@
 \begin{center}\rule{0.92\textwidth}{0.6pt}\end{center}
 
 \begin{abstract}
-This manual documents the area-compensated propagation model implemented in the propagation-aware Python calculator. In a single-frequency retroreflected geometry, the forward optical envelope and its reflected copy reach the atoms with the round-trip separation $\taud=2L/c$. Their overlap determines the effective two-photon Rabi envelope. Model A rescales every overlapped pulse to restore the nominal $\pi/2$--$\pi$--$\pi/2$ areas, representing an experiment in which pulse areas are recalibrated after propagation is included. The manual derives the result for square and Gaussian optical-intensity pulses, explains the sensitivity and transfer functions, documents the numerical implementation, and gives a reproducible first-order example for $L=\SI{150}{\metre}$, $T=\SI{250}{\milli\second}$, $\tau_{\pi}=\SI{50}{\micro\second}$ and $\tau_{\pi/2}=\SI{25}{\micro\second}$. For the Gaussian case, these two widths are intensity FWHM values.
+This manual documents the area-compensated propagation model implemented in the propagation-aware Python calculator. In a single-frequency retroreflected geometry, the forward optical envelope and its reflected copy reach the atoms with the round-trip separation $\taud=2L/c$. Their overlap determines the effective two-photon Rabi envelope. Model A rescales every overlapped pulse to restore the nominal $\pi/2$--$\pi$--$\pi/2$ areas, representing an experiment in which pulse areas are recalibrated after propagation is included. The manual derives the result for square and Gaussian optical-intensity pulses, explains the sensitivity and transfer functions, and compares reproducible first-order examples at $L=0$, \SI{150}{\metre} and \SI{2000}{\metre}. All three use $T=\SI{250}{\milli\second}$, $\tau_{\pi}=\SI{50}{\micro\second}$ and $\tau_{\pi/2}=\SI{25}{\micro\second}$. For the Gaussian case, these two widths are intensity FWHM values.
 \end{abstract}
 
 \begin{keybox}[Main result]
@@ -326,43 +326,64 @@ NumPy uses $\operatorname{sinc}(x)=\sin(\pi x)/(\pi x)$, so the implementation p
 The built-in self-test verifies the zero-delay limit, the square overlap formula, Model-A area restoration, the analytic delay factor, $\Hsrc=\Hatom D_d$, and $\Hnu=\Hsrc/(\ii f)$ away from DC.
 \end{checkbox}
 
-\section{Worked case: square and Gaussian pulses}\label{sec:case}
+\section{Worked comparison: $L=0$, \SI{150}{\metre} and \SI{2000}{\metre}}\label{sec:case}
 
 \subsection{Common inputs}
 
-The example uses $n=1$, $L=\SI{150}{\metre}$, $T=\SI{250}{\milli\second}$, a \SI{25}{\micro\second} $\pi/2$ width and a \SI{50}{\micro\second} $\pi$ width. For square pulses, these are command durations and both nominal rates are $\Omega/(2\pi)=\SI{10}{\kilo\hertz}$. For Gaussian pulses, they are intensity FWHM values; the corresponding $\sigma$ values and area-normalized peaks are different. The frequency range is \SI{0.1}{\hertz}--\SI{100}{\kilo\hertz}. The common round-trip delay is
+The three examples use the same $n=1$, $T=\SI{250}{\milli\second}$, \SI{25}{\micro\second} $\pi/2$ width and \SI{50}{\micro\second} $\pi$ width. For square pulses, these are command durations and both nominal rates are $\Omega/(2\pi)=\SI{10}{\kilo\hertz}$. For Gaussian pulses, they are intensity FWHM values, giving $\sigma_{\pi/2}=\SI{\CaseGaussHalfSigmaUs}{\micro\second}$, $\sigma_{\pi}=\SI{\CaseGaussPiSigmaUs}{\micro\second}$ and the common area-normalized input peak $\Omega_0/(2\pi)=\SI{\CaseGaussInputPeak}{\kilo\hertz}$. The frequency range is \SI{0.1}{\hertz}--\SI{100}{\kilo\hertz}.
+
+The round-trip delays are
 \begin{equation}
- \taud=\SI{\CaseDelayUs}{\micro\second}.
+ \taud(L=0)=0,\qquad
+ \taud(\SI{150}{\metre})=\SI{\CaseDelayOneFiftyUs}{\micro\second},\qquad
+ \taud(\SI{2000}{\metre})=\SI{\CaseDelayTwoThousandUs}{\micro\second}.
 \end{equation}
+$L=0$ is therefore the no-propagation reference, whereas \SI{2000}{\metre} is a deliberately demanding case in which the delay is no longer small relative to the \SI{25}{\micro\second} pulse.
 
 \begin{table}[H]
 \centering
-\caption{Model-A pulse properties for the \SI{150}{\metre} example. ``Support'' denotes the numerical common support; for Gaussian pulses it extends over the retained $\pm6\sigma$ tails and is not a FWHM.}
-\label{tab:case-pulses}
-\begin{tabularx}{\textwidth}{@{}lcccc>{\raggedright\arraybackslash}X@{}}
+\caption{Model-A square-pulse overlap and area compensation. The effective peak is the nominal \SI{10}{\kilo\hertz} rate multiplied by $\alpha$.}
+\label{tab:case-square-pulses}
+\begin{tabular}{@{}rrrrrrr@{}}
 \toprule
-Shape and pulse & Input width ($\si{\micro\second}$) & $\sigma$ ($\si{\micro\second}$) & Common support ($\si{\micro\second}$) & $\alpha$ & Effective peak $\Omega/(2\pi)$ \\
+$L$ (m) & $\tau_{\pi/2}^{\rm ov}$ ($\si{\micro\second}$) & $\alpha_{\pi/2}$ & Peak $\pi/2$ (kHz) & $\tau_{\pi}^{\rm ov}$ ($\si{\micro\second}$) & $\alpha_{\pi}$ & Peak $\pi$ (kHz) \\
 \midrule
-Square $\pi/2$ & 25 & --- & \CaseSquareHalfOverlapUs & \CaseSquareHalfScale & \SI{\CaseSquareHalfPeak}{\kilo\hertz} \\
-Square $\pi$ & 50 & --- & \CaseSquarePiOverlapUs & \CaseSquarePiScale & \SI{\CaseSquarePiPeak}{\kilo\hertz} \\
-Gaussian $\pi/2$ & 25 FWHM & \CaseGaussHalfSigmaUs & \CaseGaussHalfSupportUs & \CaseGaussHalfScale & \SI{\CaseGaussHalfEffectivePeak}{\kilo\hertz} \\
-Gaussian $\pi$ & 50 FWHM & \CaseGaussPiSigmaUs & \CaseGaussPiSupportUs & \CaseGaussPiScale & \SI{\CaseGaussPiEffectivePeak}{\kilo\hertz} \\
+0 & \CaseSquareHalfOverlapZeroUs & \CaseSquareHalfScaleZero & \CaseSquareHalfPeakZero & \CaseSquarePiOverlapZeroUs & \CaseSquarePiScaleZero & \CaseSquarePiPeakZero \\
+150 & \CaseSquareHalfOverlapOneFiftyUs & \CaseSquareHalfScaleOneFifty & \CaseSquareHalfPeakOneFifty & \CaseSquarePiOverlapOneFiftyUs & \CaseSquarePiScaleOneFifty & \CaseSquarePiPeakOneFifty \\
+2000 & \CaseSquareHalfOverlapTwoThousandUs & \CaseSquareHalfScaleTwoThousand & \CaseSquareHalfPeakTwoThousand & \CaseSquarePiOverlapTwoThousandUs & \CaseSquarePiScaleTwoThousand & \CaseSquarePiPeakTwoThousand \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
-The square overlap loses 4.00\% of the $\pi/2$ duration and 2.00\% of the $\pi$ duration. Model A compensates by raising the peaks to \SI{\CaseSquareHalfPeak}{\kilo\hertz} and \SI{\CaseSquarePiPeak}{\kilo\hertz}. For the Gaussian $\pi/2$ and $\pi$ pulses, the raw peak ratios are \CaseGaussHalfRawPeakRatio{} and \CaseGaussPiRawPeakRatio{}. The corresponding scale factors, \CaseGaussHalfScale{} and \CaseGaussPiScale{}, cancel those attenuations to the shown precision. Both effective Gaussian peaks are therefore \SI{\CaseGaussHalfEffectivePeak}{\kilo\hertz}, equal to the nominal area-normalized input peak within rounding.
+At \SI{150}{\metre}, the required square compensation is mild. At \SI{2000}{\metre}, however, only \SI{\CaseSquareHalfOverlapTwoThousandUs}{\micro\second} of the square $\pi/2$ pulse overlaps, so Model A requires $\alpha_{\pi/2}=\CaseSquareHalfScaleTwoThousand$ and an effective rate of \SI{\CaseSquareHalfPeakTwoThousand}{\kilo\hertz}. This is mathematically valid but experimentally demanding: the available optical power and validity of the effective two-level approximation must be checked.
+
+\begin{table}[H]
+\centering
+\caption{Gaussian overlap before and after Model-A compensation. ``Support'' is the retained common $\pm6\sigma$ numerical interval, not the FWHM. The raw ratio is the uncompensated effective peak divided by the input peak.}
+\label{tab:case-gaussian-pulses}
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$L$ (m) & Raw $\pi/2$ & $\alpha_{\pi/2}$ & Support $\pi/2$ ($\si{\micro\second}$) & Raw $\pi$ & $\alpha_{\pi}$ & Support $\pi$ ($\si{\micro\second}$) \\
+\midrule
+0 & \CaseGaussHalfRawRatioZero & \CaseGaussHalfScaleZero & \CaseGaussHalfSupportZeroUs & \CaseGaussPiRawRatioZero & \CaseGaussPiScaleZero & \CaseGaussPiSupportZeroUs \\
+150 & \CaseGaussHalfRawRatioOneFifty & \CaseGaussHalfScaleOneFifty & \CaseGaussHalfSupportOneFiftyUs & \CaseGaussPiRawRatioOneFifty & \CaseGaussPiScaleOneFifty & \CaseGaussPiSupportOneFiftyUs \\
+2000 & \CaseGaussHalfRawRatioTwoThousand & \CaseGaussHalfScaleTwoThousand & \CaseGaussHalfSupportTwoThousandUs & \CaseGaussPiRawRatioTwoThousand & \CaseGaussPiScaleTwoThousand & \CaseGaussPiSupportTwoThousandUs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the \SI{2000}{\metre} Gaussian $\pi/2$ pulse, the uncompensated peak falls to \CaseGaussHalfRawRatioTwoThousand{} of its input value and Model A applies $\alpha=\CaseGaussHalfScaleTwoThousand$. After compensation, the effective Gaussian is restored to the original width and area, apart from its shift by $\taud/2$ and the negligible retained-tail truncation.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_overlap_sensitivity.pdf}
-\caption{Model-A overlap and sensitivity functions. (a) The square envelopes have a visibly shortened common interval; area restoration raises the effective Rabi rate. (b) The delayed Gaussian overlap has the same width as the input Gaussian and is shifted by $\taud/2$; compensation restores its height. (c,d) On the full \SI{500}{\milli\second} sequence, both sensitivity functions have the same plateaus, while their pulse-edge shapes differ on a microsecond scale.}
+\caption{Pulse overlap for all six Model-A cases. The top row shows square pulses at $L=0$, \SI{150}{\metre} and \SI{2000}{\metre}; the bottom row shows the corresponding Gaussian pulses. Increasing $L$ shortens the common support. The compensated square becomes narrower and taller, while the compensated Gaussian retains its width and is shifted by $\taud/2$.}
 \label{fig:case-overlap}
 \end{figure}
 
 \subsection{Atomic transfer function}
 
-At frequencies of order $1/T$, square and Gaussian responses are almost indistinguishable because the long free evolution dominates the microsecond pulse edges. At higher frequency, the envelope depends strongly on pulse shape. The square response develops sinc-like lobes and retains more high-frequency content. The smooth Gaussian response decays much more rapidly.
+At frequencies of order $1/T$, all three distances and both shapes are almost indistinguishable because the long free evolution dominates the microsecond pulse edges. At higher frequency, the envelope depends strongly on pulse shape. The square response develops sinc-like lobes and retains more high-frequency content. The smooth Gaussian response decays much more rapidly.
 
 For the propagated square pulse, the shorter compensated duration shifts the high-frequency lobes relative to the no-delay calculation. For the Gaussian pulse, \cref{eq:gaussian-compensation} implies
 \begin{equation}
@@ -374,7 +395,7 @@ in the untruncated limit. The propagation changes its complex phase but not its 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_atomic_transfer.pdf}
-\caption{Atomic transfer functions under Model A. (a) The resolved low-frequency fringes coincide. (b) Square-pulse propagation modestly changes the finite-pulse envelope. (c) The delayed and no-delay Gaussian magnitudes overlap because area compensation restores the Gaussian shape. (d) The relative change confirms that the Gaussian magnitude is essentially invariant, whereas the square difference becomes appreciable near high-frequency lobes and zeros. Local RMS is used only to display the envelope without sensitivity to isolated fringe zeros.}
+\caption{Atomic transfer functions under Model A. (a) The resolved low-frequency fringes coincide. (b) Square-pulse propagation changes the finite-pulse envelope, strongly for \SI{2000}{\metre}. (c) All Gaussian magnitudes overlap because area compensation restores the Gaussian shape. (d) Relative to $L=0$, the Gaussian magnitude is essentially invariant, whereas the square difference grows near high-frequency lobes and zeros. Local RMS is used only to display the envelope without sensitivity to isolated fringe zeros.}
 \label{fig:case-atomic}
 \end{figure}
 
@@ -382,31 +403,48 @@ in the untruncated limit. The propagation changes its complex phase but not its 
 \centering
 \caption{Selected $\pm\SI{2}{\hertz}$ local-RMS values of $|\Hatom|$. The RMS window is a plotting diagnostic, not an additional physical filter.}
 \label{tab:case-transfer}
-\begin{tabular}{@{}lcccc@{}}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-Frequency & Square, $L=0$ & Square, $L=\SI{150}{\metre}$ & Gaussian, $L=0$ & Gaussian, $L=\SI{150}{\metre}$ \\
+Shape and frequency & $L=0$ & $L=\SI{150}{\metre}$ & $L=\SI{2000}{\metre}$ \\
 \midrule
-\SI{10}{\kilo\hertz} & \CaseSquareZeroTenK & \CaseSquareDelayTenK & \CaseGaussZeroTenK & \CaseGaussDelayTenK \\
-\SI{100}{\kilo\hertz} & \num{\CaseSquareZeroHundredK} & \num{\CaseSquareDelayHundredK} & \num{\CaseGaussZeroHundredK} & \num{\CaseGaussDelayHundredK} \\
+Square, \SI{10}{\kilo\hertz} & \CaseSquareTenKZero & \CaseSquareTenKOneFifty & \CaseSquareTenKTwoThousand \\
+Square, \SI{100}{\kilo\hertz} & \num{\CaseSquareHundredKZero} & \num{\CaseSquareHundredKOneFifty} & \num{\CaseSquareHundredKTwoThousand} \\
+Gaussian, \SI{10}{\kilo\hertz} & \CaseGaussTenKZero & \CaseGaussTenKOneFifty & \CaseGaussTenKTwoThousand \\
+Gaussian, \SI{100}{\kilo\hertz} & \num{\CaseGaussHundredKZero} & \num{\CaseGaussHundredKOneFifty} & \num{\CaseGaussHundredKTwoThousand} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-At \SI{10}{\kilo\hertz}, the square local RMS changes from \CaseSquareZeroTenK{} to \CaseSquareDelayTenK{}, while the Gaussian value remains \CaseGaussDelayTenK{} to six decimal places. At \SI{100}{\kilo\hertz}, the propagated square value is \num{\CaseSquareDelayHundredK}, whereas the Gaussian has already fallen to \num{\CaseGaussDelayHundredK}. This large difference is pulse-shape filtering, not an extra propagation penalty on the Gaussian.
+The square response changes progressively with distance because the compensated common interval becomes shorter. The Gaussian values remain equal to the displayed precision: under Model A, distance contributes a time shift to the effective Gaussian and therefore a phase factor to $\Hatom$, but no magnitude penalty. Its much smaller \SI{100}{\kilo\hertz} value is smooth pulse-shape filtering, not an extra propagation loss.
 
 \subsection{Delay filter and total response}
 
-The phase-delay factor is common to both pulse shapes because $L$ is the same. Its magnitude is \CaseDTenK{} at \SI{10}{\kilo\hertz} and \CaseDHundredK{} at \SI{100}{\kilo\hertz}. The first non-DC zero occurs at $1/\taud\simeq\SI{999.3}{\kilo\hertz}$, outside the plotted range. Below it, $|D_d|\simeq2\pi f\taud$.
+The delay factor depends on $L$ but not on pulse shape. Its numerical comparison is
+\begin{table}[H]
+\centering
+\caption{Magnitude and first non-DC zero of the propagation-delay differencer.}
+\label{tab:case-delay}
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$L$ (m) & $|D_d|$ at \SI{10}{\kilo\hertz} & $|D_d|$ at \SI{100}{\kilo\hertz} & First non-DC zero \\
+\midrule
+0 & 0 & 0 & identically zero \\
+150 & \CaseDTenKOneFifty & \CaseDHundredKOneFifty & \SI{\CaseFirstZeroOneFiftyKHz}{\kilo\hertz} \\
+2000 & \CaseDTenKTwoThousand & \CaseDHundredKTwoThousand & \SI{\CaseFirstZeroTwoThousandKHz}{\kilo\hertz} \\
+\bottomrule
+\end{tabular}
+\end{table}
+For $L=0$, $D_d=0$ at every frequency, hence both $\Hsrc$ and $\Hnu$ vanish; the zero response is annotated rather than drawn on logarithmic axes. The \SI{150}{\metre} first zero remains outside the plotted band, whereas the \SI{2000}{\metre} zero at \SI{\CaseFirstZeroTwoThousandKHz}{\kilo\hertz} is visible. Below the first zero, $|D_d|\simeq2\pi f\taud$, so the low-frequency $|\Hnu|$ plateau grows linearly with $L$.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_total_transfer.pdf}
-\caption{Combined propagation responses. (a) The delay differencer is identical for square and Gaussian pulses. (b) The source-phase response is $|\Hsrc|=|\Hatom D_d|$; its high-frequency difference is inherited from the atomic pulse-shape filter. (c) The frequency-noise response is $|\Hnu|=|\Hsrc|/f$ in rad/Hz. The dotted level is the ideal-pulse low-frequency local-RMS limit $2\pi\taud\sqrt{6}$ for $n=1$.}
+\caption{Combined propagation responses for \SI{150}{\metre} and \SI{2000}{\metre}; the $L=0$ responses are identically zero. (a) The delay differencer depends only on $L$. (b) The source-phase response is $|\Hsrc|=|\Hatom D_d|$; its shape dependence is inherited from the atomic filter. (c) The frequency-noise response is $|\Hnu|=|\Hsrc|/f$ in rad/Hz. Dotted levels show the ideal-pulse low-frequency local-RMS limits $2\pi\taud\sqrt{6}$ for $n=1$.}
 \label{fig:case-total}
 \end{figure}
 
-\begin{keybox}[Interpretation of the \SI{150}{\metre} case]
-Under area compensation, propagation changes the square-pulse $|\Hatom|$ because it shortens the interaction. It does not materially change the Gaussian $|\Hatom|$ because the overlapped Gaussian has the same width and normalization restores its height. Nevertheless, both shapes acquire the same source-phase differencer $D_d$. Pulse-area calibration can restore the local Rabi envelope, but it cannot remove the delayed sampling of source laser phase.
+\begin{keybox}[Interpretation of the three-distance comparison]
+$L=0$ isolates the ordinary atomic transfer function but has no differential propagation coupling. At \SI{150}{\metre}, square-pulse distortion and area compensation are small, while the delay factor is already nonzero. At \SI{2000}{\metre}, square overlap is severely shortened, the required $\pi/2$ Rabi rate more than doubles, and the delay-filter zero enters the plotted band. Gaussian Model-A compensation still restores $|\Hatom|$, but both pulse shapes retain the same unavoidable delayed sampling of source phase through $D_d$.
 \end{keybox}
 
 \section{Reproducing the figures}
