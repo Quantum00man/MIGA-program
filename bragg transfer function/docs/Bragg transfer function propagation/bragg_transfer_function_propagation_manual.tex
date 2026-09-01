@@ -90,7 +90,7 @@
 \title{\vspace{-1.3cm}\textbf{Propagation-Aware Bragg Transfer Function}\\[0.35em]
 \large Models A and B for square and Gaussian pulses at $L=0$, \SI{150}{\metre} and \SI{2000}{\metre}}
 \author{MIGA programme}
-\date{Version 1.3 \textbullet{} 1 September 2026}
+\date{Version 1.4 \textbullet{} 1 September 2026}
 
 \begin{document}
 
@@ -430,7 +430,7 @@ in the untruncated limit. The propagation changes its complex phase but not its 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_atomic_transfer.pdf}
-\caption{Atomic transfer functions under Model A. (a) The resolved low-frequency fringes coincide. (b) Square-pulse propagation changes the finite-pulse envelope, strongly for \SI{2000}{\metre}. (c) All Gaussian magnitudes overlap because area compensation restores the Gaussian shape. (d) Both Gaussian distances are now shown explicitly on the right axis in parts per million; their changes are tiny compared with the square-pulse changes on the left axis. Local RMS is used only to display the envelope without sensitivity to isolated fringe zeros.}
+\caption{Atomic transfer functions under Model A. (a) All six low-frequency curves are drawn; coincident lines reflect equal responses rather than omitted data. (b) Square-pulse propagation changes the finite-pulse envelope, strongly for \SI{2000}{\metre}. (c) All Gaussian magnitudes overlap because area compensation restores the Gaussian shape. (d) The left axis shows the positive square response ratio to $L=0$; the right axis shows the Gaussian ratio offset in parts per million. Gaussian ratios are hidden once the $L=0$ absolute RMS falls below $10^{-3}$, where division by a vanishing response exaggerates truncation and numerical residuals.}
 \label{fig:case-atomic}
 \end{figure}
 
@@ -450,7 +450,7 @@ Gaussian, \SI{100}{\kilo\hertz} & \num{\CaseGaussHundredKZero} & \num{\CaseGauss
 \end{tabular}
 \end{table}
 
-The square response changes progressively with distance because the compensated common interval becomes shorter. The Gaussian values remain equal to the displayed precision: under Model A, distance contributes a time shift to the effective Gaussian and therefore a phase factor to $\Hatom$, but no magnitude penalty. Its much smaller \SI{100}{\kilo\hertz} value is smooth pulse-shape filtering, not an extra propagation loss.
+The square response changes progressively with distance because the compensated common interval becomes shorter. The Gaussian values remain equal to the displayed precision: under Model A, distance contributes a time shift to the effective Gaussian and therefore a phase factor to $\Hatom$, but no magnitude penalty. Its much smaller \SI{100}{\kilo\hertz} value is smooth pulse-shape filtering, not an extra propagation loss. Relative Gaussian curves are therefore displayed only while the reference response remains above $10^{-3}$; beyond that threshold the absolute curves in \cref{fig:case-atomic}c are the meaningful comparison.
 
 \subsection{Delay filter and total response}
 
@@ -520,7 +520,7 @@ Because the pulse areas are nonideal, propagation now changes both the shape of 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{case_model_b_atomic_transfer.pdf}
-\caption{Atomic transfer functions under Model B. (a) The fixed-input square pulse at \SI{2000}{\metre} no longer follows the ideal low-frequency response because its pulse areas and fringe slope are strongly altered. (b,c) The finite-pulse envelopes show a much larger change for the long-baseline square case than for the Gaussian case. (d) Relative changes from $L=0$ include both Gaussian distances; the symmetric-log scale retains small signed differences as well as the large square response.}
+\caption{Atomic transfer functions under Model B. (a) All square and Gaussian distances are drawn and the vertical range is determined from the data, so the \SI{2000}{\metre} square curve is no longer clipped. Coincident curves remain visible through distinct solid/dashed styles. (b) The square response is phase-normalized by the output-fringe slope; the annotation identifies the small \SI{2000}{\metre} slope responsible for its large value. (c) Gaussian finite-pulse envelopes. (d) Positive ratios $R_L/R_0$ replace signed relative changes: values above one indicate amplification and values below one attenuation.}
 \label{fig:model-b-atomic}
 \end{figure}
 
@@ -575,7 +575,7 @@ Observation & Explanation and action \\
 No square-pulse overlap & $\taud\geq\tau$ for at least one pulse. Reduce $L$ or lengthen the pulse. \\
 Gaussian support looks much longer than its entered width & The entered width is FWHM; the numerical support retains the tails out to $\pm6\sigma$. \\
 Gaussian propagation curves overlap exactly & This is the expected Model-A result in \cref{eq:gaussian-compensation}, not a missing calculation. Inspect complex phase to observe the $\taud/2$ shift. \\
-Square relative-change spikes & The no-delay response is near a lobe zero. Compare complex responses or a local envelope rather than a pointwise ratio. \\
+Response-ratio spikes & The no-delay response is near an envelope zero. Compare the absolute curves or mask ratios where the reference response is too small. \\
 $|\Hatom|$ becomes very large in Model B & Check the reported output-fringe slope. Phase normalization divides by this slope; a small value signals an ill-conditioned readout rather than improved sensitivity. \\
 $\Hatom$ is dimensionless but $\Hnu$ is rad/Hz & They have different inputs: phase/phase versus phase/frequency. \\
 Required square peak is too high & The area-restoring factor grows as $\tau/(\tau-\taud)$. The assumed compensation may exceed available optical power. \\

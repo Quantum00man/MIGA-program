@@ -173,30 +173,52 @@ def figure_atomic_transfer(params_map, schedules_map, stem: str) -> None:
 
     fig, axes = plt.subplots(2, 2, figsize=(10.4, 6.4), constrained_layout=True)
     ax = axes[0, 0]
-    for distance in DISTANCES:
-        key = ("Square", distance)
-        response = atom_phase_transfer_function(
-            low_frequency, params_map[key], schedules_map[key]
-        )
-        ax.plot(low_frequency, np.abs(response), color=DISTANCE_COLORS[distance], linestyle={0.0: "-", 150.0: "--", 2000.0: ":"}[distance], label=f"square, $L={distance:g}$ m")
-    key = ("Gaussian", 2000.0)
-    response = atom_phase_transfer_function(
-        low_frequency, params_map[key], schedules_map[key]
+    low_magnitudes = []
+    for shape, linestyle, linewidth in (("Square", "-", 1.8), ("Gaussian", "--", 1.25)):
+        for distance in DISTANCES:
+            key = (shape, distance)
+            response = atom_phase_transfer_function(
+                low_frequency, params_map[key], schedules_map[key]
+            )
+            magnitude = np.abs(response)
+            low_magnitudes.append(magnitude)
+            ax.plot(
+                low_frequency,
+                magnitude,
+                color=DISTANCE_COLORS[distance],
+                linestyle=linestyle,
+                linewidth=linewidth,
+                label=f"{shape.lower()}, $L={distance:g}$ m",
+            )
+    ax.set(
+        xlabel="frequency (Hz)",
+        ylabel=r"phase-normalized $|H_{\rm AI}|$",
+        title="a  Resolved low-frequency response",
     )
-    ax.plot(low_frequency, np.abs(response), color=GREEN, linestyle="-.", label="Gaussian, $L=2000$ m")
-    ax.set(xlabel="frequency (Hz)", ylabel=r"$|H_{\rm AI}|$", title="a  Resolved low-frequency fringes")
     ax.set_xlim(0.0, 40.0)
-    ax.set_ylim(0.0, 4.35)
+    ax.set_ylim(0.0, 1.06 * max(float(np.max(values)) for values in low_magnitudes))
     ax.grid(alpha=0.22)
-    ax.legend(frameon=False, ncol=2)
+    ax.legend(frameon=False, ncol=2, fontsize=7.1)
 
     ax = axes[0, 1]
     for distance in DISTANCES:
         ax.loglog(centres, rms[("Square", distance)], color=DISTANCE_COLORS[distance], linestyle={0.0: "-", 150.0: "--", 2000.0: ":"}[distance], label=f"$L={distance:g}$ m")
     ax.axvline(10.0e3, color=SKY, linewidth=1.0, linestyle="-.")
-    ax.set(xlabel="frequency (Hz)", ylabel=r"local RMS of $|H_{\rm AI}|$", title="b  Square finite-pulse envelope")
+    ax.set(xlabel="frequency (Hz)", ylabel=r"local RMS of $|H_{\rm AI}|$", title="b  Square, phase-normalized envelope")
     ax.grid(which="both", alpha=0.22)
     ax.legend(frameon=False)
+    if stem == "case_model_b_atomic_transfer":
+        slope = _fringe_slope(schedules_map[("Square", 2000.0)])
+        ax.text(
+            0.04,
+            0.92,
+            rf"$L=2000$ m fringe slope $={slope:.4f}$",
+            transform=ax.transAxes,
+            va="top",
+            fontsize=7.5,
+            color=ORANGE,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.82, "pad": 1.5},
+        )
 
     ax = axes[1, 0]
     for distance in DISTANCES:
@@ -209,28 +231,40 @@ def figure_atomic_transfer(params_map, schedules_map, stem: str) -> None:
     ax = axes[1, 1]
     square_zero = rms[("Square", 0.0)]
     gaussian_zero = rms[("Gaussian", 0.0)]
+    square_ratios = {
+        distance: rms[("Square", distance)] / square_zero
+        for distance in (150.0, 2000.0)
+    }
+    gaussian_ratios = {
+        distance: rms[("Gaussian", distance)] / gaussian_zero
+        for distance in (150.0, 2000.0)
+    }
     square_lines = [
-        ax.semilogx(centres, rms[("Square", 150.0)] / square_zero - 1.0, color=BLUE, linestyle="--", label="square, 150 m")[0],
-        ax.semilogx(centres, rms[("Square", 2000.0)] / square_zero - 1.0, color=ORANGE, label="square, 2000 m")[0],
+        ax.semilogx(centres, square_ratios[150.0], color=BLUE, linestyle="--", label="square, 150 m")[0],
+        ax.semilogx(centres, square_ratios[2000.0], color=ORANGE, label="square, 2000 m")[0],
     ]
-    ax.axhline(0.0, color="black", linewidth=0.7)
-    ax.set(xlabel="frequency (Hz)", ylabel="square: relative change from $L=0$", title="d  Propagation-induced change")
+    ax.axhline(1.0, color="black", linewidth=0.7)
+    ax.set(xlabel="frequency (Hz)", title="d  Response ratio to $L=0$")
     ax.grid(which="both", alpha=0.22)
     if stem == "case_atomic_transfer":
+        ax.set_ylabel("square: response ratio")
         gaussian_axis = ax.twinx()
+        reliable = gaussian_zero >= 1.0e-3
         gaussian_lines = [
-            gaussian_axis.semilogx(centres, 1.0e6 * (rms[("Gaussian", 150.0)] / gaussian_zero - 1.0), color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
-            gaussian_axis.semilogx(centres, 1.0e6 * (rms[("Gaussian", 2000.0)] / gaussian_zero - 1.0), color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
+            gaussian_axis.semilogx(centres, np.where(reliable, 1.0e6 * (gaussian_ratios[150.0] - 1.0), np.nan), color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
+            gaussian_axis.semilogx(centres, np.where(reliable, 1.0e6 * (gaussian_ratios[2000.0] - 1.0), np.nan), color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
         ]
-        gaussian_axis.set_ylabel("Gaussian: relative change (ppm)")
+        gaussian_axis.set_ylabel("Gaussian: ratio minus 1 (ppm)")
+        first_masked = int(np.flatnonzero(~reliable)[0])
+        ax.axvspan(centres[first_masked], centres[-1], color=GREY, alpha=0.08)
         ax.legend(handles=square_lines + gaussian_lines, frameon=False, loc="upper left")
     else:
         gaussian_lines = [
-            ax.semilogx(centres, rms[("Gaussian", 150.0)] / gaussian_zero - 1.0, color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
-            ax.semilogx(centres, rms[("Gaussian", 2000.0)] / gaussian_zero - 1.0, color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
+            ax.semilogx(centres, gaussian_ratios[150.0], color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
+            ax.semilogx(centres, gaussian_ratios[2000.0], color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
         ]
-        ax.set_yscale("symlog", linthresh=1.0e-6)
-        ax.set_ylabel("relative change from $L=0$")
+        ax.set_yscale("log")
+        ax.set_ylabel("response ratio")
         ax.legend(handles=square_lines + gaussian_lines, frameon=False)
     save_figure(fig, stem)
 
