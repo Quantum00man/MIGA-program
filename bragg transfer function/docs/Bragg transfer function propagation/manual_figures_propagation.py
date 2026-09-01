@@ -1,4 +1,4 @@
-"""Generate Model-A square/Gaussian figures for L = 0, 150 and 2000 m."""
+"""Generate separate Model-A and Model-B figures for three propagation lengths."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ sys.path.insert(0, str(PROJECT_DIR))
 
 from bragg_transfer_function_propagation_ui import (  # noqa: E402
     PropagationParameters,
+    _fringe_slope,
     _input_omega_from_width,
     _local_input_intensity,
     atom_phase_transfer_function,
@@ -66,7 +67,7 @@ def configure_style() -> None:
     )
 
 
-def parameters(distance_m: float, shape: str) -> PropagationParameters:
+def parameters(distance_m: float, shape: str, model: str) -> PropagationParameters:
     return PropagationParameters(
         bragg_order=1,
         omega_pi_over_2=_input_omega_from_width(shape, HALF_WIDTH, TARGET_HALF),
@@ -74,16 +75,22 @@ def parameters(distance_m: float, shape: str) -> PropagationParameters:
         center_separation=0.250,
         distance_to_mirror=distance_m,
         pulse_shape=shape,
-        model="A: area compensated",
+        model=model,
     )
 
 
 PARAMS = {
-    (shape, distance): parameters(distance, shape)
+    (shape, distance): parameters(distance, shape, "A: area compensated")
     for shape in ("Square", "Gaussian")
     for distance in DISTANCES
 }
 SCHEDULES = {key: build_schedule(value) for key, value in PARAMS.items()}
+B_PARAMS = {
+    (shape, distance): parameters(distance, shape, "B: fixed input")
+    for shape in ("Square", "Gaussian")
+    for distance in DISTANCES
+}
+B_SCHEDULES = {key: build_schedule(value) for key, value in B_PARAMS.items()}
 
 
 def save_figure(fig: plt.Figure, stem: str) -> None:
@@ -92,9 +99,16 @@ def save_figure(fig: plt.Figure, stem: str) -> None:
     plt.close(fig)
 
 
-def pulse_panel(ax: plt.Axes, shape: str, distance: float, panel: str) -> None:
-    params = PARAMS[(shape, distance)]
-    pulse = SCHEDULES[(shape, distance)][0]
+def pulse_panel(
+    ax: plt.Axes,
+    shape: str,
+    distance: float,
+    panel: str,
+    params_map,
+    schedules_map,
+) -> None:
+    params = params_map[(shape, distance)]
+    pulse = schedules_map[(shape, distance)][0]
     span_us = 32.0 if shape == "Square" else 68.0
     local_us = np.linspace(-span_us, span_us + params.delay * 1.0e6, 1800)
     local_s = local_us * 1.0e-6
@@ -115,13 +129,15 @@ def pulse_panel(ax: plt.Axes, shape: str, distance: float, panel: str) -> None:
         ax.legend(frameon=False, loc="upper right")
 
 
-def figure_overlap_and_sensitivity() -> None:
+def figure_overlap_and_sensitivity(params_map, schedules_map, stem: str) -> None:
     fig, axes = plt.subplots(2, 3, figsize=(11.2, 6.0), constrained_layout=True)
     panels = iter("abcdef")
     for row, shape in enumerate(("Square", "Gaussian")):
         for column, distance in enumerate(DISTANCES):
-            pulse_panel(axes[row, column], shape, distance, next(panels))
-    save_figure(fig, "case_overlap_sensitivity")
+            pulse_panel(
+                axes[row, column], shape, distance, next(panels), params_map, schedules_map
+            )
+    save_figure(fig, stem)
 
 
 def local_rms(
@@ -141,26 +157,32 @@ def local_rms(
     return rms, sample_frequency, response
 
 
-def atomic_rms_grid(centres: np.ndarray) -> dict[tuple[str, float], np.ndarray]:
+def atomic_rms_grid(
+    centres: np.ndarray, params_map=PARAMS, schedules_map=SCHEDULES
+) -> dict[tuple[str, float], np.ndarray]:
     return {
-        key: local_rms(centres, PARAMS[key], SCHEDULES[key])[0]
-        for key in PARAMS
+        key: local_rms(centres, params_map[key], schedules_map[key])[0]
+        for key in params_map
     }
 
 
-def figure_atomic_transfer() -> None:
+def figure_atomic_transfer(params_map, schedules_map, stem: str) -> None:
     low_frequency = np.linspace(0.0, 40.0, 2401)
     centres = np.geomspace(20.0, 1.0e5, 520)
-    rms = atomic_rms_grid(centres)
+    rms = atomic_rms_grid(centres, params_map, schedules_map)
 
     fig, axes = plt.subplots(2, 2, figsize=(10.4, 6.4), constrained_layout=True)
     ax = axes[0, 0]
     for distance in DISTANCES:
         key = ("Square", distance)
-        response = atom_phase_transfer_function(low_frequency, PARAMS[key], SCHEDULES[key])
+        response = atom_phase_transfer_function(
+            low_frequency, params_map[key], schedules_map[key]
+        )
         ax.plot(low_frequency, np.abs(response), color=DISTANCE_COLORS[distance], linestyle={0.0: "-", 150.0: "--", 2000.0: ":"}[distance], label=f"square, $L={distance:g}$ m")
     key = ("Gaussian", 2000.0)
-    response = atom_phase_transfer_function(low_frequency, PARAMS[key], SCHEDULES[key])
+    response = atom_phase_transfer_function(
+        low_frequency, params_map[key], schedules_map[key]
+    )
     ax.plot(low_frequency, np.abs(response), color=GREEN, linestyle="-.", label="Gaussian, $L=2000$ m")
     ax.set(xlabel="frequency (Hz)", ylabel=r"$|H_{\rm AI}|$", title="a  Resolved low-frequency fringes")
     ax.set_xlim(0.0, 40.0)
@@ -187,20 +209,40 @@ def figure_atomic_transfer() -> None:
     ax = axes[1, 1]
     square_zero = rms[("Square", 0.0)]
     gaussian_zero = rms[("Gaussian", 0.0)]
-    ax.semilogx(centres, rms[("Square", 150.0)] / square_zero - 1.0, color=BLUE, linestyle="--", label="square, 150 m")
-    ax.semilogx(centres, rms[("Square", 2000.0)] / square_zero - 1.0, color=ORANGE, label="square, 2000 m")
-    ax.semilogx(centres, rms[("Gaussian", 2000.0)] / gaussian_zero - 1.0, color=GREEN, linestyle=":", label="Gaussian, 2000 m")
+    square_lines = [
+        ax.semilogx(centres, rms[("Square", 150.0)] / square_zero - 1.0, color=BLUE, linestyle="--", label="square, 150 m")[0],
+        ax.semilogx(centres, rms[("Square", 2000.0)] / square_zero - 1.0, color=ORANGE, label="square, 2000 m")[0],
+    ]
     ax.axhline(0.0, color="black", linewidth=0.7)
-    ax.set(xlabel="frequency (Hz)", ylabel="relative change from $L=0$", title="d  Propagation-induced change")
+    ax.set(xlabel="frequency (Hz)", ylabel="square: relative change from $L=0$", title="d  Propagation-induced change")
     ax.grid(which="both", alpha=0.22)
-    ax.legend(frameon=False)
-    save_figure(fig, "case_atomic_transfer")
+    if stem == "case_atomic_transfer":
+        gaussian_axis = ax.twinx()
+        gaussian_lines = [
+            gaussian_axis.semilogx(centres, 1.0e6 * (rms[("Gaussian", 150.0)] / gaussian_zero - 1.0), color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
+            gaussian_axis.semilogx(centres, 1.0e6 * (rms[("Gaussian", 2000.0)] / gaussian_zero - 1.0), color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
+        ]
+        gaussian_axis.set_ylabel("Gaussian: relative change (ppm)")
+        ax.legend(handles=square_lines + gaussian_lines, frameon=False, loc="upper left")
+    else:
+        gaussian_lines = [
+            ax.semilogx(centres, rms[("Gaussian", 150.0)] / gaussian_zero - 1.0, color=PURPLE, linestyle="-.", label="Gaussian, 150 m")[0],
+            ax.semilogx(centres, rms[("Gaussian", 2000.0)] / gaussian_zero - 1.0, color=GREEN, linestyle=":", label="Gaussian, 2000 m")[0],
+        ]
+        ax.set_yscale("symlog", linthresh=1.0e-6)
+        ax.set_ylabel("relative change from $L=0$")
+        ax.legend(handles=square_lines + gaussian_lines, frameon=False)
+    save_figure(fig, stem)
 
 
-def combined_rms(centres: np.ndarray, shape: str, distance: float):
+def combined_rms(
+    centres: np.ndarray, shape: str, distance: float, params_map, schedules_map
+):
     key = (shape, distance)
-    _, frequency_samples, atom_samples = local_rms(centres, PARAMS[key], SCHEDULES[key])
-    delay_samples = delay_phase_transfer(frequency_samples, PARAMS[key].delay)
+    _, frequency_samples, atom_samples = local_rms(
+        centres, params_map[key], schedules_map[key]
+    )
+    delay_samples = delay_phase_transfer(frequency_samples, params_map[key].delay)
     source_samples = atom_samples * delay_samples
     frequency_samples_response = frequency_noise_transfer_function(frequency_samples, source_samples)
     source_rms = np.sqrt(np.mean(np.abs(source_samples) ** 2, axis=1))
@@ -208,10 +250,12 @@ def combined_rms(centres: np.ndarray, shape: str, distance: float):
     return source_rms, frequency_rms
 
 
-def figure_total_transfer() -> None:
+def figure_total_transfer(params_map, schedules_map, stem: str) -> None:
     centres = np.geomspace(0.1, 1.0e5, 620)
     combined = {
-        (shape, distance): combined_rms(centres, shape, distance)
+        (shape, distance): combined_rms(
+            centres, shape, distance, params_map, schedules_map
+        )
         for shape in ("Square", "Gaussian")
         for distance in (150.0, 2000.0)
     }
@@ -219,7 +263,7 @@ def figure_total_transfer() -> None:
     fig, axes = plt.subplots(1, 3, figsize=(11.2, 3.35), constrained_layout=True)
     ax = axes[0]
     for distance in (150.0, 2000.0):
-        delay = PARAMS[("Square", distance)].delay
+        delay = params_map[("Square", distance)].delay
         ax.loglog(centres, np.abs(delay_phase_transfer(centres, delay)), color=DISTANCE_COLORS[distance], label=f"$L={distance:g}$ m")
     ax.text(0.04, 0.08, r"$L=0$: $|D_d|=0$", transform=ax.transAxes, color=GREY)
     ax.set(xlabel="frequency (Hz)", ylabel=r"$|D_d|$", title="a  Propagation phase filter")
@@ -243,14 +287,22 @@ def figure_total_transfer() -> None:
     ax.set(xlabel="frequency (Hz)", ylabel=r"local RMS of $|H_\nu|$ (rad/Hz)", title="c  Frequency-noise to atom-phase")
     ax.grid(which="both", alpha=0.22)
     ax.legend(frameon=False)
-    save_figure(fig, "case_total_transfer")
+    save_figure(fig, stem)
 
 
-def rms_at(frequency_hz: float, shape: str, distance: float) -> float:
+def rms_at(
+    frequency_hz: float,
+    shape: str,
+    distance: float,
+    params_map=PARAMS,
+    schedules_map=SCHEDULES,
+) -> float:
     offsets = np.linspace(-2.0, 2.0, 401)
     frequencies = np.maximum(frequency_hz + offsets, 1.0e-8)
     key = (shape, distance)
-    response = atom_phase_transfer_function(frequencies, PARAMS[key], SCHEDULES[key])
+    response = atom_phase_transfer_function(
+        frequencies, params_map[key], schedules_map[key]
+    )
     return float(np.sqrt(np.mean(np.abs(response) ** 2)))
 
 
@@ -293,16 +345,44 @@ def write_case_values() -> None:
         if delay > 0.0:
             macro(lines, f"CaseDTenK{suffix}", abs(delay_phase_transfer(np.array([1e4]), delay)[0]), ".6f")
             macro(lines, f"CaseDHundredK{suffix}", abs(delay_phase_transfer(np.array([1e5]), delay)[0]), ".6f")
+
+    for distance in DISTANCES:
+        suffix = DISTANCE_NAMES[distance]
+        square_half, square_pi = B_SCHEDULES[("Square", distance)][:2]
+        gaussian_half, gaussian_pi = B_SCHEDULES[("Gaussian", distance)][:2]
+        macro(lines, f"CaseBSquareHalfAreaRatio{suffix}", square_half.effective_area / TARGET_HALF, ".6f")
+        macro(lines, f"CaseBSquarePiAreaRatio{suffix}", square_pi.effective_area / TARGET_PI, ".6f")
+        macro(lines, f"CaseBGaussHalfAreaRatio{suffix}", gaussian_half.effective_area / TARGET_HALF, ".6f")
+        macro(lines, f"CaseBGaussPiAreaRatio{suffix}", gaussian_pi.effective_area / TARGET_PI, ".6f")
+        macro(lines, f"CaseBSquareHalfAreaPi{suffix}", square_half.effective_area / np.pi, ".6f")
+        macro(lines, f"CaseBSquarePiAreaPi{suffix}", square_pi.effective_area / np.pi, ".6f")
+        macro(lines, f"CaseBGaussHalfAreaPi{suffix}", gaussian_half.effective_area / np.pi, ".6f")
+        macro(lines, f"CaseBGaussPiAreaPi{suffix}", gaussian_pi.effective_area / np.pi, ".6f")
+        macro(lines, f"CaseBSquareSlope{suffix}", _fringe_slope(B_SCHEDULES[("Square", distance)]), ".6f")
+        macro(lines, f"CaseBGaussSlope{suffix}", _fringe_slope(B_SCHEDULES[("Gaussian", distance)]), ".6f")
+        macro(lines, f"CaseBSquareTenK{suffix}", rms_at(1e4, "Square", distance, B_PARAMS, B_SCHEDULES), ".6f")
+        macro(lines, f"CaseBGaussTenK{suffix}", rms_at(1e4, "Gaussian", distance, B_PARAMS, B_SCHEDULES), ".6f")
+        macro(lines, f"CaseBSquareHundredK{suffix}", rms_at(1e5, "Square", distance, B_PARAMS, B_SCHEDULES), ".6e")
+        macro(lines, f"CaseBGaussHundredK{suffix}", rms_at(1e5, "Gaussian", distance, B_PARAMS, B_SCHEDULES), ".6e")
     (HERE / "case_values.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
     configure_style()
-    figure_overlap_and_sensitivity()
-    figure_atomic_transfer()
-    figure_total_transfer()
+    figure_overlap_and_sensitivity(PARAMS, SCHEDULES, "case_overlap_sensitivity")
+    figure_atomic_transfer(PARAMS, SCHEDULES, "case_atomic_transfer")
+    figure_total_transfer(PARAMS, SCHEDULES, "case_total_transfer")
+    figure_overlap_and_sensitivity(
+        B_PARAMS, B_SCHEDULES, "case_model_b_overlap_sensitivity"
+    )
+    figure_atomic_transfer(
+        B_PARAMS, B_SCHEDULES, "case_model_b_atomic_transfer"
+    )
+    figure_total_transfer(
+        B_PARAMS, B_SCHEDULES, "case_model_b_total_transfer"
+    )
     write_case_values()
-    print(f"Wrote Model-A figures for L = 0, 150 and 2000 m to {FIGURE_DIR}")
+    print(f"Wrote separate Model-A and Model-B figures for L = 0, 150 and 2000 m to {FIGURE_DIR}")
 
 
 if __name__ == "__main__":
