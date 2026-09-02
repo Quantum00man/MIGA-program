@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-02T20:27:24.910Z",
+  "title": "Design System: TGF3162 Controller",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(0.15 0.075 165)",
+          "oklch(0.27 0.075 165)",
+          "oklch(0.38 0.075 165)",
+          "oklch(0.49 0.075 165)",
+          "oklch(0.61 0.075 165)",
+          "oklch(0.72 0.075 165)",
+          "oklch(0.84 0.075 165)",
+          "oklch(0.95 0.075 165)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(0.15 0.064 165)",
+          "oklch(0.27 0.064 165)",
+          "oklch(0.38 0.064 165)",
+          "oklch(0.49 0.064 165)",
+          "oklch(0.61 0.064 165)",
+          "oklch(0.72 0.064 165)",
+          "oklch(0.84 0.064 165)",
+          "oklch(0.95 0.064 165)"
+        ]
+      },
+      "soft": {
+        "role": "primary",
+        "tonalRamp": [
+          "oklch(0.15 0.01 165)",
+          "oklch(0.27 0.01 165)",
+          "oklch(0.38 0.01 165)",
+          "oklch(0.49 0.01 165)",
+          "oklch(0.61 0.01 165)",
+          "oklch(0.72 0.01 165)",
+          "oklch(0.84 0.01 165)",
+          "oklch(0.95 0.01 165)"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0.005 240)",
+          "oklch(0.27 0.005 240)",
+          "oklch(0.38 0.005 240)",
+          "oklch(0.49 0.005 240)",
+          "oklch(0.61 0.005 240)",
+          "oklch(0.72 0.005 240)",
+          "oklch(0.84 0.005 240)",
+          "oklch(0.95 0.005 240)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.27 0 0)",
+          "oklch(0.38 0 0)",
+          "oklch(0.49 0 0)",
+          "oklch(0.61 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.95 0 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0.025 245)",
+          "oklch(0.27 0.025 245)",
+          "oklch(0.38 0.025 245)",
+          "oklch(0.49 0.025 245)",
+          "oklch(0.61 0.025 245)",
+          "oklch(0.72 0.025 245)",
+          "oklch(0.84 0.025 245)",
+          "oklch(0.95 0.025 245)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0.033 245)",
+          "oklch(0.27 0.033 245)",
+          "oklch(0.38 0.033 245)",
+          "oklch(0.49 0.033 245)",
+          "oklch(0.61 0.033 245)",
+          "oklch(0.72 0.033 245)",
+          "oklch(0.84 0.033 245)",
+          "oklch(0.95 0.033 245)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0.011 240)",
+          "oklch(0.27 0.011 240)",
+          "oklch(0.38 0.011 240)",
+          "oklch(0.49 0.011 240)",
+          "oklch(0.61 0.011 240)",
+          "oklch(0.72 0.011 240)",
+          "oklch(0.84 0.011 240)",
+          "oklch(0.95 0.011 240)"
+        ]
+      },
+      "control-border": {
+        "role": "neutral",
+        "tonalRamp": [
+          "oklch(0.15 0.018 240)",
+          "oklch(0.27 0.018 240)",
+          "oklch(0.38 0.018 240)",
+          "oklch(0.49 0.018 240)",
+          "oklch(0.61 0.018 240)",
+          "oklch(0.72 0.018 240)",
+          "oklch(0.84 0.018 240)",
+          "oklch(0.95 0.018 240)"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "tonalRamp": [
+          "oklch(0.15 0.14 25)",
+          "oklch(0.27 0.14 25)",
+          "oklch(0.38 0.14 25)",
+          "oklch(0.49 0.14 25)",
+          "oklch(0.61 0.14 25)",
+          "oklch(0.72 0.14 25)",
+          "oklch(0.84 0.14 25)",
+          "oklch(0.95 0.14 25)"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "tonalRamp": [
+          "oklch(0.15 0.095 75)",
+          "oklch(0.27 0.095 75)",
+          "oklch(0.38 0.095 75)",
+          "oklch(0.49 0.095 75)",
+          "oklch(0.61 0.095 75)",
+          "oklch(0.72 0.095 75)",
+          "oklch(0.84 0.095 75)",
+          "oklch(0.95 0.095 75)"
+        ]
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "action-background",
+        "value": "background-color .16s ease",
+        "purpose": "Button feedback; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "container-gutters",
+        "value": "1280px"
+      },
+      {
+        "name": "connection-wrap",
+        "value": "1050px"
+      },
+      {
+        "name": "stack-channels",
+        "value": "849px"
+      },
+      {
+        "name": "mobile",
+        "value": "540px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Commit parameters or establish a connection.",
+      "html": "<button class=\"ds-primary\">Apply</button>",
+      "css": ".ds-primary{font:600 14px 'Segoe UI',system-ui,sans-serif;background:var(--accent,#126352);color:var(--surface,#fff);border:1px solid transparent;border-radius:6px;padding:10px 17px;min-height:42px;cursor:pointer;transition:background-color .16s ease}.ds-primary:hover:not(:disabled){background:var(--accent-hover,#0b4c3f)}.ds-primary:focus-visible{outline:3px solid #298273;outline-offset:3px}.ds-primary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Connection checks and disconnect actions.",
+      "html": "<button class=\"ds-secondary\">Test Connection</button>",
+      "css": ".ds-secondary{font:600 14px 'Segoe UI',system-ui,sans-serif;background:var(--surface,#fff);color:var(--ink,#202b35);border:1px solid #b7c3cc;border-radius:6px;padding:10px 17px;min-height:42px;cursor:pointer;transition:background-color .16s ease}.ds-secondary:hover:not(:disabled){background:#edf1f3}.ds-secondary:focus-visible{outline:3px solid #298273;outline-offset:3px}.ds-secondary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Text Action",
+      "kind": "button",
+      "description": "Quiet utility action beside a section heading.",
+      "html": "<button class=\"ds-text\">Check connection</button>",
+      "css": ".ds-text{font:14px 'Segoe UI',system-ui,sans-serif;background:none;border:0;color:var(--muted,#576674);padding:8px 0;cursor:pointer}.ds-text:hover{color:var(--accent,#126352);text-decoration:underline;text-underline-offset:4px}.ds-text:focus-visible{outline:3px solid #298273;outline-offset:3px}"
+    },
+    {
+      "name": "Quantity Field",
+      "kind": "input",
+      "refersTo": "quantity",
+      "description": "Tabular numeric value and adjacent explicit unit.",
+      "html": "<label class=\"ds-label\" for=\"ds-frequency\">Frequency</label><div class=\"ds-quantity\"><input id=\"ds-frequency\" type=\"number\" value=\"10\" step=\"any\"><select aria-label=\"Frequency unit\"><option>Hz</option><option selected>kHz</option><option>MHz</option></select></div>",
+      "css": ".ds-label{display:block;font:13px 'Segoe UI',system-ui,sans-serif;color:var(--muted,#576674);margin-bottom:8px}.ds-quantity{display:flex;align-items:center;border:1px solid #b7c3cc;border-radius:6px;background:var(--surface,#fff);height:46px;min-width:0}.ds-quantity:focus-within{border-color:var(--accent,#126352)}.ds-quantity input{border:0;padding:10px 12px;font:18px/1.3 'Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums;min-width:0;width:100%;background:transparent;color:var(--ink,#202b35)}.ds-quantity select{padding:6px 8px;min-width:71px;margin-right:5px;border:0;border-left:1px solid var(--line,#d9e0e5);background:#fff;color:var(--muted,#576674);font:13px 'Segoe UI',system-ui,sans-serif;height:28px;cursor:pointer}.ds-quantity input:focus-visible{outline:3px solid #298273;outline-offset:3px}.ds-quantity select:focus-visible{outline:3px solid #298273;outline-offset:3px}"
+    },
+    {
+      "name": "Resource Navigation",
+      "kind": "nav",
+      "description": "Compact documentation link and guide disclosure.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Resources\"><a href=\"/docs\">API docs</a><button type=\"button\">Quick guide</button></nav>",
+      "css": ".ds-nav{display:flex;gap:26px;align-items:center;font:14px 'Segoe UI',system-ui,sans-serif;color:var(--ink,#202b35)}.ds-nav a{color:inherit;text-decoration:none;text-underline-offset:4px}.ds-nav button{font:inherit;border:0;background:none;color:var(--muted,#576674);padding:8px 0;cursor:pointer}.ds-nav a:hover,.ds-nav button:hover{text-decoration:underline;text-underline-offset:4px}.ds-nav button:hover{color:var(--accent,#126352)}.ds-nav a:focus-visible{outline:3px solid #298273;outline-offset:3px}.ds-nav button:focus-visible{outline:3px solid #298273;outline-offset:3px}"
+    },
+    {
+      "name": "Channel Container",
+      "kind": "card",
+      "refersTo": "channel",
+      "description": "White bordered container with its own output state.",
+      "html": "<section class=\"ds-channel\"><div class=\"ds-heading\"><h3>Channel 1</h3><span class=\"ds-status\">Output off</span></div></section>",
+      "css": ".ds-channel{border:1px solid var(--line,#d9e0e5);border-radius:8px;background:var(--surface,#fff);overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;color:var(--ink,#202b35)}.ds-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 24px 16px}.ds-heading h3{margin:0;font-size:18px;font-weight:650}.ds-status{font-size:12px;font-weight:650;color:var(--muted,#576674);display:inline-flex;gap:7px;align-items:center;text-transform:uppercase;letter-spacing:.025em}.ds-status:before{content:'';width:6px;height:6px;border-radius:50%;background:#74838f}"
+    },
+    {
+      "name": "Modulation Selector",
+      "kind": "custom",
+      "description": "Exclusive Off, AM, and FM options with a written pressed state.",
+      "html": "<div class=\"ds-modes\" role=\"group\" aria-label=\"Modulation\"><button aria-pressed=\"true\">Off</button><button aria-pressed=\"false\">AM</button><button aria-pressed=\"false\">FM</button></div>",
+      "css": ".ds-modes{display:flex;padding:3px;background:#eef2f4;border-radius:6px}.ds-modes button{flex:1;background:transparent;border:1px solid transparent;border-radius:4px;min-height:34px;color:var(--muted,#576674);font:13px 'Segoe UI',system-ui,sans-serif;cursor:pointer}.ds-modes button[aria-pressed=true]{background:#fff;border-color:#cdd7de;color:var(--accent,#126352);font-weight:650}.ds-modes button:hover{color:var(--accent,#126352)}.ds-modes button:focus-visible{outline:3px solid #298273;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Paired channel workstation",
+    "overview": "A light, quiet operating surface for independent laboratory outputs. White instrument panels, restrained green actions, and readable numeric fields support deliberate edits. English labels and local system fonts keep the interface usable on Windows and Ubuntu without network assets.",
+    "keyCharacteristics": [
+      "Equal visual weight for both channels.",
+      "Values, units, draft state, and output state remain distinct.",
+      "Flat surfaces and compact, gently rounded controls."
+    ],
+    "rules": [
+      {
+        "name": "The Explicit State Rule",
+        "body": "Color reinforces a written state; it never substitutes for one.",
+        "section": "colors"
+      },
+      {
+        "name": "The Number and Unit Rule",
+        "body": "Keep each editable quantity visibly paired with its unit.",
+        "section": "typography"
+      },
+      {
+        "name": "The Separate Actions Rule",
+        "body": "Applying parameters and switching an output are separate actions. Dirty drafts disable Output On; Output Off stays available while connected and idle.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep both channels equally prominent and independently actionable.",
+      "Do retain explicit units and written states at every viewport width.",
+      "Do preserve unsent drafts when updating connection or cached command state.",
+      "Do stack quantity fields on narrow screens instead of compressing their contents."
+    ],
+    "donts": [
+      "Don't represent simulated or accepted commands as measured hardware state.",
+      "Don't combine Apply with Output On.",
+      "Don't use color alone to communicate selection, failure, or unknown state."
+    ]
+  }
+}

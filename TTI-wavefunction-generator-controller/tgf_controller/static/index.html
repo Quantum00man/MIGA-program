@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f5f7">
+  <title>TGF3162 · Signal control</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#channels">Skip to channel controls</a>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">T</span><span>TGF3162 <span class="brand-sub">Controller</span></span></div>
+    <nav aria-label="Resources"><a href="/docs" target="_blank" rel="noopener">API docs</a><button id="help-toggle" class="text-button" aria-expanded="false" aria-controls="help">Quick guide</button></nav>
+  </header>
+  <main>
+    <div class="page-heading"><div><h1>Signal control</h1><p>Two independent channels. One place to set them.</p></div><span class="instrument-spec">160 MHz <span>·</span> 50 Ω</span></div>
+
+    <section class="connection" aria-labelledby="connection-title">
+      <div class="connection-heading"><h2 id="connection-title">Connection</h2><span id="connection-status" class="status">Loading</span></div>
+      <form id="connection-form">
+        <label>Mode<select id="mode"><option value="demo">Demo Mode</option><option value="lan">LAN instrument</option></select></label>
+        <label class="host-field">Instrument IP<input id="host" type="text" placeholder="192.168.1.100" spellcheck="false" autocomplete="off" required></label>
+        <label class="port-field">Port<input id="port" type="number" min="1" max="65535" value="9221" required></label>
+        <div class="connection-actions"><button type="button" id="test-connection" class="secondary">Test Connection</button><button type="submit" id="connect" class="primary">Save &amp; Connect</button><button type="button" id="disconnect" class="secondary">Disconnect</button></div>
+      </form>
+      <div class="connection-meta"><span id="identity">Loading connection settings…</span><span id="connection-feedback" role="status" aria-live="polite"></span></div>
+    </section>
+
+    <div id="mode-notice" class="notice"><strong>Demo Mode</strong><span>Changes are simulated. No instrument is connected.</span></div>
+    <div id="global-error" class="error-banner" role="alert" hidden></div>
+
+    <div class="section-heading"><h2>Channels</h2><button id="refresh" class="text-button">Check connection</button></div>
+    <div id="channels" class="channels" tabindex="-1"></div>
+
+    <details class="activity"><summary>Activity <span id="event-count">No events yet</span></summary><ol id="events"><li>Apply a setting to see activity here.</li></ol></details>
+    <section id="help" class="help" hidden aria-labelledby="help-heading">
+      <h2 id="help-heading">Quick guide</h2>
+      <div class="help-grid">
+        <div><h3>Set, then apply</h3><p>Edit a channel and choose Apply. Each output has its own On and Off buttons. Applying changes updates a running signal without switching its output on or off.</p></div>
+        <div><h3>Amplitude &amp; modulation</h3><p>All levels assume a 50 Ω load and zero DC offset. Vrms and dBm are equivalent unmodulated sine levels, converted to the instrument's Vpp setting. They are not a measurement of the modulated signal.</p></div>
+        <div><h3>Hardware status</h3><p>LAN values show commands accepted during this session. The published interface does not read back individual channel settings. Front-panel changes are not tracked. Reapply settings if the instrument has been operated locally.</p></div>
+        <div><h3>Independent phase</h3><p>Phase sets each channel's waveform phase offset. Different carrier frequencies do not maintain a fixed phase difference. This controller does not send a phase-align or synchronized-start command.</p></div>
+      </div>
+      <p>Disconnecting or closing this app does not switch off hardware outputs. Use each channel's Off button before disconnecting when needed.</p>
+    </section>
+    <footer><span>Aim-TTi TGF3162 · Sine / AM / FM</span><span id="state-source">Simulation</span></footer>
+  </main>
+
+  <template id="channel-template">
+    <section class="channel" aria-labelledby="ch-title-N">
+      <div class="channel-heading"><div class="channel-name"><span class="channel-number" aria-hidden="true">N</span><h3 id="ch-title-N">Channel N</h3></div><div class="output-state"><span class="status output-badge">Unknown</span></div></div>
+      <div class="output-row"><span>Output</span><div class="output-buttons" role="group" aria-label="Channel N output"><button class="output-on" type="button">On</button><button class="output-off" type="button">Off</button></div></div>
+      <form class="channel-form">
+        <fieldset class="carrier"><legend>Sine wave</legend>
+          <label for="frequency-N">Frequency</label><div class="quantity"><input id="frequency-N" data-field="frequency" type="number" step="any" min="0.000001" required><select data-field="frequency_unit" aria-label="Channel N frequency unit"><option>Hz</option><option>kHz</option><option>MHz</option></select></div>
+          <div class="field-hint frequency-hint">1 µHz to 160 MHz</div>
+          <div class="field-pair"><div><label for="amplitude-N">Amplitude</label><div class="quantity"><input id="amplitude-N" data-field="amplitude" type="number" step="any" required><select data-field="amplitude_unit" aria-label="Channel N amplitude unit"><option>Vpp</option><option>Vrms</option><option>dBm</option></select></div></div>
+          <div><label for="phase-N">Phase offset</label><div class="quantity"><input id="phase-N" data-field="phase" type="number" min="-360" max="360" step="0.001" required><span class="unit">deg</span></div></div></div>
+          <div class="amplitude-hint field-hint">50 Ω load · 0 V offset</div>
+        </fieldset>
+        <fieldset class="modulation"><legend>Modulation</legend>
+          <div class="mode-switch" role="group" aria-label="Channel N modulation">
+            <button type="button" data-mod="off" aria-pressed="true">Off</button><button type="button" data-mod="am" aria-pressed="false">AM</button><button type="button" data-mod="fm" aria-pressed="false">FM</button>
+          </div>
+          <div class="mod-off"><span>Continuous sine wave</span><p>Select AM or FM to add internal sine modulation.</p></div>
+          <div class="mod-fields" hidden>
+            <p class="mod-source">Internal source <span>·</span> Sine waveform</p>
+            <div class="field-pair"><div><label for="mod-frequency-N">Modulation frequency</label><div class="quantity"><input id="mod-frequency-N" data-field="mod_frequency" type="number" min="0.000001" step="any"><select data-field="mod_frequency_unit" aria-label="Channel N modulation frequency unit"><option>Hz</option><option>kHz</option><option>MHz</option></select></div></div>
+            <div class="depth-field"><label for="depth-N">AM depth</label><div class="quantity"><input id="depth-N" data-field="depth" type="number" min="0" max="100" step="0.01"><span class="unit">%</span></div></div>
+            <div class="deviation-field" hidden><label for="deviation-N">FM deviation</label><div class="quantity"><input id="deviation-N" data-field="deviation" type="number" min="0" step="any"><select data-field="deviation_unit" aria-label="Channel N FM deviation unit"><option>Hz</option><option>kHz</option><option>MHz</option></select></div></div></div>
+            <div class="field-hint mod-hint"></div>
+          </div>
+        </fieldset>
+        <div class="channel-error" role="alert" hidden></div>
+        <div class="apply-row"><div><span class="edit-state">Ready</span><span class="accepted-summary">No changes sent</span></div><button type="submit" class="primary apply">Apply</button></div>
+      </form>
+    </section>
+  </template>
+</body>
+</html>
