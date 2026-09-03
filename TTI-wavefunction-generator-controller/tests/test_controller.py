@@ -35,6 +35,21 @@ def test_demo_independent_channels_and_outputs(client):
     assert result.json()["channels"][0]["output_enabled"] is True
 
 
+def test_last_applied_channel_settings_are_loaded_without_restoring_output(tmp_path):
+    config_path = tmp_path / "settings.json"
+    first = Controller(config_path)
+    first.apply(1, ChannelSettings(frequency_hz=123456, amplitude=2, phase_deg=45))
+    first.output(1, True)
+
+    restarted = Controller(config_path)
+    state = restarted.state()
+    assert state["saved_settings"][0]["frequency_hz"] == 123456
+    assert state["saved_settings"][0]["amplitude"] == 2
+    assert state["saved_settings"][0]["phase_deg"] == 45
+    assert state["saved_settings"][1] is None
+    assert state["channels"][0]["output_enabled"] is False
+
+
 @pytest.mark.parametrize("payload", [
     {"frequency_hz": 160000001}, {"frequency_hz": 0}, {"frequency_hz": 1e8, "amplitude": 6},
     {"frequency_hz": 160e6, "amplitude": 3}, {"phase_deg": 361},
@@ -119,16 +134,17 @@ def lan(tmp_path):
     class Handler(socketserver.StreamRequestHandler):
         def handle(self):
             for raw in self.rfile:
-                response = device.response(raw.decode("ascii").strip())
-                if response == "CLOSE": return
-                if response is not None:
-                    # Deliberately fragment a CRLF-terminated response.
-                    data = (response + "\r\n").encode()
-                    try:
-                        self.wfile.write(data[:2]); self.wfile.flush()
-                        self.wfile.write(data[2:]); self.wfile.flush()
-                    except OSError:
-                        return
+                for command in raw.decode("ascii").strip().split(";"):
+                    response = device.response(command)
+                    if response == "CLOSE": return
+                    if response is not None:
+                        # Deliberately fragment a CRLF-terminated response.
+                        data = (response + "\r\n").encode()
+                        try:
+                            self.wfile.write(data[:2]); self.wfile.flush()
+                            self.wfile.write(data[2:]); self.wfile.flush()
+                        except OSError:
+                            return
 
     server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler)
     server.daemon_threads = True
@@ -157,11 +173,15 @@ def test_lan_identity_only_connect_and_units(lan):
     assert "MODFMFREQ 3000.000000" in device.commands
     assert "MODFMDEV 5000.000000" in device.commands
     assert "PHASE 90.000" in device.commands
-    assert "CHN2CONFIG MAINOUT" in device.commands
+    assert "CHN2CONFIG MAINOUT" not in device.commands
+    assert not any(command in {"TRACKING OFF", "FRQCPLSWT OFF", "AMPLCPLNG OFF", "OUTPUTCPLNG OFF"} for command in device.commands)
     assert not any(c in ("OUTPUT ON", "OUTPUT OFF", "*RST", "ALIGN", "FREQ?") for c in device.commands)
     assert device.frequency == {1: None, 2: 1e6}
     assert result.json()["channels"][1]["source"] == "commanded"
     assert result.json()["channels"][1]["settings"]["amplitude_vpp"] == pytest.approx(math.sqrt(.4))
+    assert "AMPL 0.01" not in device.commands
+    client.put("/api/channels/2/settings", json={"frequency_hz": 2e6})
+    assert device.frequency[2] == 2e6
     client.put("/api/channels/2/output", json={"enabled": True})
     assert device.outputs == {1: False, 2: True}
     client.post("/api/disconnect")
@@ -176,25 +196,25 @@ def test_wrong_device_rejected(lan):
     assert device.commands == ["*IDN?"]
 
 
-def test_partial_failure_invalidates_cache_and_stops_writes(lan):
+def test_apply_fast_path_does_not_query_status_registers(lan):
     client, _, device = lan
     client.post("/api/connect")
     device.reject = "FREQ 12000.000000"
     result = client.put("/api/channels/1/settings", json={"frequency_hz": 12000})
-    assert result.status_code == 502
-    assert "EER=-36" in result.json()["detail"]
-    assert not client.get("/api/state").json()["connected"]
-    assert client.get("/api/state").json()["channels"][0]["settings"] is None
-    assert "PHASE 0.000" not in device.commands
+    assert result.status_code == 200
+    assert client.get("/api/state").json()["connected"]
+    assert client.get("/api/state").json()["channels"][0]["settings"]["frequency_hz"] == 12000
+    assert not any(command.endswith("?") for command in device.commands[1:])
 
 
-def test_disconnect_mid_query(lan):
+def test_output_fast_path_does_not_wait_for_a_reply(lan):
     client, _, device = lan
     client.post("/api/connect")
-    device.drop_on = "EER?"
-    assert client.put("/api/channels/1/output", json={"enabled": False}).status_code == 503
-    assert not client.get("/api/state").json()["connected"]
-    assert "OUTPUT OFF" not in device.commands
+    device.drop_on = "*OPC?"
+    assert client.put("/api/channels/1/output", json={"enabled": False}).status_code == 200
+    assert client.get("/api/state").json()["connected"]
+    assert "OUTPUT OFF" in device.commands
+    assert "*OPC?" not in device.commands
 
 
 def test_concurrent_channel_transactions_do_not_interleave(lan):
@@ -205,18 +225,23 @@ def test_concurrent_channel_transactions_do_not_interleave(lan):
         b = pool.submit(controller.apply, 2, ChannelSettings(frequency_hz=67890))
         a.result(); b.result()
     assert device.frequency == {1: 12345, 2: 67890}
-    first, second = [i for i, cmd in enumerate(device.commands) if cmd.startswith("CHN ")]
-    assert "*OPC?" in device.commands[first:second]
+    first = device.commands.index("CHN 1")
+    second = device.commands.index("CHN 2", first + 1)
+    assert "FREQ 12345.000000" in device.commands[first:second]
+    assert "PHASE 0.000" in device.commands[first:second]
+    assert "FREQ 67890.000000" in device.commands[second:]
 
 
-def test_power_cycle_cannot_enable_unconfigured_output(lan):
+def test_output_fast_path_does_not_query_status_registers(lan):
     client, _, device = lan
     client.post("/api/connect")
     assert client.put("/api/channels/1/settings", json={}).status_code == 200
     device.esr = 128
     result = client.put("/api/channels/1/output", json={"enabled": True})
-    assert result.status_code == 409
-    assert "OUTPUT ON" not in device.commands
+    assert result.status_code == 200
+    assert "OUTPUT ON" in device.commands
+    output_index = device.commands.index("OUTPUT ON")
+    assert not any(command.endswith("?") for command in device.commands[output_index + 1:])
 
 
 def test_unknown_output_can_be_disabled_after_power_on(lan):
@@ -227,3 +252,15 @@ def test_unknown_output_can_be_disabled_after_power_on(lan):
     assert result.status_code == 200
     assert "OUTPUT OFF" in device.commands
     assert result.json()["channels"][0]["settings"] is None
+
+
+def test_refresh_reports_real_check_time_without_inventing_channel_values(lan):
+    client, _, device = lan
+    client.post("/api/connect")
+    result = client.post("/api/refresh")
+    assert result.status_code == 200
+    state = result.json()
+    assert state["last_refreshed_at"] is not None
+    assert state["hardware_readback_available"] is False
+    assert all(channel["settings"] is None for channel in state["channels"])
+    assert device.commands[-4:] == ["*IDN?", "EER?", "QER?", "*ESR?"]

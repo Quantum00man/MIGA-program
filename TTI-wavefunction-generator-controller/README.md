@@ -54,7 +54,7 @@ Windows PowerShell:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e .
-.\.venv\Scripts\python -m uvicorn tgf_controller.app:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python -m uvicorn tgf_controller.app:app --host 0.0.0.0 --port 8005
 ```
 
 Ubuntu:
@@ -62,16 +62,16 @@ Ubuntu:
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
-.venv/bin/python -m uvicorn tgf_controller.app:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn tgf_controller.app:app --host 0.0.0.0 --port 8005
 ```
 
-If Ubuntu reports that `venv` is unavailable, install `python3-venv` using your system package manager. Then open **http://127.0.0.1:8000**. The first launch starts in **Demo Mode** with both simulated outputs off. Subsequent launches load connection preferences; saved LAN sessions remain disconnected until explicitly connected.
+If Ubuntu reports that `venv` is unavailable, install `python3-venv` using your system package manager. Then open **http://127.0.0.1:8005**. The first launch starts in **Demo Mode** with both simulated outputs off. Subsequent launches load connection preferences; saved LAN sessions remain disconnected until explicitly connected.
 
 Use **one Uvicorn worker and one application instance per instrument**. The connection and channel-selection lock are process-local. Multiple workers or separate programs controlling the same instrument can invalidate channel state and interleave commands.
 
 The control page is self-contained and works without internet access after installation. FastAPI's default interactive `/docs` viewer loads Swagger UI assets from a CDN; the JSON schema at `/openapi.json` and Python API work offline.
 
-The default bind address exposes the app only on its host computer. If another computer must use it, `--host 0.0.0.0` exposes it to the local network. This version has no user authentication and is intended for a trusted lab network, not the public internet.
+The default bind address is `0.0.0.0`, so port `8005` is exposed on all network interfaces for use on the trusted lab network. Use `--host 127.0.0.1` to restrict access to the host computer. This version has no user authentication and must not be exposed to the public internet.
 
 ## Browser workflow
 
@@ -96,7 +96,8 @@ For that reason:
 - Demo state has `source: "simulation"`. It is never hardware evidence.
 - **Check connection** verifies identity and status registers. It cannot observe front-panel edits or an actual analog output.
 - If someone changes settings locally or from another application, reapply the desired channel configuration before enabling output. Use one controller at a time.
-- Partial command failures or link loss invalidate the cached channel state and close the session. Some commands may already have taken effect. Reconnect, inspect the instrument and reapply; there is no rollback claim.
+- A detected link loss invalidates the cached channel state and closes the session. Fire-and-forget writes cannot detect a command rejected silently by the instrument; inspect the instrument or use Refresh when confirmation is required.
+- Apply and output changes use fire-and-forget writes because some TGF3162 firmware does not reliably answer completion queries on the raw LAN socket. Successful sending updates the local cache; use Refresh for an explicit identity and status check.
 - Status-register reads clear those registers. Prior errors encountered before an operation are retained in Activity.
 
 ## Parameter limits and units
@@ -134,7 +135,7 @@ Install `httpx` in your script's environment. This example works against the ini
 ```python
 import httpx
 
-with httpx.Client(base_url="http://127.0.0.1:8000", timeout=120) as api:
+with httpx.Client(base_url="http://127.0.0.1:8005", timeout=120) as api:
     response = api.put("/api/channels/1/settings", json={
         "frequency_hz": 1_000_000,
         "amplitude": 1.0,
@@ -165,7 +166,7 @@ API operations:
 | POST | `/api/connection/test` | Test supplied settings without saving |
 | POST | `/api/connect` | Connect to saved target |
 | POST | `/api/disconnect` | Close session, leave outputs unchanged |
-| POST | `/api/refresh` | Query identity and error status |
+| POST | `/api/refresh` | Refresh real identity, error registers and power-cycle status; channel values cannot be read back by this model |
 | PUT | `/api/channels/{1 or 2}/settings` | Apply full sine configuration |
 | PUT | `/api/channels/{1 or 2}/output` | Explicit output On/Off |
 
@@ -177,7 +178,7 @@ Windows: `%APPDATA%/tgf3162-controller/connection.json`.
 
 Ubuntu: `~/.config/tgf3162-controller/connection.json`.
 
-Set `TGF_CONFIG_PATH` to use a different file. Preferences contain only connection settings; output enable and channel configurations are never restored from disk.
+Set `TGF_CONFIG_PATH` to use a different file. The last successfully applied settings for each channel are saved beside the connection preferences and loaded into the editors on the next launch. They are not sent to the instrument until Apply is pressed, and output state is never restored.
 
 ## Verification
 

@@ -113,3 +113,9 @@ def test_invalid_ports(value):
 def test_wildcard_browser_urls():
     assert launcher.base_url("0.0.0.0", 8000) == "http://127.0.0.1:8000"
     assert launcher.base_url("::", 8000) == "http://[::1]:8000"
+
+
+def test_network_defaults():
+    assert launcher.DEFAULT_HOST == "0.0.0.0"
+    assert launcher.DEFAULT_PORT == 8005
+    assert launcher.base_url(launcher.DEFAULT_HOST, launcher.DEFAULT_PORT) == "http://127.0.0.1:8005"

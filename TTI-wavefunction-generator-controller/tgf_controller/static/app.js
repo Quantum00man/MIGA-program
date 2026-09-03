@@ -96,6 +96,12 @@ class ChannelEditor {
     this.mode = values.modulation.mode;
     this.updateHints();
   }
+  clearUnknown() {
+    this.loadedSignature = "unknown";
+    for (const field of ["frequency", "amplitude", "phase", "mod_frequency", "depth", "deviation"]) this.fields[field].value = "";
+    this.mode = "off";
+    this.updateHints();
+  }
   convertUnit(key) {
     const field = key.replace("_unit", "");
     const oldUnit = this.previousUnits[key], newUnit = this.fields[key].value;
@@ -108,22 +114,28 @@ class ChannelEditor {
   }
   payload() {
     const f = this.fields;
+    const modulation = {mode: this.mode};
+    if (this.mode !== "off") modulation.frequency_hz = Number(f.mod_frequency.value) * factors[f.mod_frequency_unit.value];
+    if (this.mode === "am") modulation.depth_percent = Number(f.depth.value);
+    if (this.mode === "fm") modulation.deviation_hz = Number(f.deviation.value) * factors[f.deviation_unit.value];
     return {frequency_hz: Number(f.frequency.value) * factors[f.frequency_unit.value], amplitude: Number(f.amplitude.value), amplitude_unit: f.amplitude_unit.value,
-      phase_deg: Number(f.phase.value), modulation: {mode: this.mode,
-        frequency_hz: Number(f.mod_frequency.value) * factors[f.mod_frequency_unit.value], depth_percent: Number(f.depth.value), deviation_hz: Number(f.deviation.value) * factors[f.deviation_unit.value]}};
+      phase_deg: Number(f.phase.value), modulation};
   }
   changed() { this.dirty = true; showError("", this.error); this.updateHints(); renderStatus(); }
   validate() {
     const required = ["frequency", "amplitude", "phase", ...(this.mode === "off" ? [] : ["mod_frequency", this.mode === "am" ? "depth" : "deviation"])];
     if (required.some(key => this.fields[key].value.trim() === "")) return "Fill in all active fields before applying.";
     const p = this.payload(), m = p.modulation;
-    if (![p.frequency_hz, p.amplitude, p.phase_deg, m.frequency_hz, m.depth_percent, m.deviation_hz].every(Number.isFinite)) return "Enter finite numbers for all parameters.";
+    if (![p.frequency_hz, p.amplitude, p.phase_deg].every(Number.isFinite)) return "Enter finite numbers for all active parameters.";
     if (p.frequency_hz < 1e-6 || p.frequency_hz > 160e6) return "Frequency must be between 1 µHz and 160 MHz.";
     if (p.phase_deg < -360 || p.phase_deg > 360) return "Phase offset must be between -360 and +360 degrees.";
     if (this.mode === "am" && p.frequency_hz > 50e6) return "AM is available only at carrier frequencies up to 50 MHz.";
-    if (m.frequency_hz < 1e-6 || m.frequency_hz > 10e6) return "Modulation frequency must be between 1 µHz and 10 MHz.";
-    if (m.depth_percent < 0 || m.depth_percent > 100) return "AM depth must be between 0 and 100%.";
-    if (m.deviation_hz < 0 || m.deviation_hz > 80e6) return "FM deviation must be between 0 and 80 MHz.";
+    if (this.mode !== "off" && !Number.isFinite(m.frequency_hz)) return "Enter a finite modulation frequency.";
+    if (this.mode !== "off" && (m.frequency_hz < 1e-6 || m.frequency_hz > 10e6)) return "Modulation frequency must be between 1 µHz and 10 MHz.";
+    if (this.mode === "am" && !Number.isFinite(m.depth_percent)) return "Enter a finite AM depth.";
+    if (this.mode === "am" && (m.depth_percent < 0 || m.depth_percent > 100)) return "AM depth must be between 0 and 100%.";
+    if (this.mode === "fm" && !Number.isFinite(m.deviation_hz)) return "Enter a finite FM deviation.";
+    if (this.mode === "fm" && (m.deviation_hz < 0 || m.deviation_hz > 80e6)) return "FM deviation must be between 0 and 80 MHz.";
     const maxDeviation = Math.min(p.frequency_hz, 160e6 - p.frequency_hz, 80e6);
     if (this.mode === "fm" && m.deviation_hz > maxDeviation) return `For this carrier, FM deviation must not exceed ${compact(maxDeviation)}.`;
     const peak = p.frequency_hz + (this.mode === "fm" ? m.deviation_hz : 0);
@@ -151,7 +163,11 @@ class ChannelEditor {
   }
   render() {
     const current = state?.channels[this.number - 1];
-    if (!this.dirty && current?.settings && JSON.stringify(current.settings) !== this.loadedSignature) this.load(current.settings);
+    const saved = state?.saved_settings?.[this.number - 1];
+    const applied = current?.updated_at ? current.settings : null;
+    const displayed = applied || saved;
+    if (!this.dirty && displayed && JSON.stringify(displayed) !== this.loadedSignature) this.load(displayed);
+    if (!this.dirty && !displayed && this.loadedSignature !== "unknown" && state?.mode === "lan") this.clearUnknown();
     const connected = Boolean(state?.connected);
     const output = connected ? current?.output_enabled : null;
     const badge = $(".output-badge", this.root);
@@ -170,10 +186,11 @@ class ChannelEditor {
     this.fields.deviation_unit.disabled ||= this.mode !== "fm";
     $(".apply", this.root).disabled = busy || !connected;
     const edit = $(".edit-state", this.root);
-    edit.textContent = this.dirty ? "Unapplied changes" : current?.settings ? (state.mode === "demo" ? "Simulated settings" : "Commands accepted") : "Apply to configure";
+    edit.textContent = this.dirty ? "Unapplied changes" : applied ? (state.mode === "demo" ? "Simulated settings" : "Commands accepted") : saved ? "Saved · not applied" : "Apply to configure";
     edit.classList.toggle("dirty", this.dirty);
-    const settings = current?.settings;
-    $(".accepted-summary", this.root).textContent = settings ? `${compact(settings.frequency_hz)} · ${fmt(settings.amplitude_vpp)} Vpp · ${fmt(settings.phase_deg)}° · ${settings.modulation.mode.toUpperCase()}` : "Current instrument settings are unknown";
+    const settings = applied || saved;
+    const amplitudeVpp = settings ? (settings.amplitude_vpp ?? toVpp(settings.amplitude, settings.amplitude_unit)) : null;
+    $(".accepted-summary", this.root).textContent = settings ? `${compact(settings.frequency_hz)} · ${fmt(amplitudeVpp)} Vpp · ${fmt(settings.phase_deg)}° · ${settings.modulation.mode.toUpperCase()}` : "Current instrument settings are unknown";
   }
 }
 
@@ -187,8 +204,8 @@ function renderStatus() {
   $("#identity").textContent = state.identity || "No instrument connected";
   $("#mode-notice").classList.toggle("lan", !demo);
   $("#mode-notice strong").textContent = demo ? "Demo Mode" : "LAN instrument";
-  $("#mode-notice span").textContent = demo ? "Changes are simulated. No instrument is connected." : "Displayed values are last accepted commands, not hardware readback. Disconnect leaves outputs unchanged.";
-  $("#state-source").textContent = demo ? "Simulation only" : "Last accepted commands · 50 Ω";
+  $("#mode-notice span").textContent = demo ? "Changes are simulated. No instrument is connected." : "Refresh checks the real device, but this model cannot read back individual channel values. Blank means unknown; populated values are last accepted commands.";
+  $("#state-source").textContent = demo ? "Simulation only" : state.last_refreshed_at ? `Device checked ${new Date(state.last_refreshed_at).toLocaleTimeString("en-GB")} · channel values are command cache` : "Device not refreshed · channel values are command cache";
   $("#mode").disabled = busy;
   $("#host").disabled = busy || $("#mode").value === "demo";
   $("#port").disabled = busy || $("#mode").value === "demo";
@@ -232,7 +249,7 @@ $("#test-connection").addEventListener("click", () => {
   }).finally(() => { if ($("#connection-feedback").textContent === "Testing…") $("#connection-feedback").textContent = "Connection test failed"; });
 });
 $("#disconnect").addEventListener("click", () => action(async () => { state = await api("/disconnect", "POST"); $("#connection-feedback").textContent = "Disconnected"; }));
-$("#refresh").addEventListener("click", () => action(async () => { state = await api("/refresh", "POST"); $("#connection-feedback").textContent = "Connection checked"; }));
+$("#refresh").addEventListener("click", () => action(async () => { state = await api("/refresh", "POST"); $("#connection-feedback").textContent = "Device status refreshed"; }));
 $("#help-toggle").addEventListener("click", () => {
   const help = $("#help"); help.hidden = !help.hidden;
   $("#help-toggle").setAttribute("aria-expanded", String(!help.hidden));
@@ -245,7 +262,7 @@ renderStatus();
   try {
     state = await api("/state");
     $("#mode").value = state.connection.mode; $("#host").value = state.connection.host; $("#port").value = state.connection.port;
-    state.channels.forEach((channel, i) => { if (channel.settings) editors[i].load(channel.settings); });
+    state.channels.forEach((channel, i) => { const values = (channel.updated_at ? channel.settings : null) || state.saved_settings?.[i] || channel.settings; if (values) editors[i].load(values); });
     if (state.config_warning) showError(state.config_warning);
   } catch { showError("Cannot reach the controller. Start the Python server and reload this page."); }
   loading = false; renderStatus();

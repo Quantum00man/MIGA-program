@@ -14,6 +14,8 @@ import urllib.request
 import webbrowser
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_HOST = "0.0.0.0"
+DEFAULT_PORT = 8005
 MIN_PYTHON = (3, 10)
 
 
@@ -217,8 +219,8 @@ def serve(python, host, port, no_browser):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Set up a local Python environment and start TGF3162 Controller.")
-    parser.add_argument("--host", default="127.0.0.1", help="Server bind address (default: local computer only)")
-    parser.add_argument("--port", type=port_number, default=8000, help="Web server port (not instrument port 9221)")
+    parser.add_argument("--host", default=DEFAULT_HOST, help="Server bind address (default: all network interfaces)")
+    parser.add_argument("--port", type=port_number, default=DEFAULT_PORT, help="Web server port (not instrument port 9221)")
     parser.add_argument("--no-browser", action="store_true", help="Do not open a browser (useful on headless Ubuntu)")
     parser.add_argument("--setup-only", action="store_true", help="Prepare dependencies without starting a server")
     parser.add_argument("--reinstall", action="store_true", help="Run dependency installation again")

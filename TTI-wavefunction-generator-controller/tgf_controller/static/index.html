@@ -31,7 +31,7 @@
     <div id="mode-notice" class="notice"><strong>Demo Mode</strong><span>Changes are simulated. No instrument is connected.</span></div>
     <div id="global-error" class="error-banner" role="alert" hidden></div>
 
-    <div class="section-heading"><h2>Channels</h2><button id="refresh" class="text-button">Check connection</button></div>
+    <div class="section-heading"><h2>Channels</h2><button id="refresh" class="text-button">Refresh device status</button></div>
     <div id="channels" class="channels" tabindex="-1"></div>
 
     <details class="activity"><summary>Activity <span id="event-count">No events yet</span></summary><ol id="events"><li>Apply a setting to see activity here.</li></ol></details>
@@ -40,7 +40,7 @@
       <div class="help-grid">
         <div><h3>Set, then apply</h3><p>Edit a channel and choose Apply. Each output has its own On and Off buttons. Applying changes updates a running signal without switching its output on or off.</p></div>
         <div><h3>Amplitude &amp; modulation</h3><p>All levels assume a 50 Ω load and zero DC offset. Vrms and dBm are equivalent unmodulated sine levels, converted to the instrument's Vpp setting. They are not a measurement of the modulated signal.</p></div>
-        <div><h3>Hardware status</h3><p>LAN values show commands accepted during this session. The published interface does not read back individual channel settings. Front-panel changes are not tracked. Reapply settings if the instrument has been operated locally.</p></div>
+        <div><h3>Hardware status</h3><p>Refresh verifies the real instrument identity, error registers and power-cycle flag. This model does not expose individual channel settings for readback, so unknown values stay blank. Values shown after Apply are the last commands accepted by the instrument.</p></div>
         <div><h3>Independent phase</h3><p>Phase sets each channel's waveform phase offset. Different carrier frequencies do not maintain a fixed phase difference. This controller does not send a phase-align or synchronized-start command.</p></div>
       </div>
       <p>Disconnecting or closing this app does not switch off hardware outputs. Use each channel's Off button before disconnecting when needed.</p>

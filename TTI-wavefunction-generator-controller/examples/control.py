@@ -19,7 +19,7 @@ def request(base, path, method="GET", data=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", default="http://127.0.0.1:8000")
+    parser.add_argument("--url", default="http://127.0.0.1:8005")
     parser.add_argument("--channel", type=int, choices=[1, 2], default=1)
     parser.add_argument("--modulation", choices=["off", "am", "fm"], default="off")
     parser.add_argument("--enable", action="store_true", help="Explicitly enable the selected output after applying.")
