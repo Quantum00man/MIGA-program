@@ -125,6 +125,13 @@ def get_overview(request: Request):
     return _ok("Overview loaded.", controller.get_public_state())
 
 
+@router.get("/api/power-meter", response_model=MessageResponse, dependencies=[Depends(require_auth)])
+def get_power_meter(request: Request, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    reading = _run_action(_controller(request).read_power_meter)
+    return _ok("Power meter reading loaded.", reading)
+
+
 @router.get("/api/manual/download", dependencies=[Depends(require_auth)])
 def download_manual():
     return FileResponse(

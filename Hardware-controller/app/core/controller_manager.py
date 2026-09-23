@@ -20,6 +20,7 @@ from app.drivers.laser_lock import (
     LaserLockSession,
 )
 from app.drivers.psu import PsuClient, PsuCommunicationError
+from app.drivers.pm100a import PM100AReader
 
 
 def _now_iso() -> str:
@@ -56,6 +57,7 @@ class ControllerManager:
         self._io_lock = RLock()
         self._psu_clients: dict[str, PsuClient] = {}
         self._bragg_clients: dict[str, BraggEdfaClient] = {}
+        self._power_meter = PM100AReader()
         self._laser_sessions = {
             key: LaserLockSession(key, max_output_lines=config.LASER_LOCK_OUTPUT_LINES)
             for key in LASER_CHANNELS
@@ -67,6 +69,7 @@ class ControllerManager:
 
     def stop(self):
         self.scheduler.stop()
+        self._power_meter.close()
         for session in self._laser_sessions.values():
             session.stop(send_interrupt=False)
         with self._io_lock:
@@ -322,6 +325,9 @@ class ControllerManager:
             "last_error": existing.get("last_error", ""),
             "last_contact_at": existing.get("last_contact_at", ""),
         }
+
+    def read_power_meter(self) -> dict:
+        return self._power_meter.read()
 
     def _build_bragg_edfa_device(self, payload: dict, existing: dict) -> dict:
         name = str(payload.get("name") or existing.get("name") or "Bragg CEFA EDFA").strip()

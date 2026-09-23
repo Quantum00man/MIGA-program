@@ -60,6 +60,10 @@
                             <span class="tab-button-icon">L</span>
                             <span>Laser Locking</span>
                         </button>
+                        <button class="tab-button" data-tab-target="tab-power-meter">
+                            <span class="tab-button-icon">M</span>
+                            <span>Power Meter</span>
+                        </button>
                     </div>
                     <div class="tab-nav-group tab-nav-group-secondary">
                         <button class="tab-button" data-tab-target="tab-settings">
@@ -203,6 +207,25 @@
                     </div>
 
                     <div id="laser-lock-channel-grid" class="laser-lock-grid"></div>
+                </section>
+
+                <section class="tab-panel" id="tab-power-meter">
+                    <div class="tab-hero">
+                        <div>
+                            <h2>Optical Power Meter</h2>
+                            <p class="panel-note">Thorlabs PM100A · Read-only measurement · Wavelength is set on the instrument.</p>
+                        </div>
+                    </div>
+                    <div class="subpanel power-meter-panel">
+                        <div class="panel-title-row"><h3>Current Power</h3><span id="power-meter-status" class="device-badge warning">Waiting</span></div>
+                        <div id="power-meter-value" class="power-meter-value">—</div>
+                        <div class="power-meter-details">
+                            <span>Serial number: <strong id="power-meter-serial">P1002033</strong></span>
+                            <span>Wavelength: <strong id="power-meter-wavelength">—</strong></span>
+                            <span>Last reading: <strong id="power-meter-time">—</strong></span>
+                        </div>
+                        <p id="power-meter-error" class="panel-note" role="status"></p>
+                    </div>
                 </section>
 
                 <section class="tab-panel" id="tab-settings">

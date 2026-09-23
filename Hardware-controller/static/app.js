@@ -14,6 +14,8 @@ let refreshTimer = null;
 let websocketHeartbeat = null;
 let refreshDebounce = null;
 let lastOverviewAt = 0;
+let powerMeterTimer = null;
+let powerMeterReading = false;
 const dirtyEdfaDevices = new Set();
 const dirtyPsuDevices = new Set();
 
@@ -134,6 +136,49 @@ function setActiveTab(tabId) {
         panel.classList.toggle("is-active", panel.id === tabId);
     });
     window.localStorage.setItem(tabStorageKey, tabId);
+    if (tabId === "tab-power-meter") {
+        startPowerMeterPolling();
+    } else {
+        window.clearInterval(powerMeterTimer);
+        powerMeterTimer = null;
+    }
+}
+
+function formatMeterPower(watts) {
+    const magnitude = Math.abs(watts);
+    const [scale, unit] = magnitude >= 1 ? [1, "W"] : magnitude >= 1e-3 ? [1e3, "mW"] : magnitude >= 1e-6 ? [1e6, "µW"] : [1e9, "nW"];
+    return `${(watts * scale).toPrecision(5)} ${unit}`;
+}
+
+async function loadPowerMeter() {
+    if (powerMeterReading) return;
+    powerMeterReading = true;
+    try {
+        const payload = await fetchJson("/api/power-meter");
+        const reading = payload.data;
+        document.getElementById("power-meter-value").textContent = formatMeterPower(reading.power_w);
+        document.getElementById("power-meter-wavelength").textContent = `${reading.wavelength_nm} nm`;
+        document.getElementById("power-meter-serial").textContent = reading.serial_number;
+        document.getElementById("power-meter-time").textContent = new Date().toLocaleTimeString();
+        const status = document.getElementById("power-meter-status");
+        status.textContent = "Connected";
+        status.className = "device-badge success";
+        document.getElementById("power-meter-error").textContent = "";
+    } catch (error) {
+        document.getElementById("power-meter-value").textContent = "—";
+        const status = document.getElementById("power-meter-status");
+        status.textContent = "Unavailable";
+        status.className = "device-badge danger";
+        document.getElementById("power-meter-error").textContent = error.message;
+    } finally {
+        powerMeterReading = false;
+    }
+}
+
+function startPowerMeterPolling() {
+    if (powerMeterTimer) return;
+    loadPowerMeter();
+    powerMeterTimer = window.setInterval(loadPowerMeter, 1000);
 }
 
 function bindTabNavigation() {

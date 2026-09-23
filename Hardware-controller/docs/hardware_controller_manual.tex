@@ -88,6 +88,7 @@ The main files are listed in Table~\ref{tab:layout}.
 \texttt{app/core/auth.py} & Session handling and password change logic. \\
 \texttt{app/drivers/edfa.py} & TCP command sender for EDFA devices. \\
 \texttt{app/drivers/psu.py} & Persistent socket driver for the QPX-like power supply protocol. \\
+\texttt{app/drivers/pm100a.py} & Read-only Thorlabs PM100A USB power meter driver using the installed TLPMX library. \\
 \texttt{static/index.html} & Main browser control console. \\
 \texttt{static/login.html} & Login page. \\
 \texttt{static/app.js} & Frontend logic for browser actions and live updates. \\
@@ -249,13 +250,46 @@ The sidebar provides:
 \end{itemize}
 
 \subsection{Main Sections}
-The main page contains four sections:
+The main page contains five sections:
 \begin{enumerate}[leftmargin=1.5em]
     \item \textbf{Control Dashboard},
     \item \textbf{EDFA Systems},
     \item \textbf{Power Supply Systems},
+    \item \textbf{Power Meter},
     \item \textbf{Security \& Service}.
 \end{enumerate}
+
+\subsection{Optical Power Meter}
+The \textbf{Power Meter} page reads the USB-connected Thorlabs PM100A with serial number
+\texttt{P1002033}. While that page is open, the browser requests a power reading once per second.
+The page displays the current power, the wavelength reported by the instrument, connection
+status, and the time of the last successful reading. Set the measurement wavelength on the
+PM100A itself; this service does not change the instrument settings. The host computer must
+have the 64-bit Thorlabs TLPMX driver installed. If the meter is disconnected or another
+application occupies it, the page displays an error and retries automatically.
+Other computers on the same network can request readings from
+\texttt{GET /api/power-meter} after logging in through \texttt{POST /auth/login}.
+Each response includes the reading in watts and a UTC measurement timestamp.
+See \texttt{docs/power\_meter\_api.md} for the response format and a Linux CSV recorder.
+
+\subsection{Reading PM100A Data from Linux}
+The Windows service listens on port \texttt{8050} on all network interfaces. Use the
+Windows IP address that the Linux machine can reach. First verify that
+\texttt{http://WINDOWS\_IP:8050/health} returns a JSON status of \texttt{ok}.
+The power meter endpoint requires the same password as the web interface.
+A Linux program logs in once with \texttt{POST /auth/login}, retains the session cookie,
+and then calls \texttt{GET /api/power-meter} at the desired interval. If the server
+returns HTTP 401, log in again. A successful response contains \texttt{data.power\_w}
+in watts, \texttt{data.wavelength\_nm}, \texttt{data.serial\_number}, and
+\texttt{data.measured\_at} in UTC. The timestamp is created by the Windows service
+immediately after the instrument reading. HTTP 502 means that the instrument could
+not be read; do not record it as a valid measurement.
+
+Copy \texttt{examples/read\_power\_meter\_linux.py} to the Linux computer to
+integrate \texttt{PowerMeterClient.read()} with another program or to record a CSV
+file at one second intervals. Set the \texttt{MIGA\_CONTROLLER\_PASSWORD} environment
+variable to the current web password. Keep the API on a trusted lab network or a
+protected tunnel because the service uses HTTP.
 
 \section{EDFA Operation}
 \subsection{Adding an EDFA Device}

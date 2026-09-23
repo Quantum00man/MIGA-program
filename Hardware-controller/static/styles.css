@@ -279,6 +279,25 @@ body::before {
     overflow-wrap: anywhere;
 }
 
+.power-meter-panel {
+    max-width: 720px;
+}
+
+.power-meter-value {
+    margin: 26px 0;
+    font-size: clamp(2.8rem, 8vw, 5rem);
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.power-meter-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    color: var(--text-muted);
+}
+
 .tab-shell {
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
