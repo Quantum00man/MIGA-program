@@ -22,12 +22,185 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import math
+from pathlib import Path
+import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+
+
+SPEED_OF_LIGHT_M_PER_S = 299_792_458.0
+NOISE_SPECTRUM_TYPES = (
+    "Frequency PSD (Hz^2/Hz)",
+    "Frequency ASD (Hz/sqrt(Hz))",
+    "Phase PSD (rad^2/Hz)",
+    "Phase ASD (rad/sqrt(Hz))",
+    "SSB phase noise (dBc/Hz)",
+)
+MAX_NOISE_INTEGRATION_POINTS = 500_000
+
+
+def load_noise_csv(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load positive frequency and finite spectrum columns from a text CSV file."""
+
+    rows: list[tuple[float, float]] = []
+    with Path(path).open("r", encoding="utf-8-sig") as stream:
+        for line_number, raw_line in enumerate(stream, start=1):
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            fields = [item for item in re.split(r"[,;\s]+", line) if item]
+            if len(fields) < 2:
+                continue
+            try:
+                frequency = float(fields[0])
+                spectrum = float(fields[1])
+            except ValueError:
+                # Permit ordinary header lines, but reject malformed data after data starts.
+                if rows:
+                    raise ValueError(
+                        f"CSV line {line_number} does not start with two numbers."
+                    )
+                continue
+            rows.append((frequency, spectrum))
+
+    if len(rows) < 2:
+        raise ValueError("The noise file must contain at least two numeric rows.")
+    data = np.asarray(rows, dtype=float)
+    if not np.all(np.isfinite(data)):
+        raise ValueError("The noise file contains NaN or infinite values.")
+    if np.any(data[:, 0] <= 0.0):
+        raise ValueError("All noise-spectrum frequencies must be greater than zero.")
+    order = np.argsort(data[:, 0])
+    frequencies = data[order, 0]
+    values = data[order, 1]
+    if np.any(np.diff(frequencies) == 0.0):
+        raise ValueError("The noise file contains duplicate frequencies.")
+    return frequencies, values
+
+
+def spectrum_to_psd(values: np.ndarray, spectrum_type: str) -> tuple[np.ndarray, str]:
+    """Convert a supported one-sided spectrum to a linear PSD."""
+
+    values = np.asarray(values, dtype=float)
+    if spectrum_type == "Frequency PSD (Hz^2/Hz)":
+        if np.any(values < 0.0):
+            raise ValueError("A frequency PSD cannot contain negative values.")
+        return values, "frequency"
+    if spectrum_type == "Frequency ASD (Hz/sqrt(Hz))":
+        if np.any(values < 0.0):
+            raise ValueError("A frequency ASD cannot contain negative values.")
+        return values**2, "frequency"
+    if spectrum_type == "Phase PSD (rad^2/Hz)":
+        if np.any(values < 0.0):
+            raise ValueError("A phase PSD cannot contain negative values.")
+        return values, "phase"
+    if spectrum_type == "Phase ASD (rad/sqrt(Hz))":
+        if np.any(values < 0.0):
+            raise ValueError("A phase ASD cannot contain negative values.")
+        return values**2, "phase"
+    if spectrum_type == "SSB phase noise (dBc/Hz)":
+        # One-sided phase PSD convention: S_phi = 2 L, with L in linear units.
+        converted = 2.0 * np.power(10.0, values / 10.0)
+        if not np.all(np.isfinite(converted)):
+            raise ValueError("The dBc/Hz values overflowed during linear conversion.")
+        return converted, "phase"
+    raise ValueError("Unsupported noise-spectrum type.")
+
+
+def delay_phase_transfer(frequency_hz: np.ndarray, distance_m: float) -> np.ndarray:
+    """Return the retroreflection delay differencer for a one-way distance L."""
+
+    frequency = np.asarray(frequency_hz, dtype=float)
+    delay = 2.0 * distance_m / SPEED_OF_LIGHT_M_PER_S
+    argument = 2.0 * np.pi * frequency * delay
+    return 2.0j * np.exp(-0.5j * argument) * np.sin(0.5 * argument)
+
+
+def _interpolate_positive_spectrum(
+    source_frequency: np.ndarray,
+    source_psd: np.ndarray,
+    target_frequency: np.ndarray,
+) -> np.ndarray:
+    """Use log-log interpolation where possible, preserving exact zero intervals."""
+
+    source_frequency = np.asarray(source_frequency, dtype=float)
+    source_psd = np.asarray(source_psd, dtype=float)
+    target_frequency = np.asarray(target_frequency, dtype=float)
+    if np.all(source_psd > 0.0):
+        return np.exp(
+            np.interp(
+                np.log(target_frequency),
+                np.log(source_frequency),
+                np.log(source_psd),
+            )
+        )
+    return np.interp(target_frequency, source_frequency, source_psd)
+
+
+def make_noise_integration_grid(
+    source_frequency: np.ndarray,
+    lower_hz: float,
+    upper_hz: float,
+    interrogation_time_s: float,
+) -> np.ndarray:
+    """Build a grid that retains CSV knots and resolves interferometer fringes."""
+
+    source_frequency = np.asarray(source_frequency, dtype=float)
+    if not np.isfinite(lower_hz) or not np.isfinite(upper_hz):
+        raise ValueError("Noise integration limits must be finite.")
+    if lower_hz <= 0.0 or upper_hz <= lower_hz:
+        raise ValueError("Use noise integration limits satisfying 0 < low < high.")
+    if lower_hz < source_frequency[0] or upper_hz > source_frequency[-1]:
+        raise ValueError("Noise integration limits must lie inside the CSV frequency range.")
+
+    knots = source_frequency[
+        (source_frequency > lower_hz) & (source_frequency < upper_hz)
+    ]
+    knots = np.concatenate(([lower_hz], knots, [upper_hz]))
+    maximum_step = 1.0 / (10.0 * interrogation_time_s) if interrogation_time_s > 0 else np.inf
+    pieces: list[np.ndarray] = []
+    total_points = 1
+    for left, right in zip(knots[:-1], knots[1:]):
+        subdivisions = max(1, int(np.ceil((right - left) / maximum_step)))
+        total_points += subdivisions
+        if total_points > MAX_NOISE_INTEGRATION_POINTS:
+            raise ValueError(
+                "Accurate noise integration would require more than "
+                f"{MAX_NOISE_INTEGRATION_POINTS:,} points. Narrow the integration "
+                "band or use a shorter interrogation time."
+            )
+        pieces.append(np.linspace(left, right, subdivisions, endpoint=False))
+    pieces.append(np.array([upper_hz]))
+    return np.concatenate(pieces)
+
+
+def integrate_laser_noise(
+    frequency_hz: np.ndarray,
+    input_psd: np.ndarray,
+    atom_phase_response: np.ndarray,
+    distance_m: float,
+    input_kind: str,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Return output PSD, cumulative RMS, and total RMS atom phase."""
+
+    frequency = np.asarray(frequency_hz, dtype=float)
+    delay_response = delay_phase_transfer(frequency, distance_m)
+    source_phase_response = np.asarray(atom_phase_response) * delay_response
+    if input_kind == "frequency":
+        total_response = source_phase_response / (1.0j * frequency)
+    elif input_kind == "phase":
+        total_response = source_phase_response
+    else:
+        raise ValueError("Noise input kind must be 'frequency' or 'phase'.")
+    output_psd = np.abs(total_response) ** 2 * np.asarray(input_psd, dtype=float)
+    increments = 0.5 * (output_psd[1:] + output_psd[:-1]) * np.diff(frequency)
+    cumulative_variance = np.concatenate(([0.0], np.cumsum(increments)))
+    cumulative_rms = np.sqrt(np.maximum(cumulative_variance, 0.0))
+    return output_psd, cumulative_rms, float(cumulative_rms[-1])
 
 
 @dataclass(frozen=True)
@@ -462,8 +635,8 @@ class BraggTransferFunctionApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Finite-Pulse Bragg Transfer Function")
-        self.root.geometry("1240x900")
-        self.root.minsize(1000, 760)
+        self.root.geometry("1540x940")
+        self.root.minsize(1180, 800)
 
         self.pulse_shape = tk.StringVar(value="Square")
         self.bragg_order = tk.StringVar(value="1")
@@ -473,11 +646,19 @@ class BraggTransferFunctionApp:
         self.frequency_min_hz = tk.StringVar(value="0.1")
         self.frequency_max_hz = tk.StringVar(value="100000")
         self.frequency_points = tk.StringVar(value="3000")
+        self.noise_spectrum_type = tk.StringVar(value=NOISE_SPECTRUM_TYPES[0])
+        self.retro_distance_m = tk.StringVar(value="150")
+        self.noise_lower_hz = tk.StringVar(value="")
+        self.noise_upper_hz = tk.StringVar(value="")
+        self.noise_file_text = tk.StringVar(value="No noise CSV loaded")
         self.show_instantaneous = tk.BooleanVar(value=True)
         self.status_text = tk.StringVar(value="Ready")
         self.model_note = tk.StringVar(
             value="Square mode: T is the free time between pulse edges."
         )
+        self.noise_file_path: str | None = None
+        self.noise_frequency: np.ndarray | None = None
+        self.noise_values: np.ndarray | None = None
 
         self._configure_style()
         self._build_layout()
@@ -550,15 +731,43 @@ class BraggTransferFunctionApp:
             frequency_box, 2, "Frequency points", self.frequency_points, "integer"
         )
 
+        noise_box = ttk.LabelFrame(
+            controls, text="Laser noise", style="Section.TLabelframe", padding=10
+        )
+        noise_box.grid(row=4, column=0, sticky="ew", pady=(0, 10))
+        noise_box.columnconfigure(1, weight=1)
+        ttk.Label(noise_box, text="Spectrum type").grid(row=0, column=0, sticky="w", pady=4)
+        noise_selector = ttk.Combobox(
+            noise_box,
+            textvariable=self.noise_spectrum_type,
+            values=NOISE_SPECTRUM_TYPES,
+            state="readonly",
+            width=25,
+        )
+        noise_selector.grid(row=0, column=1, columnspan=2, sticky="ew", padx=(10, 0), pady=4)
+        noise_selector.bind("<<ComboboxSelected>>", lambda _event: self.calculate())
+        self._add_entry(noise_box, 1, "Atom-mirror distance L", self.retro_distance_m, "m")
+        self._add_entry(noise_box, 2, "Integration lower", self.noise_lower_hz, "Hz")
+        self._add_entry(noise_box, 3, "Integration upper", self.noise_upper_hz, "Hz")
+        ttk.Button(noise_box, text="Load CSV...", command=self.load_noise_file).grid(
+            row=4, column=0, sticky="ew", pady=(5, 2)
+        )
+        ttk.Label(
+            noise_box,
+            textvariable=self.noise_file_text,
+            foreground="#606060",
+            wraplength=190,
+        ).grid(row=4, column=1, columnspan=2, sticky="w", padx=(10, 0), pady=(5, 2))
+
         ttk.Checkbutton(
             controls,
             text="Show instantaneous-pulse limit",
             variable=self.show_instantaneous,
             command=self.calculate,
-        ).grid(row=4, column=0, sticky="w", pady=(2, 10))
+        ).grid(row=5, column=0, sticky="w", pady=(2, 10))
 
         button_row = ttk.Frame(controls)
-        button_row.grid(row=5, column=0, sticky="ew")
+        button_row.grid(row=6, column=0, sticky="ew")
         button_row.columnconfigure((0, 1), weight=1)
         ttk.Button(button_row, text="Calculate", command=self.calculate).grid(
             row=0, column=0, sticky="ew", padx=(0, 4)
@@ -567,14 +776,14 @@ class BraggTransferFunctionApp:
             row=0, column=1, sticky="ew", padx=(4, 0)
         )
 
-        ttk.Separator(controls).grid(row=6, column=0, sticky="ew", pady=14)
+        ttk.Separator(controls).grid(row=7, column=0, sticky="ew", pady=14)
         ttk.Label(
             controls,
             textvariable=self.status_text,
             style="Status.TLabel",
             justify="left",
             wraplength=270,
-        ).grid(row=7, column=0, sticky="nw")
+        ).grid(row=8, column=0, sticky="nw")
 
         ttk.Label(
             controls,
@@ -582,18 +791,22 @@ class BraggTransferFunctionApp:
             foreground="#6a6a6a",
             justify="left",
             wraplength=270,
-        ).grid(row=8, column=0, sticky="sw", pady=(18, 0))
-        controls.rowconfigure(8, weight=1)
+        ).grid(row=9, column=0, sticky="sw", pady=(18, 0))
+        controls.rowconfigure(9, weight=1)
 
         plot_frame = ttk.Frame(self.root, padding=(0, 10, 12, 10))
         plot_frame.grid(row=0, column=1, sticky="nsew")
         plot_frame.columnconfigure(0, weight=1)
         plot_frame.rowconfigure(0, weight=1)
 
-        self.figure = Figure(figsize=(9.0, 8.3), dpi=100, constrained_layout=True)
-        self.pulse_axes = self.figure.add_subplot(311)
-        self.sensitivity_axes = self.figure.add_subplot(312)
-        self.transfer_axes = self.figure.add_subplot(313)
+        self.figure = Figure(figsize=(12.0, 8.5), dpi=100, constrained_layout=True)
+        axes = self.figure.subplots(3, 2)
+        self.pulse_axes = axes[0, 0]
+        self.sensitivity_axes = axes[1, 0]
+        self.transfer_axes = axes[2, 0]
+        self.input_noise_axes = axes[0, 1]
+        self.output_noise_axes = axes[1, 1]
+        self.cumulative_noise_axes = axes[2, 1]
         self.canvas = FigureCanvasTkAgg(self.figure, master=plot_frame)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
         toolbar = NavigationToolbar2Tk(self.canvas, plot_frame, pack_toolbar=False)
@@ -601,6 +814,39 @@ class BraggTransferFunctionApp:
         toolbar.grid(row=1, column=0, sticky="ew")
 
         self.root.bind("<Return>", lambda _event: self.calculate())
+
+    def load_noise_file(self) -> None:
+        path = filedialog.askopenfilename(
+            parent=self.root,
+            title="Load one-sided laser-noise spectrum",
+            filetypes=[("CSV or text data", "*.csv *.txt *.dat"), ("All files", "*")],
+        )
+        if not path:
+            return
+        try:
+            frequency, values = load_noise_csv(path)
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Noise file error", str(exc), parent=self.root)
+            return
+        self.noise_file_path = path
+        self.noise_frequency = frequency
+        self.noise_values = values
+        self.noise_file_text.set(Path(path).name)
+        # Preserve manually entered limits when they are valid for the new file.
+        # Empty, non-numeric, or out-of-range fields fall back to the CSV bounds.
+        try:
+            current_lower = float(self.noise_lower_hz.get())
+        except ValueError:
+            current_lower = math.nan
+        try:
+            current_upper = float(self.noise_upper_hz.get())
+        except ValueError:
+            current_upper = math.nan
+        if not (np.isfinite(current_lower) and frequency[0] <= current_lower < frequency[-1]):
+            self.noise_lower_hz.set(f"{frequency[0]:.17g}")
+        if not (np.isfinite(current_upper) and frequency[0] < current_upper <= frequency[-1]):
+            self.noise_upper_hz.set(f"{frequency[-1]:.17g}")
+        self.calculate()
 
     @staticmethod
     def _add_entry(
@@ -871,6 +1117,68 @@ class BraggTransferFunctionApp:
         time_scale, time_unit = _time_axis_scale(total_time)
         self._draw_pulse_schematic(parameters, pulse_shape)
 
+        noise_result = None
+        if self.noise_frequency is not None and self.noise_values is not None:
+            try:
+                distance_m = float(self.retro_distance_m.get())
+                lower_hz = float(self.noise_lower_hz.get())
+                upper_hz = float(self.noise_upper_hz.get())
+                if not np.isfinite(distance_m) or distance_m < 0.0:
+                    raise ValueError("Atom-mirror distance L must be finite and non-negative.")
+                source_psd, input_kind = spectrum_to_psd(
+                    self.noise_values, self.noise_spectrum_type.get()
+                )
+                integration_frequency = make_noise_integration_grid(
+                    self.noise_frequency,
+                    lower_hz,
+                    upper_hz,
+                    parameters.free_time,
+                )
+                interpolated_psd = _interpolate_positive_spectrum(
+                    self.noise_frequency, source_psd, integration_frequency
+                )
+                if pulse_shape == "Square":
+                    integration_response = transfer_function(
+                        integration_frequency, parameters
+                    )
+                else:
+                    integration_response = gaussian_transfer_function(
+                        integration_frequency, parameters
+                    )
+                output_psd, cumulative_rms, sigma_phase = integrate_laser_noise(
+                    integration_frequency,
+                    interpolated_psd,
+                    integration_response,
+                    distance_m,
+                    input_kind,
+                )
+                noise_result = (
+                    source_psd,
+                    input_kind,
+                    integration_frequency,
+                    interpolated_psd,
+                    output_psd,
+                    cumulative_rms,
+                    sigma_phase,
+                    distance_m,
+                    lower_hz,
+                    upper_hz,
+                )
+            except ValueError as exc:
+                detail = str(exc)
+                if "Gaussian pulse width require more than 4096" in detail:
+                    detail = (
+                        "The noise integration upper frequency and Gaussian pulse "
+                        "width require more than 4096 quadrature nodes. Reduce "
+                        "Integration upper or use a narrower pulse."
+                    )
+                self.status_text.set(
+                    f"Noise CSV loaded: {Path(self.noise_file_path).name}\n"
+                    f"Noise calculation failed: {detail}"
+                )
+                messagebox.showerror("Noise calculation error", detail, parent=self.root)
+                return
+
         self.sensitivity_axes.clear()
         self.sensitivity_axes.plot(
             time * time_scale,
@@ -924,6 +1232,89 @@ class BraggTransferFunctionApp:
         self.transfer_axes.grid(True, which="both", alpha=0.25)
         self.transfer_axes.legend(loc="best")
 
+        self.input_noise_axes.clear()
+        self.output_noise_axes.clear()
+        self.cumulative_noise_axes.clear()
+        if noise_result is None:
+            for axis, title in (
+                (self.input_noise_axes, "Input Laser-Noise PSD"),
+                (self.output_noise_axes, "Atom-Phase Noise PSD"),
+                (self.cumulative_noise_axes, "Cumulative Atom-Phase RMS"),
+            ):
+                axis.set_title(title)
+                axis.text(
+                    0.5,
+                    0.5,
+                    "Load a CSV spectrum to calculate",
+                    ha="center",
+                    va="center",
+                    transform=axis.transAxes,
+                    color="#606060",
+                )
+                axis.set_axis_off()
+            noise_status = "Noise integration: no CSV loaded"
+        else:
+            (
+                source_psd,
+                input_kind,
+                integration_frequency,
+                interpolated_psd,
+                output_psd,
+                cumulative_rms,
+                sigma_phase,
+                distance_m,
+                lower_hz,
+                upper_hz,
+            ) = noise_result
+            self.input_noise_axes.set_axis_on()
+            self.output_noise_axes.set_axis_on()
+            self.cumulative_noise_axes.set_axis_on()
+            input_unit = "Hz^2/Hz" if input_kind == "frequency" else "rad^2/Hz"
+            input_label = "Frequency PSD" if input_kind == "frequency" else "Phase PSD"
+            positive_input = source_psd > 0.0
+            self.input_noise_axes.loglog(
+                self.noise_frequency[positive_input],
+                source_psd[positive_input],
+                color="#3b7a57",
+                linewidth=1.5,
+            )
+            self.input_noise_axes.axvspan(lower_hz, upper_hz, color="#90caf9", alpha=0.16)
+            self.input_noise_axes.set_title(f"Input Laser {input_label}")
+            self.input_noise_axes.set_xlabel("Frequency (Hz)")
+            self.input_noise_axes.set_ylabel(input_unit)
+            self.input_noise_axes.grid(True, which="both", alpha=0.25)
+
+            positive_output = output_psd > 0.0
+            self.output_noise_axes.loglog(
+                integration_frequency[positive_output],
+                output_psd[positive_output],
+                color="#7b3f98",
+                linewidth=1.3,
+            )
+            self.output_noise_axes.set_title("Atom-Phase Noise PSD")
+            self.output_noise_axes.set_xlabel("Frequency (Hz)")
+            self.output_noise_axes.set_ylabel("rad^2/Hz")
+            self.output_noise_axes.grid(True, which="both", alpha=0.25)
+
+            self.cumulative_noise_axes.semilogx(
+                integration_frequency,
+                cumulative_rms,
+                color="#1769aa",
+                linewidth=1.7,
+            )
+            self.cumulative_noise_axes.set_title("Cumulative Atom-Phase RMS")
+            self.cumulative_noise_axes.set_xlabel("Upper integration frequency (Hz)")
+            self.cumulative_noise_axes.set_ylabel("sigma_phi (rad)")
+            self.cumulative_noise_axes.grid(True, which="both", alpha=0.25)
+            noise_status = (
+                f"Atom-mirror L: {distance_m:.6g} m; delay: "
+                f"{2.0 * distance_m / SPEED_OF_LIGHT_M_PER_S * 1.0e6:.6g} us\n"
+                f"Noise band: {lower_hz:.6g} to {upper_hz:.6g} Hz "
+                f"({integration_frequency.size:,} integration points)\n"
+                f"Total phase noise sigma: {sigma_phase:.6g} rad "
+                f"({sigma_phase * 1.0e3:.6g} mrad)"
+            )
+
         self.canvas.draw_idle()
         self.status_text.set(
             f"Total plotted sequence: {total_time * 1.0e3:.6g} ms\n"
@@ -931,7 +1322,8 @@ class BraggTransferFunctionApp:
             f"Peak effective pi Rabi rate: {rate_pi / (2.0 * np.pi):.6g} Hz\n"
             f"{timing_description}\n"
             f"{integration_description}\n"
-            "DC check: H_phi(0) = 0"
+            "DC check: H_phi(0) = 0\n"
+            f"{noise_status}"
         )
 
     def save_figure(self) -> None:
@@ -1138,6 +1530,34 @@ def run_self_test() -> None:
         rtol=2.0e-8,
         atol=2.0e-8,
     )
+
+    test_asd = np.array([2.0, 3.0])
+    converted_psd, converted_kind = spectrum_to_psd(
+        test_asd, "Frequency ASD (Hz/sqrt(Hz))"
+    )
+    np.testing.assert_array_equal(converted_psd, [4.0, 9.0])
+    if converted_kind != "frequency":
+        raise AssertionError("Frequency ASD was assigned the wrong noise kind.")
+    ssb_psd, ssb_kind = spectrum_to_psd(
+        np.array([-100.0]), "SSB phase noise (dBc/Hz)"
+    )
+    np.testing.assert_allclose(ssb_psd, [2.0e-10], rtol=1.0e-14)
+    if ssb_kind != "phase":
+        raise AssertionError("SSB phase noise was assigned the wrong noise kind.")
+
+    noise_frequency = np.array([1.0, 2.0, 3.0])
+    unit_phase_response = np.ones(3, dtype=complex)
+    distance_for_pi_at_one_hz = SPEED_OF_LIGHT_M_PER_S / 4.0
+    output_psd, cumulative_rms, total_rms = integrate_laser_noise(
+        noise_frequency,
+        np.ones(3),
+        unit_phase_response,
+        distance_for_pi_at_one_hz,
+        "phase",
+    )
+    np.testing.assert_allclose(output_psd, [4.0, 0.0, 4.0], atol=2.0e-29)
+    np.testing.assert_allclose(cumulative_rms, [0.0, np.sqrt(2.0), 2.0])
+    np.testing.assert_allclose(total_rms, 2.0)
 
     print("All self-tests passed.")
 

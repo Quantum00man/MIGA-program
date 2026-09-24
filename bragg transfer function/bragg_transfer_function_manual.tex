@@ -391,6 +391,30 @@ For amplitude spectral density (ASD), the corresponding relation is
 \end{equation}
 Thus ASD is multiplied by $|\Hphi|$, whereas PSD is multiplied by $|\Hphi|^2$. The present UI plots the former quantity. The complex transfer phase is calculated internally but is not displayed because its value depends on the chosen time origin; the magnitude is invariant under a global time translation.
 
+\subsection{Imported source-laser noise and integrated phase RMS}
+
+The UI can import a one-sided source-laser noise spectrum from a two-column CSV or text file. The first column is positive Fourier frequency in hertz and the second column is selected as frequency PSD, frequency ASD, phase PSD, phase ASD, or single-sideband phase noise in $\mathrm{dBc/Hz}$. ASD inputs are squared. The implemented single-sideband convention is
+\begin{equation}
+ S_\varphi(f)=2\,10^{\mathcal L(f)/10}\quad\si{\radian\squared\per\hertz}.
+\end{equation}
+
+For a single-frequency retroreflected geometry, let $L$ be the one-way distance from the atomic-cloud centre to the retroreflection surface. The round-trip delay and source-phase differencer are
+\begin{equation}
+ \tau_d=\frac{2L}{c},\qquad D_d(f)=1-e^{-\ii2\pi f\tau_d}.
+\end{equation}
+The total responses for source phase and source frequency noise are
+\begin{equation}
+ H_{\mathrm{src},\varphi}(f)=\Hphi(f)D_d(f),\qquad
+ H_{\mathrm{src},\nu}(f)=\frac{\Hphi(f)D_d(f)}{\ii f}.
+\end{equation}
+The factor $2\pi$ cancels in the frequency-noise expression because
+$\dot\varphi=2\pi\delta\nu$. Over user-selected limits, the reported atom-phase noise is
+\begin{equation}
+ \boxed{\sigma_\Phi=\left[\int_{f_{\mathrm{low}}}^{f_{\mathrm{high}}}
+ |H_x(f)|^2S_x(f)\dd f\right]^{1/2}.}
+\end{equation}
+It is a continuous-noise result for one interferometer phase measurement; cycle-time sampling, dead time and Dick aliasing are not included.
+
 \subsection{Sinusoidal frequency modulation}
 
 For a deterministic laser-frequency modulation
@@ -470,6 +494,12 @@ The minimum frequency must be strictly positive because the plot uses a logarith
 
 The point count controls only the requested frequency grid. It does not change the internal Gauss--Legendre order used inside Gaussian pulses. More points therefore improve displayed frequency resolution without changing the pulse-integration method.
 
+\subsection{Laser-noise controls}
+
+\texttt{Load CSV} accepts comma-, semicolon- or whitespace-separated data, permits an ordinary header and comment lines beginning with \texttt{\#}, and sorts the frequency column. Duplicate frequencies, non-positive frequencies, non-finite entries and negative linear PSD or ASD values are rejected. The two integration limits must lie inside the imported frequency range. When either limit is empty, non-numeric or outside a newly loaded file, it is initialized from the corresponding CSV boundary; a valid manually entered limit is preserved when the file is loaded or reloaded. All imported spectra are interpreted as noise of the source laser, so the retroreflection delay filter is always applied.
+
+Positive spectra are interpolated in log--log coordinates. The integration grid retains the CSV frequency knots and is automatically refined to a maximum spacing of approximately $1/(10T)$ in order to resolve the interferometer fringes. A safeguard limits this refined grid to 500,000 points; a calculation exceeding the limit must use a narrower integration band or shorter interrogation time. The three noise panels display the converted input PSD, atom-phase output PSD and cumulative RMS. The status area reports $L$, $\tau_d$, the actual integration band, grid size and total $\sigma_\Phi$ in radians and milliradians.
+
 \subsection{Displayed status information}
 
 The status block reports the plotted sequence duration, peak effective Rabi rates, the active definition of $T$, the analytic or numerical integration branch, and the DC identity. In Gaussian mode the sequence duration includes the $\pm6\sigma$ numerical windows. It is a plotting and integration extent, not a statement that a physical Gaussian field becomes exactly zero at those times.
@@ -530,6 +560,8 @@ Exact DC response & Enforces $\Hphi(0)=0$ for a closed interferometer sequence. 
 Sensitivity boundaries & Confirms $0\rightarrow+1\rightarrow-1\rightarrow0$ at all pulse boundaries. \\
 Square analytic/numerical comparison & Compares the stable analytic expression with a high-resolution trapezoidal reference. \\
 Rabi-frequency regularity & Confirms finite values at removable singularities $\omega=\pm\Omega$. \\
+Noise-unit conversion & Checks ASD squaring and the factor-of-two SSB phase-noise convention. \\
+Delay-filter integration & Checks the retroreflection zeros and integrated cumulative variance. \\
 Pulse-area changes & Confirms Gaussian derivative integrals $+1,-2,+1$. \\
 Bragg-order scaling & Confirms linear scaling of complex $\Hphi$ with $n$. \\
 Instantaneous limit & Confirms convergence toward $4n\sin^2(\omega T/2)$ as pulse widths vanish. \\
