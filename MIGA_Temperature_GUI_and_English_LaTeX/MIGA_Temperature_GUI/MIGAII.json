@@ -1,0 +1,43 @@
+{
+  "geometry": {
+    "beam_waist_mm": 12.0,
+    "flight_time_ms": 430.5,
+    "pulse_separation_ms": 10.0,
+    "initial_rms_mm": 0.25,
+    "quadrature_order": 10,
+    "include_vertical_ballistic_shift": false,
+    "derivative_step_uK": 0.01,
+    "integration_mode": "Radial (fast, centered)",
+    "radial_order": 80
+  },
+  "sources": {
+    "MIGA22": {
+      "name": "MIGA22",
+      "temperature_uK": 2.599,
+      "temperature_allan_uK": 0.151,
+      "splitter_efficiency": 0.2,
+      "mirror_efficiency": 0.4,
+      "measured_B": 0.2905,
+      "measured_A": 0.175,
+      "splitter_branch": "First crossing (minimum positive pulse area)",
+      "mirror_branch": "First crossing (minimum positive pulse area)",
+      "center_offset_x_mm": 0.0,
+      "center_offset_y_mm": 0.0,
+      "detection_rms_mm": 0.0
+    },
+    "MIGA21": {
+      "name": "MIGA21",
+      "temperature_uK": 1.869,
+      "temperature_allan_uK": 0.109,
+      "splitter_efficiency": 0.25,
+      "mirror_efficiency": 0.5,
+      "measured_B": 0.4165,
+      "measured_A": 0.21,
+      "splitter_branch": "Pulse area > pi/2 (first available root)",
+      "mirror_branch": "First crossing (minimum positive pulse area)",
+      "center_offset_x_mm": 0.0,
+      "center_offset_y_mm": 0.0,
+      "detection_rms_mm": 0.0
+    }
+  }
+}
