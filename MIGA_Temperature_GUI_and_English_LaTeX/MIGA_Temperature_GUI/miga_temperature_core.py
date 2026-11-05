@@ -368,6 +368,205 @@ def default_sources() -> Tuple[Source, Source]:
     )
 
 
+
+@dataclass
+class LaunchSettings:
+    """Launch scenario, SI geometry; 0 middle_pulse_ms uses each nominal apex."""
+    gravity_m_s2: float = 9.81
+    detection_height_m: float = 0.275
+    middle_pulse_ms: float = 0.0
+    velocity_step_mm_s: float = 0.02
+    quadrature_order: int = 48
+    comparison_order: int = 64
+    wavefront_enabled: bool = False
+    wavelength_nm: float = 780.0
+    fringe_slope_sign: int = 1
+
+
+@dataclass
+class LaunchSource:
+    detection_time_s: float
+    detection_allan_us: float
+    vertical_offset_mm: float = 0.0
+    wavefront_radius_m: float = 200.0  # signed effective two-photon radius; 0 = plane wave
+
+
+def launch_kinematics(cfg: LaunchSettings, inp: LaunchSource, separation_ms: float):
+    g, td, zd = cfg.gravity_m_s2, inp.detection_time_s, cfg.detection_height_m
+    if not all(math.isfinite(x) for x in (g, td, zd, inp.detection_allan_us, separation_ms, cfg.middle_pulse_ms)) or g <= 0 or td <= 0 or inp.detection_allan_us < 0 or separation_ms <= 0:
+        raise ValueError('Gravity, detection time and pulse separation must be positive; arrival-time Allan must be nonnegative.')
+    v = zd/td + g*td/2
+    apex = v/g
+    if v <= 0 or td <= apex:
+        raise ValueError('The specified detection time must be on the descending trajectory.')
+    dvdt = g/2-zd/td**2
+    sigma_v = abs(dvdt)*inp.detection_allan_us*1e-6
+    t2 = apex if cfg.middle_pulse_ms == 0 else cfg.middle_pulse_ms*1e-3
+    ts = np.array([t2-separation_ms*1e-3, t2, t2+separation_ms*1e-3])
+    if ts[0] <= 0:
+        raise ValueError('All Bragg pulse times must be after launch.')
+    return {'velocity_m_s':v, 'velocity_allan_m_s':sigma_v,
+            'dv_dt_m_s2':dvdt, 'apex_time_s':apex, 'apex_height_m':v*v/(2*g),
+            'apex_height_allan_m':apex*sigma_v,
+            'pulse_times_s':ts.tolist(), 'pulse_position_allan_m':(ts*sigma_v).tolist()}
+
+
+def _launch_cloud(geo, src, cfg, inp, kin, velocity_delta_m_s=0.0, offset_delta_mm=0.0, order=None):
+    """4D joint Gaussian integrated via middle-position/thermal-velocity coordinates.
+
+    The acceptance is fixed in laboratory coordinates at the nominal middle
+    cloud center, independent of beam offset and held fixed under perturbation.
+    """
+    n = cfg.quadrature_order if order is None else order
+    z, w = _normal_quad(n)
+    # The residual thermal velocity is narrow near the middle pulse; use a
+    # separate quadrature order while retaining the exact covariance.
+    zv, wv = _normal_quad(min(10, max(4, (n+7)//8)))
+    p, q, yp, yq = np.meshgrid(z,zv,z,zv,indexing='ij')
+    wp,wq,wy,wyq = np.meshgrid(w,wv,w,wv,indexing='ij')
+    weights=(wp*wq*wy*wyq).ravel()
+    t2=kin['pulse_times_s'][1]
+    sv=math.sqrt(KB*src.temperature_uK*1e-6/M_RB87)
+    s0=geo.initial_rms_mm*1e-3
+    sm=math.sqrt(s0*s0+(sv*t2)**2)
+    cov=sv*sv*t2
+    residual=math.sqrt(max(0.0,sv*sv-cov*cov/(sm*sm)))
+    xc=(sm*p).ravel(); yc=(sm*yp).ravel()
+    vx=(cov/sm*p+residual*q).ravel(); vy=(cov/sm*yp+residual*yq).ravel()
+    if src.detection_rms_mm > 0:
+        scale=src.detection_rms_mm*1e-3
+        weights=weights*np.exp(-((xc+t2*velocity_delta_m_s)**2+yc*yc)/(2*scale*scale))
+    norm=weights.sum()
+    if not np.isfinite(norm) or norm <= 0: raise ValueError('Detection acceptance gives zero integration weight.')
+    weights=weights/norm
+    v=kin['velocity_m_s']; g=cfg.gravity_m_s2
+    z2=v*t2-g*t2*t2/2
+    beam_z=z2-inp.vertical_offset_mm*1e-3-offset_delta_mm*1e-3
+    beam_y=src.center_offset_y_mm*1e-3
+    factors=[]
+    for t in kin['pulse_times_s']:
+        zmean=(v+velocity_delta_m_s)*t-g*t*t/2
+        xx=xc+vx*(t-t2)+zmean-beam_z
+        yy=yc+vy*(t-t2)-beam_y
+        factors.append(np.exp(-2*(xx*xx+yy*yy)/(geo.beam_waist_mm*1e-3)**2))
+    return np.array(factors), weights
+
+
+def _launch_evaluate(factors, weights, theta_s, theta_m):
+    a=np.sin(theta_s*factors[0]/2)**2
+    b=np.sin(theta_m*factors[1]/2)**2
+    c=np.sin(theta_s*factors[2]/2)**2
+    avg=lambda x: float(np.sum(weights*x))
+    return {'B':avg(b+(a+c-2*a*c)*(1-2*b)),
+            'A':avg(2*b*np.sqrt(np.clip(a*(1-a)*c*(1-c),0,None))),
+            'p1':avg(a),'p2':avg(b),'p3':avg(c)}
+
+
+def _launch_calibrate(f, w, src):
+    # Locate all branches up to 8π, as in the existing pulse-area model.
+    def roots(kind,target):
+        def fun(t):
+            if kind=='splitter':
+                return float(np.sum(w*(np.sin(t*f[0]/2)**2+np.sin(t*f[2]/2)**2)*0.5))-target
+            return float(np.sum(w*np.sin(t*f[1]/2)**2))-target
+        grid=np.linspace(1e-9,8*math.pi,401)
+        values=[fun(t) for t in grid]
+        return [float(brentq(fun,a,b,xtol=1e-11)) for a,b,fa,fb in zip(grid[:-1],grid[1:],values[:-1],values[1:]) if fa*fb<0]
+    split=_select_root(roots('splitter',src.splitter_efficiency),src.splitter_branch,'splitter',src.splitter_efficiency)
+    mirror=_select_root(roots('mirror',src.mirror_efficiency),src.mirror_branch,'mirror',src.mirror_efficiency)
+    return split,mirror
+
+
+def launch_wavefront_sensitivity(cfg, inp, kin):
+    """Center-trajectory effective quadratic wavefront response, rad/(m/s).
+
+    This is a separate point-cloud approximation, not ensemble-weighted fringe
+    phase; its coherent combination with baseline is conditional on that model.
+    """
+    if not cfg.wavefront_enabled or inp.wavefront_radius_m == 0: return 0.0
+    ts=np.array(kin['pulse_times_s']); v=kin['velocity_m_s']; g=cfg.gravity_m_s2
+    z=v*ts-g*ts**2/2
+    zc=z[1]-inp.vertical_offset_mm*1e-3
+    k=4*math.pi/(cfg.wavelength_nm*1e-9)
+    return float(k/inp.wavefront_radius_m*np.dot([1,-2,1],(z-zc)*ts))
+
+
+def analyze_launch_source(geo, src, cfg, inp, build_scan=True):
+    from dataclasses import replace
+    # Reuse existing model input checks; launch uses a dedicated 4D integrator.
+    _validate(replace(geo,integration_mode='4D trajectory (slower)'),src)
+    vals=(cfg.velocity_step_mm_s,cfg.wavelength_nm,inp.vertical_offset_mm,inp.wavefront_radius_m)
+    if not all(math.isfinite(x) for x in vals) or cfg.velocity_step_mm_s <= 0 or cfg.wavelength_nm <= 0:
+        raise ValueError('Velocity step and wavelength must be finite and positive; offsets and radii must be finite.')
+    if cfg.fringe_slope_sign not in (-1,1) or not (8<=cfg.quadrature_order<=80 and 8<=cfg.comparison_order<=80) or cfg.comparison_order==cfg.quadrature_order:
+        raise ValueError('Use distinct launch quadrature orders between 8 and 80, and fringe slope sign +1 or -1.')
+    kin=launch_kinematics(cfg,inp,geo.pulse_separation_ms)
+    h=cfg.velocity_step_mm_s*1e-3
+    def compute(order):
+        f,w=_launch_cloud(geo,src,cfg,inp,kin,order=order)
+        ths,thm=_launch_calibrate(f,w,src)
+        nominal=_launch_evaluate(f,w,ths,thm)
+        def at(dv=0.0, dd=0.0):
+            a,b=_launch_cloud(geo,src,cfg,inp,kin,velocity_delta_m_s=dv,offset_delta_mm=dd,order=order)
+            return _launch_evaluate(a,b,ths,thm)
+        def derivative(step, dd=0):return (at(step,dd)['B']-at(-step,dd)['B'])/(2*step)
+        return ths,thm,nominal,derivative(h),derivative(h/2),at,derivative
+    ths,thm,nom,kb,khalf,at,derivative=compute(cfg.quadrature_order)
+    _,_,nom_hi,khi,_,_,_=compute(cfg.comparison_order)
+    sv=kin['velocity_allan_m_s']; kbase=-cfg.fringe_slope_sign*kb/src.measured_A
+    kwf=launch_wavefront_sensitivity(cfg,inp,kin); ktot=kbase+kwf
+    warn=[]
+    if abs(nom['B']-src.measured_B)>0.025 or abs(nom['A']-src.measured_A)>0.025:
+        warn.append('Model B/A differs from measured values; result is a conditional scenario.')
+    if src.measured_A > src.mirror_efficiency/2+1e-8:
+        warn.append('Measured A exceeds mirror efficiency / 2: simple closed-path bound may be violated for the same ensemble.')
+    if abs(kb-khalf)>max(abs(khalf)*0.01, 0.01):warn.append('Velocity finite-difference h versus h/2 did not converge to 1%.')
+    if abs(kb-khi)>max(abs(khi)*0.05,0.001) or abs(nom['B']-nom_hi['B'])>0.001 or abs(nom['A']-nom_hi['A'])>0.001:
+        warn.append('Quadrature orders disagree; increase both orders and check convergence.')
+    if sv > 0:
+        bp=at(sv)['B']; bm=at(-sv)['B']
+        even_response=abs((bp+bm)/2-nom['B'])
+        linear_response=abs(kb*sv)
+        if even_response > max(0.1*linear_response,1e-9):
+            warn.append('Baseline response is nonlinear across one velocity Allan; first-order propagation may miss noise.')
+    out={'input':asdict(inp),'kinematics':kin,'calibration':{'splitter_area_pi':ths/math.pi,'mirror_area_pi':thm/math.pi},
+         'nominal':nom,'model_mismatch':{'B':nom['B']-src.measured_B,'A':nom['A']-src.measured_A},
+         'sensitivity':{'K_B_per_m_s':kb,'K_B_per_mm_s':kb/1000,'K_B_per_mm':kb/kin['pulse_times_s'][1]/1000,
+                        'K_B_halfstep_per_m_s':khalf,'K_B_comparison_order_per_m_s':khi,
+                        'baseline_rad_per_m_s':kbase,'wavefront_rad_per_m_s':kwf,'total_rad_per_m_s':ktot},
+         'allan':{'baseline_population':abs(kb)*sv,'baseline_mrad':1000*abs(kbase)*sv,
+                  'wavefront_mrad':1000*abs(kwf)*sv,'total_mrad':1000*abs(ktot)*sv},'warnings':warn}
+    if build_scan:
+        dvs=np.linspace(-max(3*sv,3*h),max(3*sv,3*h),31)
+        off=np.array([-5.,-2.,0.,2.,5.])
+        # Offsets are absolute relative to beam center. Pulse areas stay fixed at the user's nominal offset.
+        ob=[derivative(h,float(d-inp.vertical_offset_mm)) for d in off]
+        rs=[100.,200.,500.,1000.,0.]
+        # 0 denotes the plane-wave limit; these are scenario curves, not measurements.
+        wf=[launch_wavefront_sensitivity(replace(cfg,wavefront_enabled=True),replace(inp,wavefront_radius_m=r),kin) for r in rs]
+        out['scan']={'velocity_delta_mm_s':(dvs*1000).tolist(),'velocity_B':[at(float(d))['B'] for d in dvs],
+                     'offset_mm':off.tolist(),'offset_K_B_per_mm':[float(k/kin['pulse_times_s'][1]/1000) for k in ob],
+                     'offset_baseline_mrad':[float(1000*abs(k/src.measured_A)*sv) for k in ob],
+                     'radius_m':rs,'radius_wavefront_mrad':[float(1000*abs(k)*sv) for k in wf],
+                     'radius_total_mrad':[float(1000*abs(kbase+k)*sv) for k in wf]}
+    return out
+
+
+def analyze_launch_pair(geo, s22, s21, cfg, input22, input21, build_scan=True):
+    if s22.name==s21.name: raise ValueError('Source names must be different.')
+    r22=analyze_launch_source(geo,s22,cfg,input22,build_scan)
+    r21=analyze_launch_source(geo,s21,cfg,input21,build_scan)
+    diff={key: math.hypot(r22['allan'][key],r21['allan'][key]) for key in ('baseline_mrad','wavefront_mrad','total_mrad')}
+    diff['middle_position_mm']=1000*math.hypot(r22['kinematics']['pulse_position_allan_m'][1],r21['kinematics']['pulse_position_allan_m'][1])
+    return {'model':'Conditional resonant two-state; 4D Gaussian trajectories; quadratic center-trajectory effective wavefront',
+            'geometry':asdict(geo),'settings':asdict(cfg),'sources':{s22.name:r22,s21.name:r21},'differential':diff,
+            'assumptions':['Detection timing is attributed solely to launch velocity; launch height and detector jitter are neglected.',
+               'Sources are independent at the same Allan averaging time; within one source all three pulse displacements are correlated.',
+               'Pulse areas and laboratory pulse times are fixed during velocity and offset scans.',
+               'Quadratic wavefront is a separate center-trajectory approximation; its radius is an effective assumed two-photon parameter, not measured.',
+               'The signed baseline sensitivity uses delta_phi = -delta_B/(fringe_slope_sign*A_measured).',
+               'No multiport diffraction phase, axial Doppler, wavefront aberrations, or temperature/launch covariance.']}
+
 if __name__=='__main__':
     geo=Geometry()
     s22,s21=default_sources()

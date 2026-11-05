@@ -24,6 +24,33 @@ TEXT = {
 'Run calculation to see physics assumptions and warnings.': ('运行计算以查看物理假设和警告。','Run calculation to see physics assumptions and warnings.'),
 '输入无效 / Invalid input': ('输入无效','Invalid input'), '计算错误 / Calculation error': ('计算错误','Calculation error'), '保存失败': ('保存失败','Save failed'), '打开失败': ('打开失败','Open failed'), '导出失败': ('导出失败','Export failed'), '提示': ('提示','Information'), '请先运行 Calculate': ('请先运行计算','Please run Calculate first'), '保存 GUI 输入配置': ('保存 GUI 输入配置','Save GUI configuration'), '保存数值分析结果': ('保存数值分析结果','Save numerical results'), '保存温度扫描数据': ('保存温度扫描数据','Save temperature scan'), '保存温度响应曲线': ('保存温度响应曲线','Save temperature response plot'), 'All files': ('所有文件','All files'),
 }
+TEXT.update({
+'发射噪声 / Launch noise':('发射噪声','Launch noise'), '发射模型设置 / Launch settings':('发射模型设置','Launch settings'), '逐源输入 / Source inputs':('逐源输入','Source inputs'),
+'检测高度 (m)':('检测高度 (m)','Detection height (m)'), '重力 g (m/s²)':('重力 g (m/s²)','Gravity g (m/s²)'), '中间脉冲时间 (ms；0=各源顶点)':('中间脉冲时间 (ms；0=各源顶点)','Middle pulse (ms; 0=source apex)'), '速度微分步长 (mm/s)':('速度微分步长 (mm/s)','Velocity difference step (mm/s)'), '位置积分阶数':('位置积分阶数','Position quadrature order'), '对照积分阶数':('对照积分阶数','Comparison order'), '波长 (nm)':('波长 (nm)','Wavelength (nm)'), '条纹斜率符号 (+1 / -1)':('条纹斜率符号 (+1 / -1)','Fringe slope sign (+1 / -1)'), '启用二次波前（情景假设）':('启用二次波前（情景假设）','Enable quadratic wavefront (assumed)'),
+'原子源 / Source':('原子源','Source'), '到达时间 (s)':('到达时间 (s)','Arrival time (s)'), '到达 Allan (µs)':('到达 Allan (µs)','Arrival Allan (µs)'), '静态竖直偏移 (mm)':('静态竖直偏移 (mm)','Vertical offset (mm)'), '有效曲率 R (m；0=平面波)':('有效曲率 R (m；0=平面波)','Effective R (m; 0=plane)'),
+'计算发射噪声':('计算发射噪声','Calculate launch noise'), '导出发射 JSON':('导出发射 JSON','Export launch JSON'), '导出发射 CSV':('导出发射 CSV','Export launch CSV'), '导出发射 PNG':('导出发射 PNG','Export launch PNG'), '复用左侧束腰、温度、效率、Rabi 分支及 A/B；发射竖直偏移仅使用上表。':('复用左侧束腰、温度、效率、Rabi 分支及 A/B；发射竖直偏移仅使用上表。','Uses left-hand waist, T, efficiencies, Rabi branches and A/B; vertical offset uses the inputs above.'),
+'条件性估计；波前 200 m 为示例，并非实测。':('条件性估计；波前 200 m 为示例，并非实测。','Conditional estimate; wavefront R=200 m is an example, not a measurement.'), '差分 Allan：基线 / 波前 / 总响应':('差分 Allan：基线 / 波前 / 总响应','Differential Allan: baseline / wavefront / total'), '条件性估计':('条件性估计','Conditional estimate'),
+'发射速度 (m/s)':('发射速度 (m/s)','Launch velocity (m/s)'), '速度 Allan (mm/s)':('速度 Allan (mm/s)','Velocity Allan (mm/s)'), '最高点时间 (ms)':('最高点时间 (ms)','Apex time (ms)'), '最高点高度 (m)':('最高点高度 (m)','Apex height (m)'), '最高点位置 Allan (mm)':('最高点位置 Allan (mm)','Apex position Allan (mm)'), '脉冲 1 位置 Allan (mm)':('脉冲 1 位置 Allan (mm)','Pulse 1 position Allan (mm)'), '脉冲 2 位置 Allan (mm)':('脉冲 2 位置 Allan (mm)','Pulse 2 position Allan (mm)'), '脉冲 3 位置 Allan (mm)':('脉冲 3 位置 Allan (mm)','Pulse 3 position Allan (mm)'), '模型 B / 实测差值':('模型 B','Model B'), '模型 B - 实测 B':('模型 B - 实测 B','Model B - measured B'), '模型 A':('模型 A','Model A'), '模型 A - 实测 A':('模型 A - 实测 A','Model A - measured A'), '分束面积 θs / π':('分束面积 θs / π','Splitter area θs / π'), '镜面面积 θm / π':('镜面面积 θm / π','Mirror area θm / π'), 'dB/dv (每 mm/s)':('dB/dv (每 mm/s)','dB/dv (per mm/s)'), 'dB/dz₂ (每 mm)':('dB/dz₂ (每 mm)','dB/dz₂ (per mm)'), '基线布居 Allan':('基线布居 Allan','Baseline population Allan'), '基线相位 Allan (mrad)':('基线相位 Allan (mrad)','Baseline phase Allan (mrad)'), '波前相位 Allan (mrad)':('波前相位 Allan (mrad)','Wavefront phase Allan (mrad)'), '总相位 Allan (mrad)':('总相位 Allan (mrad)','Total phase Allan (mrad)'), '基线 K (rad / (m/s))':('基线 K (rad / (m/s))','Baseline K (rad / (m/s))'), '波前 K (rad / (m/s))':('波前 K (rad / (m/s))','Wavefront K (rad / (m/s))'), '总 K (rad / (m/s))':('总 K (rad / (m/s))','Total K (rad / (m/s))'), '对照积分 dB/dv (每 mm/s)':('对照积分 dB/dv (每 mm/s)','Comparison dB/dv (per mm/s)'), '无数值告警':('无数值告警','No numerical warnings'),
+'速度扰动 (mm/s)':('速度扰动 (mm/s)','Velocity perturbation (mm/s)'), '固定脉冲面积：B(v)':('固定脉冲面积：B(v)','B(v), fixed pulse areas'), '基线 Allan (mrad)':('基线 Allan (mrad)','Baseline Allan (mrad)'), '固定光场：偏移扫描':('固定光场：偏移扫描','Offset scan, fixed optics'), '请先计算发射噪声':('请先计算发射噪声','Calculate launch noise first'), '保存发射噪声结果':('保存发射噪声结果','Save launch results'), '保存发射扫描数据':('保存发射扫描数据','Save launch scans'), '保存发射噪声曲线':('保存发射噪声曲线','Save launch plots'),
+'Model B/A differs from measured values; result is a conditional scenario.':('模型 B/A 与实测值不符；结果为条件性估计。','Model B/A differs from measured values; result is a conditional scenario.'), 'Measured A exceeds mirror efficiency / 2: simple closed-path bound may be violated for the same ensemble.':('实测 A 超过镜面效率 / 2：同一原子系综可能违反简单闭合路径上限。','Measured A exceeds mirror efficiency / 2: simple closed-path bound may be violated for the same ensemble.'), 'Velocity finite-difference h versus h/2 did not converge to 1%.':('速度微分 h 与 h/2 未收敛至 1%。','Velocity finite-difference h versus h/2 did not converge to 1%.'), 'Quadrature orders disagree; increase both orders and check convergence.':('两档积分阶数结果不一致；请提高阶数并检查收敛。','Quadrature orders disagree; increase both orders and check convergence.'),
+})
+
+TEXT.update({
+'检测时间只归因于速度；波前采用云心二次曲率，非整团真实衍射相位。':('检测时间只归因于速度；波前采用云心二次曲率，非整团真实衍射相位。','Arrival jitter is attributed to velocity; wavefront uses a center-trajectory quadratic approximation.'),
+'两源差分（同偏移）':('差分（同偏移）','Difference (same offset)'), '两源差分（同曲率）':('差分（同曲率）','Difference (same R)'), '假设有效 R (m)':('假设有效 R (m)','Assumed effective R (m)'), '波前 Allan (mrad)':('波前 Allan (mrad)','Wavefront Allan (mrad)'), '曲率情景扫描':('曲率情景扫描','Wavefront scenarios'),
+})
+
+TEXT['Baseline response is nonlinear across one velocity Allan; first-order propagation may miss noise.'] = ('一个速度 Allan 范围内基线响应非线性；一阶传播可能漏计噪声。','Baseline response is nonlinear across one velocity Allan; first-order propagation may miss noise.')
+
+TEXT.update({'MIGA 发射速度与位置噪声':('MIGA 发射速度与位置噪声','MIGA Launch Velocity and Position Noise'), '已加载配置；点击发射计算更新结果':('已加载配置；点击发射计算更新结果','Configuration loaded; calculate launch noise to update results')})
+
+TEXT.update({
+'未启用':('未启用','Disabled'),
+'波前开关已更改；请重新计算':('波前开关已更改；请重新计算','Wavefront setting changed; recalculate'),
+'曲率图始终为假设启用波前的扫描；更改开关后须重新计算表格。':('曲率图始终为假设启用波前的扫描；更改开关后须重新计算表格。','The curvature plot always assumes wavefront enabled; recalculate after changing the checkbox.'),
+'假设启用波前：曲率扫描':('假设启用波前：曲率扫描','Wavefront scenario: curvature scan'),
+})
+
 OPTIONS = {
 'Radial (fast, centered)': '径向积分（快速，居中）', '4D trajectory (slower)': '4D 轨迹（较慢）',
 BRANCHES[0]: '首次交点（最小正脉冲面积）', BRANCHES[1]: '脉冲面积 > π/2（首个可用解）', BRANCHES[2]: '下降段：π < 面积 < 2π', BRANCHES[3]: '第二上升段：2π < 面积 < 3π', BRANCHES[4]: '3π 与 4π 之间',

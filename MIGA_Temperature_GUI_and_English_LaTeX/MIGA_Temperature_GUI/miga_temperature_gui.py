@@ -57,6 +57,7 @@ class MIGAApp(tk.Tk):
         self._status_key = '准备就绪 / Ready'
         self._task_queue = queue.Queue()
         self._last_result = None
+        self._launch_config_passthrough = None
         self._is_running = False
         self.geom_vars = {}
         self.src_vars = {}
@@ -486,15 +487,19 @@ class MIGAApp(tk.Tk):
             geo,src=self._get_config()
             f=self._save_as('.json','保存 GUI 输入配置')
             if f:
-                Path(f).write_text(json.dumps({'geometry':asdict(geo),
-                    'sources':{s.name:asdict(s) for s in src}},ensure_ascii=False,indent=2),encoding='utf-8')
+                data={'geometry':asdict(geo),'sources':{s.name:asdict(s) for s in src}}
+                if self._launch_config_passthrough is not None:
+                    data['launch']=self._launch_config_passthrough
+                Path(f).write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
         except Exception as e:messagebox.showerror(self.tr('保存失败'),str(e))
 
     def load_config(self):
         path=filedialog.askopenfilename(title=self.tr('读取配置'),filetypes=[('JSON','*.json')])
         if not path:return
         try:
-            self._apply_config(json.loads(Path(path).read_text(encoding='utf-8')))
+            data=json.loads(Path(path).read_text(encoding='utf-8'))
+            self._apply_config(data)
+            self._launch_config_passthrough=data.get('launch')
             self._set_status('已加载配置；点击 Calculate 更新结果')
             self._refresh_options()
         except Exception as e:messagebox.showerror(self.tr('打开失败'),str(e))
